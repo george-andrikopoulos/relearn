@@ -49,8 +49,8 @@ enum Command {
         #[arg(long, default_value = ".")]
         out: PathBuf,
         /// Comma-separated targets to emit; an unknown target is rejected here,
-        /// before any file is written.
-        #[arg(long, value_delimiter = ',', default_value = "claude")]
+        /// before any file is written. Defaults to every implemented target.
+        #[arg(long, value_delimiter = ',', default_value = "claude,cursor")]
         targets: Vec<Target>,
     },
     /// List rules, optionally filtered by home layer (its slug).
@@ -72,6 +72,8 @@ enum Command {
 enum Target {
     /// Claude skills, one per home layer (`skills/<home>/SKILL.md`).
     Claude,
+    /// Cursor rules, one per rule (`.cursor/rules/<tag-body>.mdc`).
+    Cursor,
 }
 
 /// Anything the CLI can fail with. Each variant is transparent over the typed
@@ -133,6 +135,7 @@ fn build(rules: &Path, out: &Path, targets: &[Target]) -> Result<(), CliError> {
     for target in unique {
         match target {
             Target::Claude => files.extend(emit::claude::emit(&validated)),
+            Target::Cursor => files.extend(emit::cursor::emit(&validated)),
         }
     }
 
@@ -217,6 +220,31 @@ mod tests {
             "carries the guard header"
         );
         assert!(out.path().join("skills/global/SKILL.md").exists());
+    }
+
+    #[test]
+    fn build_with_cursor_target_writes_mdc_rules() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let out = tempfile::tempdir().expect("out tempdir");
+        write_rule(
+            rules.path(),
+            "r.md",
+            &rule_doc(
+                "R:parse-wide",
+                "{ kind = \"domain\", name = \"rust\" }",
+                "Parse wide",
+            ),
+        );
+
+        build(rules.path(), out.path(), &[Target::Cursor]).expect("build succeeds");
+
+        let mdc = std::fs::read_to_string(out.path().join(".cursor/rules/parse-wide.mdc"))
+            .expect("the cursor rule was written");
+        assert!(mdc.contains("globs: **/*.rs"));
+        assert!(
+            mdc.contains("<!-- relearn:generated"),
+            "carries the guard header"
+        );
     }
 
     #[test]

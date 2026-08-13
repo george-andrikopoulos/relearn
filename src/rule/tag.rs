@@ -59,6 +59,17 @@ impl RuleTag {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// The tag body: everything after the `R:` prefix, e.g.
+    /// `parse-wide-then-range-check`. Guaranteed non-empty and `[a-z0-9][a-z0-9-]*`
+    /// by construction, so it is a safe filesystem stem (unlike the full tag,
+    /// whose `:` is not a valid filename character on every platform).
+    #[must_use]
+    pub fn body(&self) -> &str {
+        // The `R:` prefix is an invariant of every `RuleTag`, so this slice is
+        // always in bounds — `parse` is the only constructor and it enforces it.
+        &self.0["R:".len()..]
+    }
 }
 
 impl fmt::Display for RuleTag {
@@ -76,6 +87,13 @@ mod tests {
     fn accepts_a_known_tag() {
         let t = RuleTag::parse("R:parse-wide-then-range-check").expect("known tag parses");
         assert_eq!(t.as_str(), "R:parse-wide-then-range-check");
+    }
+
+    #[test]
+    fn body_drops_the_prefix_and_is_a_safe_stem() {
+        let t = RuleTag::parse("R:parse-wide-then-range-check").expect("known tag parses");
+        assert_eq!(t.body(), "parse-wide-then-range-check");
+        assert!(!t.body().contains(':'), "body is a valid filename stem");
     }
 
     #[test]

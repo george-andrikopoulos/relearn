@@ -137,6 +137,92 @@ fn slugify(s: &str) -> String {
     out
 }
 
+/// Quote `s` as a YAML double-quoted scalar, escaping the characters that would
+/// otherwise break it. Shared by every emitter whose target parses its
+/// front-matter as **strict** YAML (Claude skills) and so needs a rule title
+/// or error class containing `:` or `"` kept safe. Targets with a lenient
+/// line-based front-matter (Cursor `.mdc`) deliberately do not use this.
+pub(crate) fn yaml_double_quote(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for ch in s.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            _ => out.push(ch),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// How a rule's [`Home`] translates into a target's scope vocabulary. The
+/// neutral concept is `Home`; turning it into Cursor's `globs`/`alwaysApply`
+/// (and, later, Copilot's ordering) is the emitter's job, and that translation
+/// lives here — in one place — rather than being re-derived per emitter or,
+/// worse, carried as vendor-specific fields on the rule (decision 2026-08-13).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Scope {
+    globs: Vec<String>,
+    always_apply: bool,
+}
+
+impl Scope {
+    /// Derive the scope for a home:
+    /// - `Global` → always applies, no globs.
+    /// - `Project` → always applies within its tree, no globs.
+    /// - `Domain` with a known language → auto-attaches on that language's file
+    ///   globs (`rust` → `**/*.rs`), not always-on.
+    /// - `Domain` with an unknown language → no globs and not always-on, i.e.
+    ///   agent-requested via its description (never silently everywhere).
+    #[must_use]
+    pub fn for_home(home: &Home) -> Self {
+        match home {
+            Home::Global | Home::Project { .. } => Scope {
+                globs: Vec::new(),
+                always_apply: true,
+            },
+            Home::Domain { name } => Scope {
+                globs: domain_globs(name.as_str()),
+                always_apply: false,
+            },
+        }
+    }
+
+    /// The file globs this scope auto-attaches to (may be empty).
+    #[must_use]
+    pub fn globs(&self) -> &[String] {
+        &self.globs
+    }
+
+    /// Whether the rule applies to every file regardless of glob.
+    #[must_use]
+    pub fn always_apply(&self) -> bool {
+        self.always_apply
+    }
+}
+
+/// The file globs for a language domain. An unknown domain returns no globs —
+/// the rule then reaches the assistant by description, never blanket-applied.
+/// Language knowledge lives here so every target that scopes by language reads
+/// one table.
+fn domain_globs(name: &str) -> Vec<String> {
+    let patterns: &[&str] = match name.to_ascii_lowercase().as_str() {
+        "rust" => &["**/*.rs"],
+        "python" | "py" => &["**/*.py"],
+        "typescript" | "ts" => &["**/*.ts", "**/*.tsx"],
+        "javascript" | "js" => &["**/*.js", "**/*.jsx"],
+        "go" | "golang" => &["**/*.go"],
+        "java" => &["**/*.java"],
+        "c" => &["**/*.c", "**/*.h"],
+        "cpp" | "c++" => &["**/*.cpp", "**/*.hpp", "**/*.cc", "**/*.hh"],
+        "ruby" | "rb" => &["**/*.rb"],
+        _ => &[],
+    };
+    patterns.iter().map(|p| (*p).to_owned()).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -171,5 +257,46 @@ mod tests {
     fn relative_path_joins_with_forward_slash() {
         let p = RelativePath::from_segments(&["skills", "global", "SKILL.md"]);
         assert_eq!(p.as_str(), "skills/global/SKILL.md");
+    }
+
+    #[test]
+    fn global_scope_always_applies_with_no_globs() {
+        let scope = Scope::for_home(&Home::global());
+        assert!(scope.always_apply());
+        assert!(scope.globs().is_empty());
+    }
+
+    #[test]
+    fn project_scope_always_applies_with_no_globs() {
+        let scope = Scope::for_home(&Home::project("C:/repo").expect("non-empty project"));
+        assert!(scope.always_apply());
+        assert!(scope.globs().is_empty());
+    }
+
+    #[test]
+    fn known_domain_scopes_to_language_globs_and_is_not_always() {
+        let scope = Scope::for_home(&Home::domain("rust").expect("non-empty domain"));
+        assert!(!scope.always_apply());
+        assert_eq!(scope.globs(), &["**/*.rs".to_owned()]);
+    }
+
+    #[test]
+    fn unknown_domain_has_no_globs_and_is_not_always() {
+        // Agent-requested via description — never blanket-applied.
+        let scope = Scope::for_home(&Home::domain("cobol").expect("non-empty domain"));
+        assert!(!scope.always_apply());
+        assert!(scope.globs().is_empty());
+    }
+
+    #[test]
+    fn domain_matching_is_case_insensitive_and_aliased() {
+        assert_eq!(
+            Scope::for_home(&Home::domain("TypeScript").expect("non-empty domain")).globs(),
+            &["**/*.ts".to_owned(), "**/*.tsx".to_owned()]
+        );
+        assert_eq!(
+            Scope::for_home(&Home::domain("ts").expect("non-empty domain")).globs(),
+            &["**/*.ts".to_owned(), "**/*.tsx".to_owned()]
+        );
     }
 }

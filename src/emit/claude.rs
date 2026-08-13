@@ -9,7 +9,7 @@
 
 use std::collections::BTreeMap;
 
-use super::{HomeSlug, OutputFile, RelativePath};
+use super::{HomeSlug, OutputFile, RelativePath, yaml_double_quote};
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule};
 
@@ -89,25 +89,6 @@ fn home_label(home: &Home) -> String {
         Home::Domain { name } => format!("domain: {}", name.as_str()),
         Home::Project { path } => format!("project: {}", path.as_str()),
     }
-}
-
-/// Quote `s` as a YAML double-quoted scalar, escaping the characters that would
-/// otherwise break it. Rule titles and error classes are free text and may
-/// contain `:` or `"`, so the description value must be quoted to stay valid
-/// YAML front-matter.
-fn yaml_double_quote(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            _ => out.push(ch),
-        }
-    }
-    out.push('"');
-    out
 }
 
 #[cfg(test)]

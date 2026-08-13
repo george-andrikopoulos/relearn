@@ -59,7 +59,7 @@ order to name it illegal.
 | Target | Output | Notes |
 |---|---|---|
 | `claude` | `<out>/skills/<home>/SKILL.md` | **One skill per home layer** (not per rule — decision 2026-08-13). `<name>` is the home; `description` aggregates that home's rules for trigger coverage |
-| `cursor` | `<out>/.cursor/rules/<tag>.mdc` | One `.mdc` per rule (Cursor's native granularity). YAML front-matter: `description`, `globs`, `alwaysApply` — **`globs`/`alwaysApply` derived from `Home`** via a shared domain→pattern table in `emit`, never carried on the rule (decision 2026-08-13) |
+| `cursor` | `<out>/.cursor/rules/<tag-body>.mdc` | One `.mdc` per rule (Cursor's native granularity). Filename is the tag **body** (`R:foo` → `foo.mdc`) — the full tag's `:` is not a valid filename character everywhere. Front-matter `description`, `globs`, `alwaysApply` — **`globs`/`alwaysApply` derived from `Home`** via the shared `Scope` helper (domain→pattern table) in `emit`, never carried on the rule (decision 2026-08-13). Values are **not** YAML-quoted: Cursor parses `.mdc` front-matter leniently and `globs` holds a raw glob list |
 | `copilot` | `<out>/.github/copilot-instructions.md` | Single concatenated file; rules ordered by home then tag |
 | `agents` | `<out>/AGENTS.md` | Single concatenated file |
 | `claude_md` | `<out>/CLAUDE.md` | Project-layer rules only |

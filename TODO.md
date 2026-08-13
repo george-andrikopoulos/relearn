@@ -25,9 +25,9 @@
 
 ### Emitters (pure functions returning `Vec<OutputFile>`)
 - [x] Shared emit types: `OutputFile` (path + contents), `RelativePath` (portable forward-slash, `pub(crate)` construction), `HomeSlug` (`Home` → `[a-z0-9-]+`, also the skill `name`) — `emit.rs`
-- [ ] `emit` shared scope helper: `Home` → (globs, alwaysApply) via a domain→file-pattern table (`rust → **/*.rs`, …); read by `cursor` (and `copilot` ordering) so scope translation is one place, not per-emitter
+- [x] `emit` shared scope helper: `Home` → (globs, alwaysApply) via a domain→file-pattern table (`rust → **/*.rs`, …); read by `cursor` (and later `copilot`) so scope translation is one place (`emit::Scope::for_home`)
 - [x] `claude` — one skill **per home layer**: `skills/<home-slug>/SKILL.md`, description aggregating the home's rules (YAML-quoted); makes the `Library<Validated>` typestate load-bearing (`emit::claude::emit`)
-- [ ] `cursor` — `.cursor/rules/<tag>.mdc`; `globs`/`alwaysApply` from the scope helper, not the rule
+- [x] `cursor` — `.cursor/rules/<tag-body>.mdc`; `globs`/`alwaysApply` from `Scope::for_home`, not the rule; lenient (unquoted) front-matter, colon-free filename via `RuleTag::body` (`emit::cursor::emit`)
 - [ ] `copilot` — `.github/copilot-instructions.md`
 - [ ] `agents` — `AGENTS.md`
 - [ ] `claude_md` — project-layer `CLAUDE.md`
