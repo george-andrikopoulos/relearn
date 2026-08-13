@@ -39,8 +39,8 @@
 - [ ] Detect a hand-edited generated file (recompute body `sha256`, compare to the header's) — deferred; the marker guard already prevents clobbering human files
 
 ### CLI
-- [ ] `check`, `build --targets`, `list --home`
-- [ ] Unknown target rejected before any write
+- [x] `check`, `build --targets`, `list --home` (`cli::run` → `check`/`build`/`list`; `CliError` wraps `LoadError`/`ValidationError`/`WriteError`; `main` is a thin `ExitCode` shell)
+- [x] Unknown target rejected before any write (`Target` value-enum names only buildable emitters, so an unknown `--targets` value is a `clap` parse error)
 
 ### Tests (per `rust-typedd` hierarchy — types first, then properties, then pins)
 - [ ] proptest: emission idempotent over generated rule sets
@@ -54,6 +54,7 @@
 ## Phase B — linter (after format settles)
 - [ ] Contradiction detection between rules
 - [ ] Overlapping-scope detection (same error class, two homes)
+- [ ] Home-slug collision detection: two distinct homes whose `HomeSlug` slugifies to the same token (e.g. pathological all-punctuation domain names → `domain-`) would silently share one skill file — a lost rule. Detect and reject; do not merge. (Edge surfaced by the 2026-08-13 TDP scan; realistically unreachable for alphanumeric hand-authored homes, so deferred, not built.)
 - [ ] Dangling references (rule cites an artifact that no longer exists)
 - [ ] Cold-surface + uncited report (input to the cut list, never auto-delete)
 

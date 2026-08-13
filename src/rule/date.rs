@@ -105,8 +105,13 @@ const fn days_in_month(year: i32, month: u8) -> u8 {
         4 | 6 | 9 | 11 => 30,
         2 if is_leap_year(year) => 29,
         2 => 28,
-        // Unreachable once `month` is range-checked to 1..=12, but the function
-        // stays total without a panic.
+        // Unreachable: the sole caller range-checks `month` to 1..=12 before
+        // calling. A `u8` match still needs a catch-all, so rather than panic
+        // this returns 0 — which fails *closed*: `max_day = 0` makes the day
+        // range `1..=0` empty, so every day is rejected. A bad month can never
+        // yield a valid Date through this path (and is separately reported as
+        // `MonthOutOfRange` first). 0 here is a fail-closed default, not a
+        // sentinel the caller must remember to special-case.
         _ => 0,
     }
 }

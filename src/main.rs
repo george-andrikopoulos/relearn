@@ -3,9 +3,8 @@
 //!
 //! **Must NOT:** contain business logic — dispatch only.
 
-fn main() {
-    // Scaffold: no commands are wired yet. The first implementation session
-    // starts with the types (TODO.md Phase A: `RuleTag`, `Home`, `Status`,
-    // `Incident`, `ErrorClass`, and the `Library<Unvalidated>/<Validated>`
-    // typestate), then property tests and pins — never an emitter first.
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    relearn::cli::run()
 }

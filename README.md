@@ -12,7 +12,43 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 ## Status
 
-Early. Phase A (portability) in progress; see `TODO.md`. Not yet released.
+Early. Phase A (portability) runs end to end; not yet released. See `TODO.md`.
+
+The pipeline `rules/*.md → parse → validate → emit → write` works today for one target (Claude skills); the other four emitters and the seed-content migration are the remaining Phase A work.
+
+## Usage
+
+```sh
+# Validate the rule library; write nothing. Non-zero exit on any failure.
+relearn check --rules ./rules
+
+# List rules as `tag  [home-slug]  title`, optionally filtered by home.
+relearn list --rules ./rules
+relearn list --rules ./rules --home domain-rust
+
+# Compile the library to the selected targets, under an output root.
+relearn build --rules ./rules --out . --targets claude
+```
+
+A rule directory is `*.md` files with TOML front-matter and a markdown body:
+
+```
++++
+tag         = "R:parse-wide-then-range-check"
+title       = "Parse wide, then range-check"
+error_class = "Range-check collapses out-of-range into not-a-number"
+home        = { kind = "domain", name = "rust" }
+created     = "2026-07-23"
+status      = { kind = "active" }
+incident    = "Grouping task 01: 5/5 samples parsed into u16, so 70000 read as NotANumber."
++++
+
+Parse into a type wide enough to represent the out-of-range value, then range-check.
+```
+
+Every emitted file carries a generated-by header and a content hash; `build` refuses to overwrite any file it did not write (and aborts the whole run rather than leave a half-generated tree), so a target directory can safely hold both generated and hand-authored files.
+
+Build from source with `cargo build --release`; the binary is `relearn`.
 
 ## Design
 

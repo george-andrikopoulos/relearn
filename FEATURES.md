@@ -4,7 +4,7 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): Phase A is complete **through the first emitter and the write guard**. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side, the **Claude skill emitter** (one skill per home layer — which makes the `Library<Validated>` typestate load-bearing: `emit::claude::emit` accepts only a validated library, so emitting unchecked rules is a compile error), and the **`fsio` write-side overwrite guard** (pre-flight marker check aborts the whole write rather than clobber unversioned content; every written file carries the generated-by marker, tool version, source tags, and a `sha256` of the body). 62 tests, all passing. The remaining entries (the other four emitters, emission-idempotence as a property, round-trip fidelity, and the CLI surface that wires load → validate → emit → `write_all`) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): Phase A **runs end to end**. `relearn check | build | list` wire load → validate → emit → write through the typed pipeline; the binary has been smoke-tested through its real argv path, not only via the dispatch functions. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side, the **Claude skill emitter** (one skill per home layer — making the `Library<Validated>` typestate load-bearing), the **`fsio` write-side overwrite guard** (pre-flight marker check aborts the whole write rather than clobber unversioned content), and the **CLI** (`clap` derive; an unknown `--targets` value is a parse error before any write, because `Target` only names buildable emitters). 67 tests, all passing. The remaining entries (the other four emitters — `cursor`/`copilot`/`agents`/`claude_md` — emission-idempotence as a property, and round-trip fidelity) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
@@ -91,16 +91,16 @@ What: writing refuses to overwrite a target file lacking the generated-by marker
 ## CLI (v0.1)
 
 ### `relearn check` validates without writing
-What: exits non-zero on any parse or validation failure; writes nothing.
-**Enforced by: NOTHING YET — exposed**
+What: loads and validates the rules directory, writes nothing, and exits non-zero on any parse or validation failure.
+**Enforced by:** `cli::check` (`load_rules` → `validate`, no write path) + `cli` tests (`check_reports_a_parse_failure_by_file`, `check_reports_a_duplicate_tag_as_a_validation_error`).
 
 ### `relearn build --targets`
-What: emits the named targets; unknown target names are rejected before any file is written.
-**Enforced by: NOTHING YET — exposed**
+What: loads, validates, emits the named targets, and writes them under `--out` through the overwrite guard. An unknown target name is a `clap` parse error, rejected before any file is written — because `Target` only has variants with a working emitter.
+**Enforced by:** `cli::build` (`load_rules` → `validate` → `emit::*` → `fsio::write_all`) + the `Target` value-enum (an unbuildable target is unrepresentable) + `cli` tests (`build_runs_the_whole_pipeline_and_writes_skills`, `build_refuses_to_clobber_and_never_writes_a_partial_tree`).
 
 ### `relearn list --home`
-What: lists rules filtered by home layer.
-**Enforced by: NOTHING YET — exposed**
+What: lists rules as `tag  [home-slug]  title`, optionally filtered to one home layer by its slug.
+**Enforced by:** `cli::list` (filters on `HomeSlug::of(rule.home())`) + `cli` test `list_without_a_filter_lists_all_and_a_missing_dir_is_an_error`.
 
 ---
 

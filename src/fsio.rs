@@ -194,8 +194,10 @@ fn render_with_header(file: &OutputFile) -> String {
         .map(|tag| tag.as_str())
         .collect::<Vec<_>>()
         .join(",");
+    // ASCII-only: this marker is embedded into every emitted file and parsed by
+    // several downstream tools; it must not depend on their encoding assumptions.
     let header = format!(
-        "{GENERATED_MARKER} v{version} sha256={hash} rules={rules} — DO NOT EDIT; regenerate with `relearn build` -->",
+        "{GENERATED_MARKER} v{version} sha256={hash} rules={rules} -- DO NOT EDIT; regenerate with `relearn build` -->",
         version = env!("CARGO_PKG_VERSION"),
     );
     format!("{body}\n{header}\n", body = file.contents())
