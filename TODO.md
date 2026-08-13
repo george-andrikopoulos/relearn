@@ -57,9 +57,10 @@
 ## Phase B — linter (started; `lint` module + `relearn lint`, advisory only)
 - [x] Overlapping-scope detection (same error class, case-insensitive) — `lint::overlapping_scope`
 - [x] Home-slug collision detection: two *distinct* homes whose `HomeSlug` collides would silently share one skill file — flagged `Error`-severity (not merged, not deleted). `lint::home_slug_collisions`. Closes the 2026-08-13 TDP-scan edge.
-- [x] Dangling references (rule cites an `R:...` tag absent from the library; `OR:`/`FOR:` in prose excluded) — `lint::dangling_references`
-- [x] `relearn lint` CLI: advisory, writes nothing, exit non-zero on findings (CI-catchable), clean on the seed
-- [ ] Contradiction detection between rules — **deferred**: a semantic judgment, belongs to a Claude-assisted review pass (delegate through the subscription; never a keyword heuristic sold as certainty)
+- [x] Dangling references (rule cites an `R:...` tag absent from the library; `OR:`/`FOR:` in prose excluded; a tag cited in body **and** incident is one finding) — `lint::reference_checks`
+- [x] Retired references (rule cites a rule that exists but is atticked/graduated) — flagged `Info`; `lint::reference_checks`
+- [x] `relearn lint` CLI: advisory, writes nothing; exit non-zero only on `Warning`/`Error` (`Info` informs without failing CI); clean on the seed
+- [x] Contradiction detection — **resolved as a process-control**, not a code check: a periodic Claude review pass over the corpus (semantic judgment, delegated per doctrine; a keyword heuristic would be dishonest). **First review 2026-08-13: no contradictions among the six seed rules, no problematic overlap, homes consistent. One scoping observation — `parse-wide` (domain rust) and `order-by-explicit-rank` (project relearn) express principles that generalize beyond their homes; promote only if the class recurs elsewhere.** Re-run each time the corpus changes materially.
 - [ ] Cold-surface / uncited report — **deferred**: "cold" needs runtime invocation data (phase C, stochos-lab); "uncited" alone is noise (a standalone rule is legitimately uncited)
 
 ## Phase D — public release (gated on arXiv ID)

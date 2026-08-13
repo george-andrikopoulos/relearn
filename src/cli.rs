@@ -209,8 +209,18 @@ fn lint_rules(rules: &Path) -> Result<ExitCode, CliError> {
     for finding in &findings {
         println!("{}: {finding}", finding.severity().label());
     }
-    println!("{} finding(s)", findings.len());
-    Ok(ExitCode::FAILURE)
+    // Info-level findings inform but do not fail the run; Warning and Error do,
+    // so CI catches actionable regressions without tripping on advisory notes.
+    let actionable = findings
+        .iter()
+        .filter(|f| f.severity() >= lint::Severity::Warning)
+        .count();
+    println!("{} finding(s), {actionable} actionable", findings.len());
+    if actionable > 0 {
+        Ok(ExitCode::FAILURE)
+    } else {
+        Ok(ExitCode::SUCCESS)
+    }
 }
 
 /// Print an error and its source chain to stderr.

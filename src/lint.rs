@@ -4,22 +4,25 @@
 //! sediment-in-reverse this project exists to prevent).
 //!
 //! The checks here are the deterministic ones — overlapping scope, home-slug
-//! collision, and dangling in-library references. Two Phase-B checks are
-//! deliberately absent because faking them would be dishonest:
-//! - **contradiction** between rules is a semantic judgment (delegate to Claude,
-//!   never a keyword heuristic dressed up as certainty);
+//! collision, and reference integrity (dangling references, and citations of
+//! *retired* rules). Two Phase-B checks are deliberately **not** implemented as
+//! code here, because faking them as heuristics would be dishonest:
+//! - **contradiction** between rules is a semantic judgment — it is handled by a
+//!   periodic *Claude review pass* over the corpus (a governance control,
+//!   delegated through the subscription; see ARCHITECTURE), never a keyword
+//!   heuristic dressed up as certainty;
 //! - **cold-surface** (a rule nothing exercises) needs runtime invocation data,
-//!   which lives in the stochos-lab ledger, not in the rule text.
+//!   which lives in the stochos-lab ledger (phase C), not in the rule text.
 //!
 //! **Must NOT:** modify or delete rules, or perform I/O. It reads a library and
 //! returns findings; the caller decides what to do with them.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 
 use crate::emit::HomeSlug;
 use crate::library::{Library, Validated};
-use crate::rule::{Home, Rule, RuleTag};
+use crate::rule::{Home, Rule, RuleTag, Status};
 
 /// How much a finding matters. Ordered so `Error > Warning > Info`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -71,6 +74,17 @@ pub enum Finding {
         /// The cited tag that does not resolve.
         to: RuleTag,
     },
+    /// A rule cites another rule that *exists* but has been retired (atticked or
+    /// graduated) — likely benign (a historical pointer), so `Info`, but worth a
+    /// glance in case the citation is building on withdrawn guidance.
+    RetiredReference {
+        /// The rule that carries the citation.
+        from: RuleTag,
+        /// The cited, retired rule.
+        to: RuleTag,
+        /// The retired rule's status kind (`graduated` or `atticked`).
+        status: &'static str,
+    },
 }
 
 impl Finding {
@@ -82,6 +96,7 @@ impl Finding {
             Finding::OverlappingScope { .. } | Finding::DanglingReference { .. } => {
                 Severity::Warning
             }
+            Finding::RetiredReference { .. } => Severity::Info,
         }
     }
 }
@@ -106,6 +121,12 @@ impl fmt::Display for Finding {
                 from.as_str(),
                 to.as_str()
             ),
+            Finding::RetiredReference { from, to, status } => write!(
+                f,
+                "retired reference: {} cites {}, which is {status} — verify the citation is intentional",
+                from.as_str(),
+                to.as_str()
+            ),
         }
     }
 }
@@ -124,7 +145,7 @@ pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
     let mut findings = Vec::new();
     findings.extend(overlapping_scope(library));
     findings.extend(home_slug_collisions(library));
-    findings.extend(dangling_references(library));
+    findings.extend(reference_checks(library));
     // Most-severe first; a stable sort keeps each check's own deterministic
     // order within a severity.
     findings.sort_by_key(|finding| std::cmp::Reverse(finding.severity()));
@@ -171,28 +192,60 @@ fn home_slug_collisions(library: &Library<Validated>) -> Vec<Finding> {
         .collect()
 }
 
-/// Rules that cite an `R:...` tag (in body or incident) absent from the library.
-fn dangling_references(library: &Library<Validated>) -> Vec<Finding> {
-    let existing: BTreeSet<&str> = library.rules().iter().map(|r| r.tag().as_str()).collect();
+/// Check every `R:...` citation (in a rule's body or incident): a tag absent
+/// from the library is a `DanglingReference`; a tag that resolves to a *retired*
+/// (atticked/graduated) rule is a `RetiredReference`; a citation of an active
+/// rule is fine.
+fn reference_checks(library: &Library<Validated>) -> Vec<Finding> {
+    let by_tag: BTreeMap<&str, &Rule> = library
+        .rules()
+        .iter()
+        .map(|r| (r.tag().as_str(), r))
+        .collect();
     let mut findings = Vec::new();
     for rule in library.rules() {
         for cited in cited_tags(rule) {
-            if cited.as_str() != rule.tag().as_str() && !existing.contains(cited.as_str()) {
-                findings.push(Finding::DanglingReference {
+            if cited.as_str() == rule.tag().as_str() {
+                continue; // a self-citation is not a cross-reference
+            }
+            match by_tag.get(cited.as_str()) {
+                None => findings.push(Finding::DanglingReference {
                     from: rule.tag().clone(), // allow:clone: the finding owns its tags, outliving the &Library borrow
                     to: cited,
-                });
+                }),
+                Some(target) => {
+                    if !matches!(target.status(), Status::Active) {
+                        findings.push(Finding::RetiredReference {
+                            from: rule.tag().clone(), // allow:clone: the finding owns its tags, outliving the &Library borrow
+                            to: cited,
+                            status: status_kind(target.status()),
+                        });
+                    }
+                }
             }
         }
     }
     findings
 }
 
-/// Every well-formed `R:...` tag mentioned in a rule's body or incident.
+/// A stable label for a status kind, for diagnostics.
+fn status_kind(status: &Status) -> &'static str {
+    match status {
+        Status::Active => "active",
+        Status::Graduated { .. } => "graduated",
+        Status::Attic { .. } => "atticked",
+    }
+}
+
+/// Every well-formed `R:...` tag mentioned in a rule's body or incident, each
+/// once. Deduplicated (and sorted, for determinism) so a rule that cites the
+/// same tag in both its body and its incident yields a single finding, not two.
 fn cited_tags(rule: &Rule) -> Vec<RuleTag> {
     let mut out = Vec::new();
     collect_tag_tokens(rule.body().as_str(), &mut out);
     collect_tag_tokens(rule.incident().as_str(), &mut out);
+    out.sort();
+    out.dedup();
     out
 }
 

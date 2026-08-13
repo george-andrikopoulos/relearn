@@ -25,6 +25,24 @@ fn validated(rules: Vec<Rule>) -> Library<Validated> {
         .expect("distinct tags validate")
 }
 
+/// An atticked (retired) rule with the given tag.
+fn atticked(tag: &str) -> Rule {
+    Rule::new(
+        RuleTag::parse(tag).expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse("some class").expect("non-empty error class"),
+        Home::global(),
+        Date::parse("2026-08-13").expect("valid date"),
+        Status::attic(
+            "cold surface, challenge-tested",
+            Date::parse("2026-09-01").expect("valid date"),
+        )
+        .expect("non-empty reason"),
+        Incident::parse("an incident").expect("non-empty incident"),
+        Body::parse("Body.").expect("non-empty body"),
+    )
+}
+
 #[test]
 fn a_clean_library_has_no_findings() {
     let lib = validated(vec![
@@ -139,6 +157,84 @@ fn a_resolved_reference_is_not_flagged() {
         !lint(&lib)
             .iter()
             .any(|f| matches!(f, Finding::DanglingReference { .. }))
+    );
+}
+
+#[test]
+fn retired_reference_flags_a_citation_of_a_retired_rule() {
+    let lib = validated(vec![
+        rule(
+            "R:a",
+            Home::global(),
+            "class a",
+            "Builds on R:old, now retired.",
+        ),
+        atticked("R:old"),
+    ]);
+    let findings = lint(&lib);
+    assert!(
+        findings
+            .iter()
+            .any(|f| matches!(f, Finding::RetiredReference { .. })),
+        "citing an atticked rule is flagged"
+    );
+    // It exists, so it is retired — not dangling.
+    assert!(
+        !findings
+            .iter()
+            .any(|f| matches!(f, Finding::DanglingReference { .. }))
+    );
+}
+
+#[test]
+fn a_retired_reference_is_info_severity() {
+    let lib = validated(vec![
+        rule("R:a", Home::global(), "class a", "See R:old for history."),
+        atticked("R:old"),
+    ]);
+    let retired = lint(&lib)
+        .into_iter()
+        .find(|f| matches!(f, Finding::RetiredReference { .. }))
+        .expect("a retired-reference finding");
+    assert_eq!(retired.severity(), Severity::Info);
+}
+
+#[test]
+fn a_tag_cited_in_both_body_and_incident_yields_one_finding() {
+    // Regression pin: cited tags are deduplicated per rule, so a rule that
+    // mentions R:ghost in both its body and its incident is one dangling
+    // reference, not two.
+    let lib = validated(vec![Rule::new(
+        RuleTag::parse("R:a").expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse("class a").expect("non-empty error class"),
+        Home::global(),
+        Date::parse("2026-08-13").expect("valid date"),
+        Status::active(),
+        Incident::parse("first seen alongside R:ghost").expect("non-empty incident"),
+        Body::parse("This builds on R:ghost.").expect("non-empty body"),
+    )]);
+    let dangling: Vec<_> = lint(&lib)
+        .into_iter()
+        .filter(|f| matches!(f, Finding::DanglingReference { .. }))
+        .collect();
+    assert_eq!(
+        dangling.len(),
+        1,
+        "one finding per (from, to), not per mention"
+    );
+}
+
+#[test]
+fn citing_an_active_rule_is_not_a_retired_reference() {
+    let lib = validated(vec![
+        rule("R:a", Home::global(), "class a", "See R:b."),
+        rule("R:b", Home::global(), "class b", "Body b."),
+    ]);
+    assert!(
+        !lint(&lib)
+            .iter()
+            .any(|f| matches!(f, Finding::RetiredReference { .. }))
     );
 }
 
