@@ -54,12 +54,13 @@
 - [ ] Only real rules with documented, dated incidents were ported (fabricating provenance is the sediment the tool fights). Still unexercised by *real* seed data: `graduated` / `attic` status and multiple rules sharing one non-global home — covered by unit tests, awaiting a real rule that carries them.
 - [ ] Port the remaining `[R:...]` rules as their incidents are on hand (project-discipline, rust-typedd, stochos-lab layers)
 
-## Phase B — linter (after format settles)
-- [ ] Contradiction detection between rules
-- [ ] Overlapping-scope detection (same error class, two homes)
-- [ ] Home-slug collision detection: two distinct homes whose `HomeSlug` slugifies to the same token (e.g. pathological all-punctuation domain names → `domain-`) would silently share one skill file — a lost rule. Detect and reject; do not merge. (Edge surfaced by the 2026-08-13 TDP scan; realistically unreachable for alphanumeric hand-authored homes, so deferred, not built.)
-- [ ] Dangling references (rule cites an artifact that no longer exists)
-- [ ] Cold-surface + uncited report (input to the cut list, never auto-delete)
+## Phase B — linter (started; `lint` module + `relearn lint`, advisory only)
+- [x] Overlapping-scope detection (same error class, case-insensitive) — `lint::overlapping_scope`
+- [x] Home-slug collision detection: two *distinct* homes whose `HomeSlug` collides would silently share one skill file — flagged `Error`-severity (not merged, not deleted). `lint::home_slug_collisions`. Closes the 2026-08-13 TDP-scan edge.
+- [x] Dangling references (rule cites an `R:...` tag absent from the library; `OR:`/`FOR:` in prose excluded) — `lint::dangling_references`
+- [x] `relearn lint` CLI: advisory, writes nothing, exit non-zero on findings (CI-catchable), clean on the seed
+- [ ] Contradiction detection between rules — **deferred**: a semantic judgment, belongs to a Claude-assisted review pass (delegate through the subscription; never a keyword heuristic sold as certainty)
+- [ ] Cold-surface / uncited report — **deferred**: "cold" needs runtime invocation data (phase C, stochos-lab); "uncited" alone is noise (a standalone rule is legitimately uncited)
 
 ## Phase D — public release (gated on arXiv ID)
 - [ ] README public framing: versioned instruction artifacts + the governance loop

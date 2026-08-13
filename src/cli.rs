@@ -18,6 +18,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use crate::emit::{self, HomeSlug};
 use crate::fsio::{self, LoadError, WriteError};
 use crate::library::ValidationError;
+use crate::lint;
 
 /// The `relearn` command line.
 #[derive(Debug, Parser)]
@@ -67,6 +68,13 @@ enum Command {
         #[arg(long)]
         home: Option<String>,
     },
+    /// Report advisory lint findings (overlapping scope, home-slug collisions,
+    /// dangling references). Writes nothing; exits non-zero if any are found.
+    Lint {
+        /// Directory of `*.md` rule files.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+    },
 }
 
 /// An emission target. Only the variants that have a working emitter are
@@ -109,7 +117,7 @@ pub enum CliError {
 pub fn run() -> ExitCode {
     let cli = Cli::parse();
     match dispatch(cli.command) {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(code) => code,
         Err(err) => {
             report(&err);
             ExitCode::FAILURE
@@ -117,15 +125,27 @@ pub fn run() -> ExitCode {
     }
 }
 
-fn dispatch(command: Command) -> Result<(), CliError> {
+/// Dispatch a command. Most commands return `ExitCode::SUCCESS` on the happy
+/// path; `lint` returns `FAILURE` when it reports findings (without any error).
+fn dispatch(command: Command) -> Result<ExitCode, CliError> {
     match command {
-        Command::Check { rules } => check(&rules),
+        Command::Check { rules } => {
+            check(&rules)?;
+            Ok(ExitCode::SUCCESS)
+        }
         Command::Build {
             rules,
             out,
             targets,
-        } => build(&rules, &out, &targets),
-        Command::List { rules, home } => list(&rules, home.as_deref()),
+        } => {
+            build(&rules, &out, &targets)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::List { rules, home } => {
+            list(&rules, home.as_deref())?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::Lint { rules } => lint_rules(&rules),
     }
 }
 
@@ -174,6 +194,23 @@ fn list(rules: &Path, home: Option<&str>) -> Result<(), CliError> {
         );
     }
     Ok(())
+}
+
+/// `lint`: load, validate, and report advisory findings. Writes nothing; exits
+/// non-zero if any finding is reported so CI can catch a regression, but never
+/// treats a finding as an error (findings are input to a human decision).
+fn lint_rules(rules: &Path) -> Result<ExitCode, CliError> {
+    let validated = fsio::load_rules(rules)?.validate()?;
+    let findings = lint::lint(&validated);
+    if findings.is_empty() {
+        println!("ok: no lint findings");
+        return Ok(ExitCode::SUCCESS);
+    }
+    for finding in &findings {
+        println!("{}: {finding}", finding.severity().label());
+    }
+    println!("{} finding(s)", findings.len());
+    Ok(ExitCode::FAILURE)
 }
 
 /// Print an error and its source chain to stderr.

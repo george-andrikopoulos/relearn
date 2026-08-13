@@ -4,7 +4,7 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): Phase A **runs end to end**. `relearn check | build | list` wire load → validate → emit → write through the typed pipeline; the binary has been smoke-tested through its real argv path, not only via the dispatch functions. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side, the **Claude skill emitter** (one skill per home layer — making the `Library<Validated>` typestate load-bearing), the **`fsio` write-side overwrite guard** (pre-flight marker check aborts the whole write rather than clobber unversioned content), and the **CLI** (`clap` derive; an unknown `--targets` value is a parse error before any write, because `Target` only names buildable emitters), the **Cursor emitter** (one `.mdc` per rule; `globs`/`alwaysApply` derived from `Home` via the shared `Scope` helper), and the **Copilot / `AGENTS.md` / project-`CLAUDE.md` emitters** (concatenated instruction files, home-rank ordered; `CLAUDE.md` is project-layer only). **All five emitters ship** — `relearn build` compiles the whole set by default and has been smoke-tested end to end (7 files from a 2-rule library). **Emission idempotence and neutral-format round-trip are now property-tested** (`tests/properties.rs`), and a `rule::to_document` serializer makes the pipeline lossless. 98 unit + 2 property tests, all passing. The one remaining Phase-A `NOTHING YET — exposed` entry is the `trybuild` compile-fail pin for "emitters reject an unvalidated library" (the type system already enforces it; only the negative-proof test is pending) and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): Phase A **runs end to end**. `relearn check | build | list` wire load → validate → emit → write through the typed pipeline; the binary has been smoke-tested through its real argv path, not only via the dispatch functions. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side, the **Claude skill emitter** (one skill per home layer — making the `Library<Validated>` typestate load-bearing), the **`fsio` write-side overwrite guard** (pre-flight marker check aborts the whole write rather than clobber unversioned content), and the **CLI** (`clap` derive; an unknown `--targets` value is a parse error before any write, because `Target` only names buildable emitters), the **Cursor emitter** (one `.mdc` per rule; `globs`/`alwaysApply` derived from `Home` via the shared `Scope` helper), and the **Copilot / `AGENTS.md` / project-`CLAUDE.md` emitters** (concatenated instruction files, home-rank ordered; `CLAUDE.md` is project-layer only). **All five emitters ship** — `relearn build` compiles the whole set by default and has been smoke-tested end to end (7 files from a 2-rule library). **Emission idempotence and neutral-format round-trip are now property-tested** (`tests/properties.rs`), and a `rule::to_document` serializer makes the pipeline lossless. **Phase B has begun**: the advisory linter (`relearn lint`) ships with overlapping-scope, home-slug-collision, and dangling-reference detection — reporting only, never destructive. 98 unit + 8 lint + 2 property tests, all passing. Remaining `NOTHING YET — exposed`: the Phase-A `trybuild` compile-fail pin for "emitters reject an unvalidated library" (the type already enforces it; only the negative-proof test is pending), and the deliberately-deferred linter checks (contradiction → a Claude judgment pass; cold-surface → needs phase-C runtime data) and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
@@ -106,10 +106,39 @@ What: loads, validates, emits the named targets, and writes them under `--out` t
 What: lists rules as `tag  [home-slug]  title`, optionally filtered to one home layer by its slug.
 **Enforced by:** `cli::list` (filters on `HomeSlug::of(rule.home())`) + `cli` test `list_without_a_filter_lists_all_and_a_missing_dir_is_an_error`.
 
+### `relearn lint`
+What: reports advisory findings; writes nothing and never deletes; exits non-zero when any finding is reported (so CI catches a regression), exit 0 on a clean library.
+**Enforced by:** `cli::lint_rules` (`load_rules` → `validate` → `lint::lint`, no write path; `ExitCode::FAILURE` on findings) + the `lint` behavior below. Verified on the real seed (`rules/`): clean, exit 0.
+
+---
+
+## Linter (Phase B — advisory, never destructive)
+
+The linter *reports*; it never edits or deletes a rule (a flagged rule is input to a human cut-list decision). Findings are sorted most-severe first.
+
+### Overlapping-scope detection
+What: two or more rules that declare the same error class (case-insensitive) are flagged as possibly redundant or in tension.
+**Enforced by:** `lint::lint` (the `overlapping_scope` check) + `tests/lint.rs::overlapping_scope_flags_a_shared_error_class` and `a_clean_library_has_no_findings`.
+
+### Home-slug-collision detection
+What: two or more rules with **different** homes whose slugs collide (would silently share one emitted skill file — a lost rule) are flagged as an `Error`-severity finding. Rules in the *same* home sharing a slug are not flagged.
+**Enforced by:** `lint::lint` (the `home_slug_collisions` check, over `emit::HomeSlug`) + `tests/lint.rs::home_slug_collision_flags_distinct_homes_with_the_same_slug`, `same_home_is_not_a_collision`, `findings_are_sorted_most_severe_first`. *(This closes the collision edge filed by the 2026-08-13 TDP scan.)*
+
+### Dangling-reference detection
+What: a rule that cites another rule's tag (`R:...`, in its body or incident) which is not present in the library is flagged. `OR:`/`FOR:` in prose is not mistaken for a citation.
+**Enforced by:** `lint::lint` (the `dangling_references` + `cited_tags` checks) + `tests/lint.rs::dangling_reference_flags_an_unknown_cited_tag`, `a_resolved_reference_is_not_flagged`, `or_in_prose_is_not_read_as_a_tag`.
+
+### Contradiction detection
+What: two rules that semantically contradict each other.
+**Enforced by: NOTHING YET — exposed** *(deliberately deferred: contradiction is a semantic judgment, not a keyword heuristic. It belongs to a Claude-assisted review pass, delegated through the existing subscription — never a sub-tier heuristic dressed up as certainty.)*
+
+### Cold-surface / uncited report
+What: rules that nothing exercises (candidates for the attic cut-list).
+**Enforced by: NOTHING YET — exposed** *(deliberately deferred: "cold" needs runtime invocation data, which lives in the stochos-lab ledger — phase C — not in the rule text. Reporting "uncited" alone would be noise, since a standalone rule is legitimately uncited.)*
+
 ---
 
 ## Deliberately out of scope for v0.1
 
-- **Linter for contradictory or overlapping rules** — phase B; requires the format to settle first.
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.
 - **Importing existing rules from Cursor/Copilot formats** — reverse direction; only if a real need appears (P7: verify the target exists).

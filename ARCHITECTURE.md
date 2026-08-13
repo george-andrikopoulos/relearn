@@ -17,13 +17,14 @@ No stage is permitted to skip a failing rule. A dropped rule is a lost correctio
 
 | Module | Responsibility | Must NOT |
 |---|---|---|
-| `rule` | The neutral rule type and its newtypes (`RuleTag`, `ErrorClass`, `Incident`, `Home`, `Status`). Parsing lives here. | Know anything about output formats |
+| `rule` | The neutral rule type and its newtypes (`RuleTag`, `ErrorClass`, `Incident`, `Home`, `Status`). Parsing **and** serialization (`parse_document` / `to_document`, inverses) live here. | Know anything about output formats |
 | `library` | Collection semantics: uniqueness of tags, home partitioning, the typestate (`Unvalidated`/`Validated`) | Perform I/O |
-| `emit` | One submodule per target: `claude`, `cursor`, `copilot`, `agents`, `claude_md`. Pure functions `&Library<Validated> -> Vec<OutputFile>` | Read the filesystem, or read anything not carried by the rule |
+| `emit` | One submodule per target: `claude`, `cursor`, `copilot`, `agents`, `claude_md`. Pure functions `&Library<Validated> -> Vec<OutputFile>`. Shared scope/ordering helpers (`Scope`, `home_rank`, `HomeSlug`) | Read the filesystem, or read anything not carried by the rule |
+| `lint` | Advisory static analysis over `&Library<Validated>` → `Vec<Finding>`: overlapping scope, home-slug collision, dangling references. Reports only. | Modify or delete rules, or perform I/O |
 | `fsio` | All filesystem reads and writes, including the generated-file guard | Contain business logic |
 | `cli` | Argument parsing, command dispatch, human-readable diagnostics | Contain business logic |
 
-The dependency direction is strictly `cli → library → rule` and `cli → emit → library`; `fsio` is a leaf used by `cli` only. `emit` never touches `fsio` — emitters return values, the caller writes them. This is what makes emitters trivially testable.
+The dependency direction is strictly `cli → library → rule` and `cli → emit → library`; `lint → {library, emit, rule}` (it reuses `emit::HomeSlug` because a slug collision is defined by emit's output paths); `fsio` is a leaf used by `cli` only. `emit` never touches `fsio` — emitters return values, the caller writes them. This is what makes emitters trivially testable. The `lint` module is pure and never writes: a flagged rule is input to a human decision, never auto-deleted.
 
 ## The neutral rule format
 
