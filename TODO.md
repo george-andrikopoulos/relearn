@@ -34,8 +34,9 @@
 
 ### fsio + guards
 - [x] Read side: load `rules/*.md` (sorted) into `Library<Unvalidated>`, file-named diagnostics (`fsio::load_rules`)
-- [ ] Generated-by header + content hash on every emitted file
-- [ ] Overwrite guard: refuse to clobber a file lacking the header (`[R:generate-guards-unversioned]`)
+- [x] Generated-by header + content hash on every emitted file (`fsio::write_all` appends marker + version + source tags + `sha256`)
+- [x] Overwrite guard: pre-flight marker check, all-or-nothing abort; refuse to clobber a file lacking the header (`fsio::write_all` → `WriteError::WouldClobberUnversioned`; `[R:generate-guards-unversioned]`)
+- [ ] Detect a hand-edited generated file (recompute body `sha256`, compare to the header's) — deferred; the marker guard already prevents clobbering human files
 
 ### CLI
 - [ ] `check`, `build --targets`, `list --home`

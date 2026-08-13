@@ -39,7 +39,14 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
         rules.sort_by(|a, b| a.tag().as_str().cmp(b.tag().as_str()));
         let contents = render_skill(&slug, home, &rules);
         let path = RelativePath::from_segments(&["skills", slug.as_str(), "SKILL.md"]);
-        files.push(OutputFile::new(path, contents));
+        // The OutputFile outlives the `&Library` borrow, so it owns its
+        // provenance tags. In tag order (rules are sorted above), so the
+        // header's `rules=` list is deterministic.
+        let sources = rules
+            .iter()
+            .map(|r| r.tag().clone()) // allow:clone: the returned OutputFile owns its provenance, outliving the library borrow
+            .collect();
+        files.push(OutputFile::new(path, contents, sources));
     }
     files
 }

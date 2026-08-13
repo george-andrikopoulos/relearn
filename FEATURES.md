@@ -4,7 +4,7 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): Phase A is complete **through the first emitter**. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side (loading a rules directory, file-named diagnostics), and the **Claude skill emitter** (one skill per home layer) — which makes the `Library<Validated>` typestate load-bearing: `emit::claude::emit` accepts only a validated library, so emitting unchecked rules is a compile error. 58 tests, all passing. The remaining entries (the other four emitters, emission-idempotence as a property, round-trip fidelity, the CLI surface, and the `fsio` write-side overwrite guard) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): Phase A is complete **through the first emitter and the write guard**. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side, the **Claude skill emitter** (one skill per home layer — which makes the `Library<Validated>` typestate load-bearing: `emit::claude::emit` accepts only a validated library, so emitting unchecked rules is a compile error), and the **`fsio` write-side overwrite guard** (pre-flight marker check aborts the whole write rather than clobber unversioned content; every written file carries the generated-by marker, tool version, source tags, and a `sha256` of the body). 62 tests, all passing. The remaining entries (the other four emitters, emission-idempotence as a property, round-trip fidelity, and the CLI surface that wires load → validate → emit → `write_all`) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
@@ -83,8 +83,8 @@ What: parse → emit → re-parse (for formats that support it) preserves tag, h
 **Enforced by: NOTHING YET — exposed** *(target: property test)*
 
 ### Generated files are never clobbered
-What: `build` refuses to overwrite a target file lacking the generated-by header and hash; it atticks or aborts rather than deleting unversioned content (`[R:generate-guards-unversioned]`).
-**Enforced by: NOTHING YET — exposed**
+What: writing refuses to overwrite a target file lacking the generated-by marker; a pre-flight pass aborts the **whole** write before touching disk if any target is unversioned, rather than deleting human-authored content (`[R:generate-guards-unversioned]`). A file relearn previously generated (marker present) is regenerated freely. Every written file carries the marker, the tool version, its source-rule tags, and a `sha256` of the body.
+**Enforced by:** `fsio::write_all` (pre-flight marker check, then commit) + `fsio` tests (`refuses_to_clobber_a_file_lacking_the_marker`, `a_single_conflict_aborts_the_whole_write`, `overwrites_a_file_it_previously_generated`, `writes_files_creating_parent_dirs_and_appends_the_header`). *(The CLI surface that calls `write_all` and turns a `WriteError` into a process exit is still pending.)*
 
 ---
 
