@@ -12,9 +12,9 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 ## Status
 
-Early. Phase A (portability) is functionally complete; not yet released. See `TODO.md`.
+Early. **Phase A (portability) is complete**; Phase B (the linter) is underway. Not yet released. See `TODO.md`.
 
-The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md`. A first real rule set lives in [`rules/`](rules/) (six rules ported from dated incidents), and `relearn build` compiles it end to end. Phase B (the contradiction/overlap linter) is next.
+The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md` — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A first real rule set lives in [`rules/`](rules/) (six rules ported from dated incidents); `relearn build` compiles it end to end, and `relearn lint` reports advisory findings without ever touching a rule.
 
 ## Usage
 
@@ -30,6 +30,10 @@ relearn list --rules ./rules --home domain-rust
 # (claude, cursor, copilot, agents, claude-md); pass --targets to narrow.
 relearn build --rules ./rules --out .
 relearn build --rules ./rules --out . --targets cursor,copilot
+
+# Report advisory findings (overlapping scope, home-slug collisions,
+# dangling references). Writes nothing; non-zero exit if any are found.
+relearn lint --rules ./rules
 ```
 
 A rule directory is `*.md` files with TOML front-matter and a markdown body:

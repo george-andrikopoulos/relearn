@@ -46,7 +46,7 @@
 ### Tests (per `rust-typedd` hierarchy — types first, then properties, then pins)
 - [x] proptest: emission idempotent over generated rule sets (`tests/properties.rs::emission_is_idempotent`, all 5 emitters)
 - [x] proptest: round-trip preserves tag, home, status, body (`tests/properties.rs::neutral_round_trip_preserves_the_rule`, via the new `rule::to_document` serializer)
-- [ ] compile-fail test: unvalidated library cannot reach `emit` (`trybuild`; the type already enforces it, this pins the negative)
+- [x] compile-fail test: unvalidated library cannot reach `emit` (`trybuild` pin `tests/compile_fail/emit_rejects_unvalidated_library.rs` — checks the type mismatch, not merely that it fails; **closes Phase A**)
 - [ ] unit pins: one per bug found, added with the fix
 
 ### Seed content

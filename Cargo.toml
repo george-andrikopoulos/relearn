@@ -34,3 +34,6 @@ sha2 = "0.10"
 proptest = "1"
 # Filesystem tests for `fsio` use throwaway temp directories.
 tempfile = "3"
+# Compile-fail pins (rust-typedd tier 1, the negative): prove that code which
+# must not compile does not — e.g. emitting an unvalidated library.
+trybuild = "1"
