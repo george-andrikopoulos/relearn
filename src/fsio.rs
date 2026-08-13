@@ -398,4 +398,25 @@ mod tests {
             "the human file is left untouched"
         );
     }
+
+    #[test]
+    fn rewriting_the_same_files_is_byte_identical() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let files = vec![output(
+            &["skills", "global", "SKILL.md"],
+            "stable body\n",
+            &["R:a"],
+        )];
+
+        write_all(dir.path(), &files).expect("first write");
+        let first = fs::read(dir.path().join("skills/global/SKILL.md")).expect("read after first");
+        write_all(dir.path(), &files).expect("second write regenerates our own file");
+        let second =
+            fs::read(dir.path().join("skills/global/SKILL.md")).expect("read after second");
+
+        assert_eq!(
+            first, second,
+            "rebuilding unchanged input produces byte-identical output (header hash included)"
+        );
+    }
 }

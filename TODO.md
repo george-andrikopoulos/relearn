@@ -44,9 +44,9 @@
 - [x] Unknown target rejected before any write (`Target` value-enum names only buildable emitters, so an unknown `--targets` value is a `clap` parse error)
 
 ### Tests (per `rust-typedd` hierarchy — types first, then properties, then pins)
-- [ ] proptest: emission idempotent over generated rule sets
-- [ ] proptest: round-trip preserves tag, home, status, body
-- [ ] compile-fail test: unvalidated library cannot reach `emit`
+- [x] proptest: emission idempotent over generated rule sets (`tests/properties.rs::emission_is_idempotent`, all 5 emitters)
+- [x] proptest: round-trip preserves tag, home, status, body (`tests/properties.rs::neutral_round_trip_preserves_the_rule`, via the new `rule::to_document` serializer)
+- [ ] compile-fail test: unvalidated library cannot reach `emit` (`trybuild`; the type already enforces it, this pins the negative)
 - [ ] unit pins: one per bug found, added with the fix
 
 ### Seed content
