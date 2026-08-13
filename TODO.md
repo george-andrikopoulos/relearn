@@ -20,7 +20,7 @@
 
 ### Parsing
 - [x] TOML front-matter reader (`+++` delimited) → `Rule` (`rule::parse_document`; dates are quoted strings so `Date::parse` keeps the range check)
-- [x] Parse failure names the field and never skips (`ParseError`); *file name prepended by `fsio`/`cli` — pending*
+- [x] Parse failure names the file and field, never skips (`ParseError` + `fsio::LoadError::Parse`)
 - [x] Duplicate-tag detection at library level (`Library::validate` → `ValidationError::DuplicateTag`)
 
 ### Emitters (pure functions returning `Vec<OutputFile>`)
@@ -32,6 +32,7 @@
 - [ ] `claude_md` — project-layer `CLAUDE.md`
 
 ### fsio + guards
+- [x] Read side: load `rules/*.md` (sorted) into `Library<Unvalidated>`, file-named diagnostics (`fsio::load_rules`)
 - [ ] Generated-by header + content hash on every emitted file
 - [ ] Overwrite guard: refuse to clobber a file lacking the header (`[R:generate-guards-unversioned]`)
 

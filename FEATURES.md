@@ -4,7 +4,7 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): Phase A is complete **through parsing** — the value types, the library typestate, and the neutral-format parser have shipped. Enforced: tag shape, one-home, out-of-range dates (end to end, through the parser), non-empty provenance, status payloads, duplicate-tag rejection, and format parsing (`rule` + `library` modules, 43 tests, all passing). The remaining entries (emission, CLI, and the `fsio` file layer) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): Phase A is complete **through parsing** — the value types, the library typestate, and the neutral-format parser have shipped. Enforced: tag shape, one-home, out-of-range dates (end to end, through the parser), non-empty provenance, status payloads, duplicate-tag rejection, and format parsing (`rule` + `library` modules, 43 tests, all passing). The `fsio` read side (loading a rules directory, file-named diagnostics) has also shipped. The remaining entries (emission, the CLI surface, and the `fsio` write-side overwrite guard) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
@@ -15,8 +15,12 @@ What: `rules/<tag>.md` with TOML front-matter (`+++`) and markdown body parses i
 **Enforced by:** `rule::parse_document` + `rule::parse` tests (`parses_a_full_document`, `attic_status_parses_with_reason_and_date`).
 
 ### Malformed rule stops the build
-What: any parse failure aborts with a diagnostic naming the field; no rule is ever skipped silently.
-**Enforced by:** `rule::parse_document` returns a typed `ParseError` naming the field and never yields a partial or skipped `Rule` + `rule::parse` error tests (missing front-matter, unterminated, invalid TOML, bad tag, unknown/incomplete `home`/`status`). *(The file name is prepended by `fsio`/`cli` — pending; the field-level diagnostic and never-skip guarantee are enforced now.)*
+What: any parse failure aborts with a diagnostic naming the file and field; no rule is ever skipped silently.
+**Enforced by:** `rule::parse_document` returns a typed `ParseError` naming the field; `fsio::load_rules` wraps it as `LoadError::Parse { path, source }`, adding the file. Neither ever yields a partial or skipped `Rule`. Tests in `rule::parse` (field-level) and `fsio` (`a_bad_file_stops_the_load_and_names_it`). *(The `cli` surface that turns a `LoadError` into a process exit is still pending.)*
+
+### A rules directory loads, or names the file that failed
+What: `fsio::load_rules(dir)` reads every `*.md` in sorted (deterministic) order into `Library<Unvalidated>`; an unreadable or unparseable file stops the load with a `LoadError` naming it — never a silent skip.
+**Enforced by:** `fsio::load_rules` + `fsio` tests (`loads_md_files_in_sorted_order_ignoring_others`, `a_bad_file_stops_the_load_and_names_it`, `missing_directory_is_a_readdir_error`, `empty_directory_loads_an_empty_library`).
 
 ### Tag shape is enforced at the perimeter
 What: `RuleTag::parse` accepts only `R:[a-z0-9][a-z0-9-]*`; nothing downstream re-validates.

@@ -420,6 +420,7 @@ dependencies = [
  "proptest",
  "serde",
  "sha2",
+ "tempfile",
  "thiserror",
  "toml",
 ]
