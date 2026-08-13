@@ -58,8 +58,8 @@ order to name it illegal.
 
 | Target | Output | Notes |
 |---|---|---|
-| `claude` | `<out>/skills/<name>/SKILL.md` | YAML front-matter: `name`, `description` (built from title + error class for trigger coverage) |
-| `cursor` | `<out>/.cursor/rules/<tag>.mdc` | YAML front-matter: `description`, `globs`, `alwaysApply` |
+| `claude` | `<out>/skills/<home>/SKILL.md` | **One skill per home layer** (not per rule — decision 2026-08-13). `<name>` is the home; `description` aggregates that home's rules for trigger coverage |
+| `cursor` | `<out>/.cursor/rules/<tag>.mdc` | One `.mdc` per rule (Cursor's native granularity). YAML front-matter: `description`, `globs`, `alwaysApply` — **`globs`/`alwaysApply` derived from `Home`** via a shared domain→pattern table in `emit`, never carried on the rule (decision 2026-08-13) |
 | `copilot` | `<out>/.github/copilot-instructions.md` | Single concatenated file; rules ordered by home then tag |
 | `agents` | `<out>/AGENTS.md` | Single concatenated file |
 | `claude_md` | `<out>/CLAUDE.md` | Project-layer rules only |
@@ -76,3 +76,5 @@ Every emitted file carries a generated-by header naming the source rule(s) and a
 | 2026-08-13 | Parse failure stops the build | A silently skipped rule is a lost correction — the exact failure this project exists to prevent | Warn and continue — friendlier, unsafe |
 | 2026-08-13 | Provenance fields are mandatory | The governance argument rests on provenance; optional provenance makes the tool complicit in sediment | Optional fields with defaults |
 | 2026-08-13 | Type-Driven Design, not test-first | Standing doctrine (`rust-typedd`): a type constrains the whole space, a test samples points; in an AI-assisted pipeline the compiler is the cheapest retirement stage | TDD-first |
+| 2026-08-13 | Claude skill emitter is one skill **per home layer**, not per rule | The skill *description* is always-resident metadata (P6, context is finite); per-rule grows it `O(rules)` and this library is built to grow. Matches the existing hand-authored skills (`project-discipline`, `rust-typedd`) which bundle many rules by domain; domain-level triggering is the right granularity. Future escape hatch: an optional `skill_group` field only if one home ever needs more than one skill. | One skill per rule — precise triggers, but unbounded resident-metadata growth |
+| 2026-08-13 | Cursor `globs`/`alwaysApply` are **derived from `Home`**, not carried as target-specific fields | `Home` already *is* the neutral scoping concept; translating it into Cursor's vocabulary is the emitter's job, and vendor knowledge belongs in the emitter. Rule-level `cursor.*` fields would fragment the neutral format (every vendor then wants its own), contradicting P2. If finer scope than `Home` expresses is ever needed, enrich `Home` so every emitter benefits — never add a Cursor-only field. | Optional `cursor.*` fields on the rule — flexible, but rots the neutral format into a union of vendor front-matters |

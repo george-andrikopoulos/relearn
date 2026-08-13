@@ -24,8 +24,9 @@
 - [ ] Duplicate-tag detection at library level
 
 ### Emitters (pure functions returning `Vec<OutputFile>`)
-- [ ] `claude` — `skills/<name>/SKILL.md`
-- [ ] `cursor` — `.cursor/rules/<tag>.mdc`
+- [ ] `emit` shared scope helper: `Home` → (globs, alwaysApply) via a domain→file-pattern table (`rust → **/*.rs`, …); read by `cursor` (and `copilot` ordering) so scope translation is one place, not per-emitter
+- [ ] `claude` — one skill **per home layer**: `skills/<home>/SKILL.md`, description aggregating the home's rules
+- [ ] `cursor` — `.cursor/rules/<tag>.mdc`; `globs`/`alwaysApply` from the scope helper, not the rule
 - [ ] `copilot` — `.github/copilot-instructions.md`
 - [ ] `agents` — `AGENTS.md`
 - [ ] `claude_md` — project-layer `CLAUDE.md`
@@ -64,6 +65,6 @@
 - [ ] First-time-right capture on AI-assisted work
 - [ ] *(Deferred, needs a field site: rework rate, time-to-competence — study-design items, not build items)*
 
-## Open questions
-- [ ] Does the Claude skill emitter produce one skill per rule, or one skill per home layer? Per-rule may bloat the always-resident metadata index (P6 — context is finite). **Decide before writing the emitter.**
-- [ ] Cursor `globs` and `alwaysApply` have no counterpart in the neutral format. Add target-specific optional fields, or derive from `Home`? Deriving is cleaner but may not fit every case.
+## Resolved decisions (2026-08-13 — see ARCHITECTURE decisions log)
+- [x] Claude skill emitter: **one skill per home layer**, not per rule. Bounds the always-resident metadata index (P6); matches the existing `project-discipline`/`rust-typedd` skills that bundle rules by domain. Future escape hatch: an optional `skill_group` field *only if* one home ever needs more than one skill.
+- [x] Cursor `globs`/`alwaysApply`: **derived from `Home`** via a shared domain→pattern table in `emit`; no `cursor.*` fields on the rule (keeps the format neutral, P2). If finer scope than `Home` expresses is ever needed, enrich `Home` so every emitter benefits — never a Cursor-only field.

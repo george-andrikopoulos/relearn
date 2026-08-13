@@ -47,11 +47,11 @@ What: `emit::*` takes `&Library<Validated>`; passing an unvalidated library does
 **Enforced by: NOTHING YET — exposed** *(target: typestate — a compile-fail test)*
 
 ### Claude skill emitter
-What: produces `skills/<name>/SKILL.md` with valid YAML front-matter (`name`, `description`).
+What: produces one skill **per home layer** — `skills/<home>/SKILL.md` with valid YAML front-matter (`name`, `description` aggregating that home's rules). Not one skill per rule (P6; decision 2026-08-13).
 **Enforced by: NOTHING YET — exposed**
 
 ### Cursor rules emitter
-What: produces `.cursor/rules/<tag>.mdc` with valid YAML front-matter (`description`, `globs`, `alwaysApply`).
+What: produces `.cursor/rules/<tag>.mdc` with valid YAML front-matter (`description`, `globs`, `alwaysApply`), where `globs`/`alwaysApply` are **derived from `Home`** via the shared scope helper — not carried on the rule (P2; decision 2026-08-13).
 **Enforced by: NOTHING YET — exposed**
 
 ### Copilot instructions emitter
