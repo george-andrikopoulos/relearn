@@ -50,7 +50,9 @@
 - [ ] unit pins: one per bug found, added with the fix
 
 ### Seed content
-- [ ] Migrate the existing rule library (relearn, project-discipline, rust-typedd, the `[R:...]` rules in stochos-lab) into the neutral format — **the first real test of whether the format is adequate**
+- [x] Migrate a first real rule set into the neutral format (`rules/*.md`, 6 rules from dated incidents: `parse-wide-then-range-check`, `no-sentinel-values`, `verify-through-production-path`, `measure-cost-per-task`, `revision-integrity`, `order-by-explicit-rank`) — **the first real test of format adequacy**. Finding: the schema (tag / title / error_class / home / created / status / incident / body) held every rule across all three homes (4 global, 1 domain, 1 project) with no missing field; `check` + `build` produce 12 files, ordering and project-only `CLAUDE.md` correct.
+- [ ] Only real rules with documented, dated incidents were ported (fabricating provenance is the sediment the tool fights). Still unexercised by *real* seed data: `graduated` / `attic` status and multiple rules sharing one non-global home — covered by unit tests, awaiting a real rule that carries them.
+- [ ] Port the remaining `[R:...]` rules as their incidents are on hand (project-discipline, rust-typedd, stochos-lab layers)
 
 ## Phase B — linter (after format settles)
 - [ ] Contradiction detection between rules

@@ -12,9 +12,9 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 ## Status
 
-Early. Phase A (portability) runs end to end; not yet released. See `TODO.md`.
+Early. Phase A (portability) is functionally complete; not yet released. See `TODO.md`.
 
-The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md`. The seed-content migration (porting the real rule set into the neutral format) is the remaining Phase A work.
+The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md`. A first real rule set lives in [`rules/`](rules/) (six rules ported from dated incidents), and `relearn build` compiles it end to end. Phase B (the contradiction/overlap linter) is next.
 
 ## Usage
 
