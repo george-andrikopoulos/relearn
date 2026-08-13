@@ -73,11 +73,11 @@
 - [x] `relearn verify` — read-only drift detection: each generated file classified `Ok`/`Missing`/`Unversioned`/`HandEdited`/`Stale`, non-zero exit on any drift (`cli::verify` → `fsio::verify_all`). The CI "committed generated tree is in sync with the rules" gate; complements the write-side clobber guard. (Was the Phase A hand-edit-detection item; landed here as it is a checking feature.)
 - [→] Cold-surface / uncited report — **relocated to Phase C** (see below): "cold" needs runtime invocation data (stochos-lab observability), which does not live in this repo; "uncited" alone is noise (a standalone rule is legitimately uncited). Not buildable here without faking a signal.
 
-## Phase D — public release (gated on arXiv ID)
-- [ ] README public framing: versioned instruction artifacts + the governance loop
-- [ ] Licence (Apache-2.0, matching Ferridis — includes the patent grant)
-- [ ] Worked example: one incident → one rule → five emitted formats
-- [ ] Point at the arXiv identifier; make the repo public
+## Phase D — public release (going-public gated on arXiv ID)
+- [x] README public framing: versioned instruction artifacts + the governance loop (Why/Background + Status link the worked example; the loop — persist-or-perish, one-home-per-rule — is stated).
+- [x] Licence (Apache-2.0 — includes the patent grant that matters for enterprise adoption). `LICENSE` file added; `Cargo.toml` already declares `license = "Apache-2.0"`.
+- [x] Worked example: one incident → one rule → five emitted formats (`docs/worked-example.md`) — **generated from real `relearn build` output**, not a mock-up, with the regeneration command recorded so it can't silently drift (honours `R:revision-integrity`).
+- [ ] **Point at the arXiv identifier; make the repo public — BLOCKED, and George's call.** Needs (a) the companion paper's real arXiv ID to exist, and (b) George's explicit go: per the private-by-default rule, the repo is never made public without an explicit instruction. Do not flip visibility autonomously. When the ID exists: add it to the README Background, then `gh repo edit --visibility public` on George's word.
 
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [ ] Error-class recurrence — partly exists in the ledger

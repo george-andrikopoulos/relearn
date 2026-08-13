@@ -12,7 +12,9 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 ## Status
 
-Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. Not yet released. See `TODO.md`.
+Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release) is in progress**: the licence and a worked example are in place; going fully public is gated on the companion paper's arXiv identifier. Not yet released. See `TODO.md`.
+
+For an end-to-end walk-through — one real incident becoming one rule and compiling out to all five instruction layers, with actual `relearn build` output — see [`docs/worked-example.md`](docs/worked-example.md).
 
 The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md` — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/) (fourteen rules ported from George's engineering discipline, spanning global, domain-rust, and two project homes, with active and graduated statuses); `relearn build` compiles it end to end, `relearn lint` reports advisory findings without ever touching a rule, and `relearn verify` checks the emitted tree has not drifted from it.
 
@@ -77,7 +79,7 @@ See `ARCHITECTURE.md` for the pipeline and the decisions log, `CLAUDE.md` for th
 
 ## Licence
 
-Apache-2.0 (planned) — the explicit patent grant matters for anything intended to be safely adoptable inside enterprises.
+Apache-2.0 — see [`LICENSE`](LICENSE). The explicit patent grant matters for anything intended to be safely adoptable inside enterprises.
 
 ## Author
 
