@@ -1,8 +1,8 @@
 //! `rule` — the neutral rule type and its newtypes: `RuleTag`, `ErrorClass`,
-//! `Incident`, `Home`, `Status`. Parsing of the neutral format (TOML
-//! front-matter delimited by `+++`, imperative markdown body) lives here, and
-//! validation mints witness newtypes at the perimeter — parse, don't validate,
-//! so nothing downstream re-checks.
+//! `Incident`, `Home`, `Status`, and the `Rule` aggregate. Parsing of the
+//! neutral format (TOML front-matter delimited by `+++`, imperative markdown
+//! body) lives here, and validation mints witness newtypes at the perimeter —
+//! parse, don't validate, so nothing downstream re-checks.
 //!
 //! Type-driven decisions this module owns (ARCHITECTURE.md):
 //! - `RuleTag` is constructible only via `RuleTag::parse` (shape
@@ -12,18 +12,22 @@
 //! - `Status` carries its payload, so "graduated" without a destination or
 //!   "attic" without a reason cannot be constructed.
 //! - Date fields parse wide, then range-check (`[R:parse-wide-then-range-check]`).
+//! - `Rule` aggregates witness newtypes; because each field is a distinct type,
+//!   its constructor is swap-proof.
 //!
 //! **Must NOT:** know anything about output formats. An emitter's concerns
 //! never leak into the rule type.
 
 mod date;
+mod def;
 mod home;
 mod status;
 mod tag;
 mod text;
 
 pub use date::{Date, DateError};
+pub use def::Rule;
 pub use home::{DomainName, Home, ProjectPath};
 pub use status::{Destination, Reason, Status};
 pub use tag::{RuleTag, RuleTagError};
-pub use text::{EmptyText, ErrorClass, Incident};
+pub use text::{Body, EmptyText, ErrorClass, Incident, Title};

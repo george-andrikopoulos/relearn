@@ -4,7 +4,7 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): the Phase A **value types** have shipped — tag shape, one-home, out-of-range dates, non-empty provenance text, and status payloads are enforced by the `rule` module (27 tests, all passing). The remaining entries (parsing, emission, CLI) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): the Phase A **value types and the library typestate** have shipped — tag shape, one-home, out-of-range dates, non-empty provenance text, status payloads, and duplicate-tag rejection are enforced (`rule` + `library` modules, 31 tests, all passing). The remaining entries (TOML front-matter parsing, emission, CLI) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
@@ -28,7 +28,7 @@ What: a rule missing `created`, `incident`, or `error_class` fails to parse.
 
 ### Duplicate tags are rejected
 What: two rules sharing a tag is a library-level error.
-**Enforced by: NOTHING YET — exposed**
+**Enforced by:** `Library::validate` (checks tag uniqueness, returns `ValidationError::DuplicateTag`, never drops a rule) + `library` test `duplicate_tag_is_rejected_with_the_offending_tag`.
 
 ### One home per rule is unrepresentable otherwise
 What: `Home` is a sum type; a rule cannot carry two homes.
@@ -52,7 +52,7 @@ What: a `Graduated` status without a destination, or an `Attic` status without a
 
 ### Emitters accept only validated libraries
 What: `emit::*` takes `&Library<Validated>`; passing an unvalidated library does not compile.
-**Enforced by: NOTHING YET — exposed** *(target: typestate — a compile-fail test)*
+**Enforced by: NOTHING YET — exposed** *(the `Library<Unvalidated>`/`Library<Validated>` typestate is built and `validate` is the only way to reach `Validated`; the compile-time gate is exercised once `emit` takes `&Library<Validated>` — no consumer requires it yet)*
 
 ### Claude skill emitter
 What: produces one skill **per home layer** — `skills/<home>/SKILL.md` with valid YAML front-matter (`name`, `description` aggregating that home's rules). Not one skill per rule (P6; decision 2026-08-13).

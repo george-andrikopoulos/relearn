@@ -1,8 +1,8 @@
-//! Non-empty, trimmed text newtypes. `ErrorClass` and `Incident` are distinct
-//! types though they share a representation (Pattern 1: newtype liberally) — an
-//! `Incident` is not an `ErrorClass`, and the compiler should refuse to swap
-//! them. All non-empty text in the crate passes through [`nonempty`], the one
-//! perimeter.
+//! Non-empty, trimmed text newtypes. `ErrorClass`, `Incident`, `Title` and
+//! `Body` are distinct types though they share a representation (Pattern 1:
+//! newtype liberally) — a `Title` is not a `Body`, and the compiler should
+//! refuse to swap them. All non-empty text in the crate passes through
+//! [`nonempty`], the one perimeter.
 
 /// A trimmed, non-empty string failed to validate: the named field was empty
 /// (or whitespace only).
@@ -58,6 +58,40 @@ impl Incident {
     }
 }
 
+/// A rule's short human title.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Title(String);
+
+impl Title {
+    /// Parse a non-empty title.
+    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
+        Ok(Self(nonempty("title", s)?))
+    }
+
+    /// The title text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// The imperative rule body — the markdown after the front-matter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Body(String);
+
+impl Body {
+    /// Parse a non-empty body.
+    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
+        Ok(Self(nonempty("body", s)?))
+    }
+
+    /// The body text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,5 +115,12 @@ mod tests {
     #[test]
     fn rejects_empty_incident() {
         assert!(Incident::parse("").is_err());
+    }
+
+    #[test]
+    fn title_and_body_reject_blank() {
+        assert!(Title::parse("  ").is_err());
+        assert!(Body::parse("").is_err());
+        assert_eq!(Body::parse(" do it ").expect("non-empty").as_str(), "do it");
     }
 }

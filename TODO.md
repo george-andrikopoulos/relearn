@@ -16,12 +16,12 @@
 - [x] `Status` sum type carrying payloads: `Active | Graduated{to} | Attic{reason,date}` (+ `Destination`/`Reason` newtypes)
 - [x] `Incident`, `ErrorClass` newtypes (non-empty by construction, over a shared `nonempty` perimeter)
 - [x] Date field: parse wide, then range-check (dogfood `[R:parse-wide-then-range-check]`) — `Date::parse` into `i64` then narrow; property-tested
-- [ ] `Library<Unvalidated>` / `Library<Validated>` typestate; `emit` accepts only the latter — **next step**
+- [x] `Library<Unvalidated>` / `Library<Validated>` typestate; `validate` is the only path to `Validated` (`emit` will accept only the latter)
 
 ### Parsing
 - [ ] TOML front-matter reader (`+++` delimited) → `Rule`
 - [ ] Parse failure aborts with file + field in the diagnostic; never skip
-- [ ] Duplicate-tag detection at library level
+- [x] Duplicate-tag detection at library level (`Library::validate` → `ValidationError::DuplicateTag`)
 
 ### Emitters (pure functions returning `Vec<OutputFile>`)
 - [ ] `emit` shared scope helper: `Home` → (globs, alwaysApply) via a domain→file-pattern table (`rust → **/*.rs`, …); read by `cursor` (and `copilot` ordering) so scope translation is one place, not per-emitter
