@@ -24,8 +24,9 @@
 - [x] Duplicate-tag detection at library level (`Library::validate` → `ValidationError::DuplicateTag`)
 
 ### Emitters (pure functions returning `Vec<OutputFile>`)
+- [x] Shared emit types: `OutputFile` (path + contents), `RelativePath` (portable forward-slash, `pub(crate)` construction), `HomeSlug` (`Home` → `[a-z0-9-]+`, also the skill `name`) — `emit.rs`
 - [ ] `emit` shared scope helper: `Home` → (globs, alwaysApply) via a domain→file-pattern table (`rust → **/*.rs`, …); read by `cursor` (and `copilot` ordering) so scope translation is one place, not per-emitter
-- [ ] `claude` — one skill **per home layer**: `skills/<home>/SKILL.md`, description aggregating the home's rules
+- [x] `claude` — one skill **per home layer**: `skills/<home-slug>/SKILL.md`, description aggregating the home's rules (YAML-quoted); makes the `Library<Validated>` typestate load-bearing (`emit::claude::emit`)
 - [ ] `cursor` — `.cursor/rules/<tag>.mdc`; `globs`/`alwaysApply` from the scope helper, not the rule
 - [ ] `copilot` — `.github/copilot-instructions.md`
 - [ ] `agents` — `AGENTS.md`

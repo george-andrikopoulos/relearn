@@ -4,7 +4,7 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): Phase A is complete **through parsing** — the value types, the library typestate, and the neutral-format parser have shipped. Enforced: tag shape, one-home, out-of-range dates (end to end, through the parser), non-empty provenance, status payloads, duplicate-tag rejection, and format parsing (`rule` + `library` modules, 43 tests, all passing). The `fsio` read side (loading a rules directory, file-named diagnostics) has also shipped. The remaining entries (emission, the CLI surface, and the `fsio` write-side overwrite guard) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): Phase A is complete **through the first emitter**. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side (loading a rules directory, file-named diagnostics), and the **Claude skill emitter** (one skill per home layer) — which makes the `Library<Validated>` typestate load-bearing: `emit::claude::emit` accepts only a validated library, so emitting unchecked rules is a compile error. 58 tests, all passing. The remaining entries (the other four emitters, emission-idempotence as a property, round-trip fidelity, the CLI surface, and the `fsio` write-side overwrite guard) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
@@ -56,11 +56,11 @@ What: a `Graduated` status without a destination, or an `Attic` status without a
 
 ### Emitters accept only validated libraries
 What: `emit::*` takes `&Library<Validated>`; passing an unvalidated library does not compile.
-**Enforced by: NOTHING YET — exposed** *(the `Library<Unvalidated>`/`Library<Validated>` typestate is built and `validate` is the only way to reach `Validated`; the compile-time gate is exercised once `emit` takes `&Library<Validated>` — no consumer requires it yet)*
+**Enforced by:** `emit::claude::emit`'s signature `&Library<Validated>` — the first emitter to consume the typestate, so the compile-time gate is now load-bearing rather than latent. *(A `trybuild` compile-fail pin proving an `Unvalidated` library is rejected is still TODO — the negative is asserted by the type system today, not yet by a test.)*
 
 ### Claude skill emitter
-What: produces one skill **per home layer** — `skills/<home>/SKILL.md` with valid YAML front-matter (`name`, `description` aggregating that home's rules). Not one skill per rule (P6; decision 2026-08-13).
-**Enforced by: NOTHING YET — exposed**
+What: produces one skill **per home layer** — `skills/<home-slug>/SKILL.md` with valid YAML front-matter (`name`, `description` aggregating that home's rules). Not one skill per rule (P6; decision 2026-08-13). The `description` value is YAML-double-quoted, so a `:` or `"` in a rule title stays valid front-matter.
+**Enforced by:** `emit::claude::emit` (groups by `HomeSlug`, one `OutputFile` per home, rules sorted by tag) + `emit::claude` tests (`one_skill_per_home_layer`, `home_skill_aggregates_its_rules_sorted_by_tag`, `front_matter_names_the_home_slug`, `description_covers_each_rule_in_the_home`, `description_is_quoted_so_a_colon_in_a_title_stays_valid_yaml`).
 
 ### Cursor rules emitter
 What: produces `.cursor/rules/<tag>.mdc` with valid YAML front-matter (`description`, `globs`, `alwaysApply`), where `globs`/`alwaysApply` are **derived from `Home`** via the shared scope helper — not carried on the rule (P2; decision 2026-08-13).
@@ -76,7 +76,7 @@ What: produces a single `AGENTS.md`.
 
 ### Emission is idempotent
 What: re-running `build` on unchanged rules produces byte-identical output.
-**Enforced by: NOTHING YET — exposed** *(target: property test over generated rule sets)*
+**Enforced by:** the claude stage is a deterministic pure function (`emit::claude::tests::emission_is_deterministic` — same library → identical `Vec<OutputFile>`, homes ordered by slug, rules by tag). *The whole-`build` byte-identity property (across every emitter, and through the `fsio` write) is still `NOTHING YET — exposed`: target a property test over generated rule sets once more than one emitter exists.*
 
 ### Round-trip fidelity
 What: parse → emit → re-parse (for formats that support it) preserves tag, home, status, and body.
