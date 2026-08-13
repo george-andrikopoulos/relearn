@@ -14,7 +14,7 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 Early. Phase A (portability) runs end to end; not yet released. See `TODO.md`.
 
-The pipeline `rules/*.md → parse → validate → emit → write` works today for two targets — Claude skills and Cursor rules; the remaining three emitters (`copilot`, `AGENTS.md`, project `CLAUDE.md`) and the seed-content migration are the rest of Phase A.
+The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md`. The seed-content migration (porting the real rule set into the neutral format) is the remaining Phase A work.
 
 ## Usage
 
@@ -26,10 +26,10 @@ relearn check --rules ./rules
 relearn list --rules ./rules
 relearn list --rules ./rules --home domain-rust
 
-# Compile the library to an output root. Defaults to every implemented
-# target (Claude skills + Cursor rules); pass --targets to narrow.
+# Compile the library to an output root. Defaults to every target
+# (claude, cursor, copilot, agents, claude-md); pass --targets to narrow.
 relearn build --rules ./rules --out .
-relearn build --rules ./rules --out . --targets cursor
+relearn build --rules ./rules --out . --targets cursor,copilot
 ```
 
 A rule directory is `*.md` files with TOML front-matter and a markdown body:

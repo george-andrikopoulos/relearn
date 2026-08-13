@@ -223,6 +223,19 @@ fn domain_globs(name: &str) -> Vec<String> {
     patterns.iter().map(|p| (*p).to_owned()).collect()
 }
 
+/// A stable ordering rank for a home, general → specific: `Global` (0) before
+/// `Domain` (1) before `Project` (2). Emitters that concatenate every home into
+/// one file (Copilot, `AGENTS.md`) order by this rank first — so the broadest
+/// rules lead — then by home slug (same-home rules stay grouped), then by tag.
+#[must_use]
+pub(crate) fn home_rank(home: &Home) -> u8 {
+    match home {
+        Home::Global => 0,
+        Home::Domain { .. } => 1,
+        Home::Project { .. } => 2,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,6 +299,15 @@ mod tests {
         let scope = Scope::for_home(&Home::domain("cobol").expect("non-empty domain"));
         assert!(!scope.always_apply());
         assert!(scope.globs().is_empty());
+    }
+
+    #[test]
+    fn home_rank_orders_general_before_specific() {
+        assert!(home_rank(&Home::global()) < home_rank(&Home::domain("rust").expect("domain")));
+        assert!(
+            home_rank(&Home::domain("rust").expect("domain"))
+                < home_rank(&Home::project("C:/repo").expect("project"))
+        );
     }
 
     #[test]

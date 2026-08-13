@@ -28,9 +28,10 @@
 - [x] `emit` shared scope helper: `Home` → (globs, alwaysApply) via a domain→file-pattern table (`rust → **/*.rs`, …); read by `cursor` (and later `copilot`) so scope translation is one place (`emit::Scope::for_home`)
 - [x] `claude` — one skill **per home layer**: `skills/<home-slug>/SKILL.md`, description aggregating the home's rules (YAML-quoted); makes the `Library<Validated>` typestate load-bearing (`emit::claude::emit`)
 - [x] `cursor` — `.cursor/rules/<tag-body>.mdc`; `globs`/`alwaysApply` from `Scope::for_home`, not the rule; lenient (unquoted) front-matter, colon-free filename via `RuleTag::body` (`emit::cursor::emit`)
-- [ ] `copilot` — `.github/copilot-instructions.md`
-- [ ] `agents` — `AGENTS.md`
-- [ ] `claude_md` — project-layer `CLAUDE.md`
+- [x] `copilot` — `.github/copilot-instructions.md` (all rules, home-rank ordered; `emit::copilot::emit`)
+- [x] `agents` — `AGENTS.md` (all rules, home-rank ordered; `emit::agents::emit`)
+- [x] `claude_md` — project-layer `CLAUDE.md` (project-home rules only; no file when none; `emit::claude_md::emit`)
+- [x] Shared `emit::home_rank` (general→specific home ordering for the concatenated emitters)
 
 ### fsio + guards
 - [x] Read side: load `rules/*.md` (sorted) into `Library<Unvalidated>`, file-named diagnostics (`fsio::load_rules`)

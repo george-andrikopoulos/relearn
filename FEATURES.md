@@ -4,7 +4,7 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): Phase A **runs end to end**. `relearn check | build | list` wire load → validate → emit → write through the typed pipeline; the binary has been smoke-tested through its real argv path, not only via the dispatch functions. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side, the **Claude skill emitter** (one skill per home layer — making the `Library<Validated>` typestate load-bearing), the **`fsio` write-side overwrite guard** (pre-flight marker check aborts the whole write rather than clobber unversioned content), and the **CLI** (`clap` derive; an unknown `--targets` value is a parse error before any write, because `Target` only names buildable emitters), and the **Cursor emitter** (one `.mdc` per rule; `globs`/`alwaysApply` derived from `Home` via the shared `Scope` helper). 79 tests, all passing; `relearn build` now emits both Claude and Cursor by default. The remaining entries (the `copilot`/`agents`/`claude_md` emitters, emission-idempotence as a property, and round-trip fidelity) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): Phase A **runs end to end**. `relearn check | build | list` wire load → validate → emit → write through the typed pipeline; the binary has been smoke-tested through its real argv path, not only via the dispatch functions. Shipped and enforced: the value types, the library typestate, the neutral-format parser, the `fsio` read side, the **Claude skill emitter** (one skill per home layer — making the `Library<Validated>` typestate load-bearing), the **`fsio` write-side overwrite guard** (pre-flight marker check aborts the whole write rather than clobber unversioned content), and the **CLI** (`clap` derive; an unknown `--targets` value is a parse error before any write, because `Target` only names buildable emitters), the **Cursor emitter** (one `.mdc` per rule; `globs`/`alwaysApply` derived from `Home` via the shared `Scope` helper), and the **Copilot / `AGENTS.md` / project-`CLAUDE.md` emitters** (concatenated instruction files, home-rank ordered; `CLAUDE.md` is project-layer only). **All five emitters ship** — `relearn build` compiles the whole set by default and has been smoke-tested end to end (7 files from a 2-rule library). 92 tests, all passing. The remaining entries (emission-idempotence as a property, and round-trip fidelity) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
@@ -67,12 +67,16 @@ What: produces `.cursor/rules/<tag-body>.mdc` (one per rule; filename is the col
 **Enforced by:** `emit::cursor::emit` + `emit::Scope::for_home` + the shared domain→glob table; `emit::cursor` tests (`one_mdc_per_rule_named_by_tag_body`, `rust_domain_rule_auto_attaches_on_rs_globs`, `global_rule_always_applies_with_no_globs`, `front_matter_is_delimited_and_ordered`, `emission_is_deterministic`) and `emit` `Scope` tests (`known_domain_scopes_to_language_globs_and_is_not_always`, `unknown_domain_has_no_globs_and_is_not_always`, `global_scope_always_applies_with_no_globs`, `domain_matching_is_case_insensitive_and_aliased`); the colon-free filename by `RuleTag::body` + `rule::tag` test `body_drops_the_prefix_and_is_a_safe_stem`.
 
 ### Copilot instructions emitter
-What: produces a single `.github/copilot-instructions.md`, rules ordered by home then tag.
-**Enforced by: NOTHING YET — exposed**
+What: produces a single `.github/copilot-instructions.md` holding every rule, ordered by home rank (global → domain → project), then home slug, then tag. An empty library emits no file.
+**Enforced by:** `emit::copilot::emit` (+ shared `emit::home_rank`) + `emit::copilot` tests (`single_file_at_the_github_path`, `all_rules_present_ordered_by_home_then_tag`, `empty_library_emits_nothing`, `emission_is_deterministic`) + `emit` test `home_rank_orders_general_before_specific`.
 
 ### AGENTS.md emitter
-What: produces a single `AGENTS.md`.
-**Enforced by: NOTHING YET — exposed**
+What: produces a single `AGENTS.md` at the repository root holding every rule, same home-rank ordering. An empty library emits no file.
+**Enforced by:** `emit::agents::emit` (+ shared `emit::home_rank`) + `emit::agents` tests (`single_file_at_the_repo_root`, `all_rules_present_ordered_by_home_then_tag`, `empty_library_emits_nothing`, `emission_is_deterministic`).
+
+### Project `CLAUDE.md` emitter
+What: produces a project-layer `CLAUDE.md` containing **only** `Home::Project` rules, ordered by tag. When there are no project rules it emits no file — never an empty `CLAUDE.md` that would clobber a hand-authored one.
+**Enforced by:** `emit::claude_md::emit` (filters `Home::Project`) + `emit::claude_md` tests (`only_project_rules_are_included`, `file_is_at_claude_md_path`, `no_project_rules_emits_nothing`, `emission_is_deterministic`).
 
 ### Emission is idempotent
 What: re-running `build` on unchanged rules produces byte-identical output.

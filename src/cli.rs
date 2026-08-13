@@ -50,7 +50,11 @@ enum Command {
         out: PathBuf,
         /// Comma-separated targets to emit; an unknown target is rejected here,
         /// before any file is written. Defaults to every implemented target.
-        #[arg(long, value_delimiter = ',', default_value = "claude,cursor")]
+        #[arg(
+            long,
+            value_delimiter = ',',
+            default_value = "claude,cursor,copilot,agents,claude-md"
+        )]
         targets: Vec<Target>,
     },
     /// List rules, optionally filtered by home layer (its slug).
@@ -74,6 +78,13 @@ enum Target {
     Claude,
     /// Cursor rules, one per rule (`.cursor/rules/<tag-body>.mdc`).
     Cursor,
+    /// GitHub Copilot instructions, one concatenated file
+    /// (`.github/copilot-instructions.md`).
+    Copilot,
+    /// A single `AGENTS.md` at the repository root.
+    Agents,
+    /// A project-layer `CLAUDE.md` (project-home rules only).
+    ClaudeMd,
 }
 
 /// Anything the CLI can fail with. Each variant is transparent over the typed
@@ -136,6 +147,9 @@ fn build(rules: &Path, out: &Path, targets: &[Target]) -> Result<(), CliError> {
         match target {
             Target::Claude => files.extend(emit::claude::emit(&validated)),
             Target::Cursor => files.extend(emit::cursor::emit(&validated)),
+            Target::Copilot => files.extend(emit::copilot::emit(&validated)),
+            Target::Agents => files.extend(emit::agents::emit(&validated)),
+            Target::ClaudeMd => files.extend(emit::claude_md::emit(&validated)),
         }
     }
 
