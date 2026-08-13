@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::emit::OutputFile;
+use crate::emit::{OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
 use crate::rule::{ParseError, parse_document};
 
@@ -180,6 +180,172 @@ pub fn write_all(out_dir: &Path, files: &[OutputFile]) -> Result<usize, WriteErr
         })?;
     }
     Ok(files.len())
+}
+
+/// Why verifying the generated tree failed. Absence of an expected file is *not*
+/// an error (it is a [`VerifyStatus::Missing`] report); only an I/O failure that
+/// is not "file not found" stops the verify.
+#[derive(Debug, thiserror::Error)]
+pub enum VerifyError {
+    /// A target file could not be read for a reason other than absence.
+    #[error("{path:?}: {source}")]
+    Io {
+        /// The file at fault.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+}
+
+/// How one expected generated file compares to what is on disk. Every variant
+/// but [`VerifyStatus::Ok`] is drift a `relearn verify` reports and fails on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerifyStatus {
+    /// On disk and byte-identical to what `build` would write from the current
+    /// rules — no drift.
+    Ok,
+    /// `build` would write this file, but it is absent from disk.
+    Missing,
+    /// A file occupies the path but carries no generated-by marker: hand-authored
+    /// content where a generated file would go. `build` would refuse to overwrite
+    /// it; `verify` flags it rather than silently treating it as generated.
+    Unversioned,
+    /// Present and marked, but its body no longer hashes to the value its own
+    /// header records — edited by hand since generation, so the next `build`
+    /// would silently overwrite the edit.
+    HandEdited,
+    /// Present, marked, and internally consistent (body matches its own recorded
+    /// hash), but not what the current rules (or tool version) emit — stale;
+    /// regenerate with `relearn build`.
+    Stale,
+}
+
+impl VerifyStatus {
+    /// Whether this is the no-drift state ([`VerifyStatus::Ok`]).
+    #[must_use]
+    pub fn is_clean(&self) -> bool {
+        matches!(self, VerifyStatus::Ok)
+    }
+}
+
+impl std::fmt::Display for VerifyStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self {
+            VerifyStatus::Ok => "up to date",
+            VerifyStatus::Missing => "missing — expected but not on disk; run `relearn build`",
+            VerifyStatus::Unversioned => {
+                "unversioned — a non-generated file occupies this path; `build` would refuse it"
+            }
+            VerifyStatus::HandEdited => {
+                "hand-edited — body no longer matches its recorded hash; the next `build` would overwrite the edit"
+            }
+            VerifyStatus::Stale => {
+                "stale — does not match the current rules; run `relearn build` to regenerate"
+            }
+        };
+        f.write_str(msg)
+    }
+}
+
+/// The verification outcome for one expected generated file: where it would be
+/// written and how the on-disk reality compares.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifyReport {
+    path: RelativePath,
+    status: VerifyStatus,
+}
+
+impl VerifyReport {
+    /// The file's path relative to the output root.
+    #[must_use]
+    pub fn path(&self) -> &RelativePath {
+        &self.path
+    }
+
+    /// How the on-disk file compares to a fresh emission.
+    #[must_use]
+    pub fn status(&self) -> &VerifyStatus {
+        &self.status
+    }
+}
+
+/// Verify — read only, never write — that the files `build` would emit under
+/// `out_dir` match what is on disk: each is present, internally consistent (its
+/// body still hashes to the value its own header records), and byte-identical to
+/// a fresh emission. Returns one [`VerifyReport`] per expected file, in the given
+/// order. This is the detection complement to [`write_all`]'s prevention: the
+/// guard stops `build` clobbering human files, `verify_all` catches a generated
+/// file that was hand-edited or left stale.
+#[must_use = "the verify reports are the whole result; ignoring them discards every drift finding"]
+pub fn verify_all(out_dir: &Path, files: &[OutputFile]) -> Result<Vec<VerifyReport>, VerifyError> {
+    let mut reports = Vec::with_capacity(files.len());
+    for file in files {
+        let target = out_dir.join(file.path().as_str());
+        let status = match fs::read(&target) {
+            Ok(bytes) => classify(&bytes, file),
+            Err(source) if source.kind() == ErrorKind::NotFound => VerifyStatus::Missing,
+            Err(source) => {
+                return Err(VerifyError::Io {
+                    path: target,
+                    source,
+                });
+            }
+        };
+        reports.push(VerifyReport {
+            path: file.path().clone(), // allow:clone: the report owns its path, outliving the &[OutputFile] borrow
+            status,
+        });
+    }
+    Ok(reports)
+}
+
+/// Classify one on-disk file against the fresh emission `expected`. Precedence:
+/// no marker → `Unversioned`; marker but body-hash mismatch (or a malformed
+/// header) → `HandEdited`; self-consistent but not the fresh bytes → `Stale`;
+/// byte-identical → `Ok`. Integrity is checked before freshness so a hand edit
+/// is never mislabelled as mere staleness.
+fn classify(bytes: &[u8], expected: &OutputFile) -> VerifyStatus {
+    if !contains_marker(bytes) {
+        return VerifyStatus::Unversioned;
+    }
+    // We only ever write UTF-8; a marked file that is not valid UTF-8 was mangled.
+    let Ok(content) = std::str::from_utf8(bytes) else {
+        return VerifyStatus::HandEdited;
+    };
+    let Some((body, stored_hash)) = parse_generated(content) else {
+        return VerifyStatus::HandEdited;
+    };
+    if sha256_hex(body.as_bytes()) != stored_hash {
+        return VerifyStatus::HandEdited;
+    }
+    if content == render_with_header(expected) {
+        VerifyStatus::Ok
+    } else {
+        VerifyStatus::Stale
+    }
+}
+
+/// Split a generated file into its body and the `sha256` its header records.
+/// `None` if the marker is absent, is not preceded by the separator newline the
+/// renderer writes, or the header has no `sha256=` field — any of which means
+/// the file is not a well-formed relearn artifact and the caller treats it as
+/// hand-edited.
+fn parse_generated(content: &str) -> Option<(&str, &str)> {
+    let marker_pos = content.rfind(GENERATED_MARKER)?;
+    // The renderer writes `{body}\n{header}\n`, so the marker is always preceded
+    // by the separator newline; the body is everything before that newline.
+    let separator = marker_pos.checked_sub(1)?;
+    if content.as_bytes().get(separator) != Some(&b'\n') {
+        return None;
+    }
+    let body = &content[..separator];
+    let header = &content[marker_pos..];
+    let hash = header.split("sha256=").nth(1)?.split(' ').next()?;
+    if hash.is_empty() {
+        return None;
+    }
+    Some((body, hash))
 }
 
 /// Append the generated-by header (marker, tool version, source-rule tags, and
@@ -418,5 +584,51 @@ mod tests {
             first, second,
             "rebuilding unchanged input produces byte-identical output (header hash included)"
         );
+    }
+
+    // --- verify side ------------------------------------------------------
+
+    #[test]
+    fn parse_generated_recovers_the_exact_body_and_hash() {
+        // A body that itself ends in a newline — the common case — round-trips.
+        let file = output(&["AGENTS.md"], "line one\nline two\n", &["R:a"]);
+        let rendered = render_with_header(&file);
+        let (body, hash) = parse_generated(&rendered).expect("a rendered file parses");
+        assert_eq!(body, "line one\nline two\n", "body recovered verbatim");
+        assert_eq!(
+            hash,
+            sha256_hex("line one\nline two\n".as_bytes()),
+            "the recorded hash is the body hash"
+        );
+    }
+
+    #[test]
+    fn parse_generated_handles_a_body_without_a_trailing_newline() {
+        let file = output(&["AGENTS.md"], "no trailing newline", &["R:a"]);
+        let rendered = render_with_header(&file);
+        let (body, hash) = parse_generated(&rendered).expect("parses");
+        assert_eq!(body, "no trailing newline");
+        assert_eq!(hash, sha256_hex("no trailing newline".as_bytes()));
+    }
+
+    #[test]
+    fn parse_generated_rejects_a_file_without_the_marker() {
+        assert!(parse_generated("just some text\nno marker here\n").is_none());
+    }
+
+    #[test]
+    fn verify_reports_ok_for_a_freshly_written_file_and_missing_when_absent() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let files = vec![output(&["AGENTS.md"], "body\n", &["R:a"])];
+
+        // Before any write: the expected file is Missing.
+        let before = verify_all(dir.path(), &files).expect("verify reads");
+        assert_eq!(*before[0].status(), VerifyStatus::Missing);
+
+        // After write: Ok.
+        write_all(dir.path(), &files).expect("write");
+        let after = verify_all(dir.path(), &files).expect("verify reads");
+        assert_eq!(*after[0].status(), VerifyStatus::Ok);
+        assert_eq!(after[0].path().as_str(), "AGENTS.md");
     }
 }

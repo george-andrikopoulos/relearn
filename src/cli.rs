@@ -15,9 +15,9 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::emit::{self, HomeSlug};
-use crate::fsio::{self, LoadError, WriteError};
-use crate::library::ValidationError;
+use crate::emit::{self, HomeSlug, OutputFile};
+use crate::fsio::{self, LoadError, VerifyError, WriteError};
+use crate::library::{Library, Validated, ValidationError};
 use crate::lint;
 
 /// The `relearn` command line.
@@ -75,6 +75,25 @@ enum Command {
         #[arg(long, default_value = "rules")]
         rules: PathBuf,
     },
+    /// Verify that the generated files under `--out` match what `build` would
+    /// write from the current rules. Reads only, writes nothing; exits non-zero
+    /// if any generated file is missing, hand-edited, stale, or shadowed by an
+    /// unversioned file — the CI check that the committed tree is in sync.
+    Verify {
+        /// Directory of `*.md` rule files.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+        /// Output root the generated files were written under.
+        #[arg(long, default_value = ".")]
+        out: PathBuf,
+        /// Comma-separated targets to verify; the same set `build` would emit.
+        #[arg(
+            long,
+            value_delimiter = ',',
+            default_value = "claude,cursor,copilot,agents,claude-md"
+        )]
+        targets: Vec<Target>,
+    },
 }
 
 /// An emission target. Only the variants that have a working emitter are
@@ -109,6 +128,10 @@ pub enum CliError {
     /// Writing the emitted files failed.
     #[error(transparent)]
     Write(#[from] WriteError),
+    /// Verifying the generated tree hit an I/O failure (not mere drift, which is
+    /// a report, not an error).
+    #[error(transparent)]
+    Verify(#[from] VerifyError),
 }
 
 /// Parse the command line, dispatch, and turn the outcome into a process exit.
@@ -146,6 +169,11 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             Ok(ExitCode::SUCCESS)
         }
         Command::Lint { rules } => lint_rules(&rules),
+        Command::Verify {
+            rules,
+            out,
+            targets,
+        } => verify(&rules, &out, &targets),
     }
 }
 
@@ -156,26 +184,57 @@ fn check(rules: &Path) -> Result<(), CliError> {
     Ok(())
 }
 
-/// `build`: load, validate, emit each unique target, and write under `out`.
-fn build(rules: &Path, out: &Path, targets: &[Target]) -> Result<(), CliError> {
-    let validated = fsio::load_rules(rules)?.validate()?;
-
+/// Emit the deduplicated set of files for the selected targets. Shared by
+/// `build` (which writes them) and `verify` (which compares them to disk), so
+/// the two commands can never disagree about what the emitted set is.
+fn emit_selected(validated: &Library<Validated>, targets: &[Target]) -> Vec<OutputFile> {
     // Deduplicate so `--targets claude,claude` does not emit the same file twice.
     let unique: BTreeSet<Target> = targets.iter().copied().collect();
     let mut files = Vec::new();
     for target in unique {
         match target {
-            Target::Claude => files.extend(emit::claude::emit(&validated)),
-            Target::Cursor => files.extend(emit::cursor::emit(&validated)),
-            Target::Copilot => files.extend(emit::copilot::emit(&validated)),
-            Target::Agents => files.extend(emit::agents::emit(&validated)),
-            Target::ClaudeMd => files.extend(emit::claude_md::emit(&validated)),
+            Target::Claude => files.extend(emit::claude::emit(validated)),
+            Target::Cursor => files.extend(emit::cursor::emit(validated)),
+            Target::Copilot => files.extend(emit::copilot::emit(validated)),
+            Target::Agents => files.extend(emit::agents::emit(validated)),
+            Target::ClaudeMd => files.extend(emit::claude_md::emit(validated)),
         }
     }
+    files
+}
 
+/// `build`: load, validate, emit each unique target, and write under `out`.
+fn build(rules: &Path, out: &Path, targets: &[Target]) -> Result<(), CliError> {
+    let validated = fsio::load_rules(rules)?.validate()?;
+    let files = emit_selected(&validated, targets);
     let written = fsio::write_all(out, &files)?;
     println!("wrote {written} file(s) under {}", out.display());
     Ok(())
+}
+
+/// `verify`: load, validate, emit the same set `build` would, and compare it to
+/// what is on disk under `out`. Writes nothing. Exits `FAILURE` if any generated
+/// file drifted (missing, hand-edited, stale, or shadowed by an unversioned
+/// file), so CI fails when the committed tree is out of sync with the rules.
+fn verify(rules: &Path, out: &Path, targets: &[Target]) -> Result<ExitCode, CliError> {
+    let validated = fsio::load_rules(rules)?.validate()?;
+    let files = emit_selected(&validated, targets);
+    let reports = fsio::verify_all(out, &files)?;
+
+    let drifted: Vec<_> = reports.iter().filter(|r| !r.status().is_clean()).collect();
+    if drifted.is_empty() {
+        println!("ok: {} generated file(s) up to date", reports.len());
+        return Ok(ExitCode::SUCCESS);
+    }
+    for report in &drifted {
+        println!("{}: {}", report.path().as_str(), report.status());
+    }
+    println!(
+        "{} of {} generated file(s) drifted",
+        drifted.len(),
+        reports.len()
+    );
+    Ok(ExitCode::FAILURE)
 }
 
 /// `list`: print each rule as `tag  [home-slug]  title`, optionally filtered.
@@ -359,6 +418,54 @@ mod tests {
             std::fs::read_to_string(&target).expect("read back"),
             "human authored\n",
             "the human file is left untouched"
+        );
+    }
+
+    #[test]
+    fn verify_succeeds_on_a_fresh_build_and_fails_after_drift() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let out = tempfile::tempdir().expect("out tempdir");
+        write_rule(
+            rules.path(),
+            "g.md",
+            &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
+        );
+
+        build(rules.path(), out.path(), &[Target::Agents]).expect("build succeeds");
+        assert_eq!(
+            verify(rules.path(), out.path(), &[Target::Agents]).expect("verify runs"),
+            ExitCode::SUCCESS,
+            "a freshly built tree verifies clean"
+        );
+
+        // Hand-edit the generated file; verify must now fail.
+        let agents = out.path().join("AGENTS.md");
+        let edited = format!(
+            "sneaky\n{}",
+            std::fs::read_to_string(&agents).expect("read")
+        );
+        std::fs::write(&agents, edited).expect("tamper");
+        assert_eq!(
+            verify(rules.path(), out.path(), &[Target::Agents]).expect("verify runs"),
+            ExitCode::FAILURE,
+            "a hand-edited generated file fails verification"
+        );
+    }
+
+    #[test]
+    fn verify_fails_when_a_generated_file_is_missing() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let out = tempfile::tempdir().expect("out tempdir");
+        write_rule(
+            rules.path(),
+            "g.md",
+            &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
+        );
+        // Never built: the expected AGENTS.md is absent.
+        assert_eq!(
+            verify(rules.path(), out.path(), &[Target::Agents]).expect("verify runs"),
+            ExitCode::FAILURE,
+            "a never-built (missing) target fails verification"
         );
     }
 

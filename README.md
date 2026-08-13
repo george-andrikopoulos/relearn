@@ -12,7 +12,7 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 ## Status
 
-Early. **Phase A (portability) is complete**; Phase B (the linter) is underway. Not yet released. See `TODO.md`.
+Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. Not yet released. See `TODO.md`.
 
 The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md` — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/) (ten rules ported from George's engineering discipline, spanning global / domain / project homes and active / graduated statuses); `relearn build` compiles it end to end, and `relearn lint` reports advisory findings without ever touching a rule.
 
@@ -34,6 +34,11 @@ relearn build --rules ./rules --out . --targets cursor,copilot
 # Report advisory findings (overlapping scope, home-slug collisions,
 # dangling references). Writes nothing; non-zero exit if any are found.
 relearn lint --rules ./rules
+
+# Verify the generated files under --out match what build would write now.
+# Reads only; non-zero exit if any file is missing, hand-edited, or stale.
+# Use it in CI to keep the committed generated tree in sync with the rules.
+relearn verify --rules ./rules --out .
 ```
 
 A rule directory is `*.md` files with TOML front-matter and a markdown body:
@@ -52,7 +57,7 @@ incident    = "Grouping task 01: 5/5 samples parsed into u16, so 70000 read as N
 Parse into a type wide enough to represent the out-of-range value, then range-check.
 ```
 
-Every emitted file carries a generated-by header and a content hash; `build` refuses to overwrite any file it did not write (and aborts the whole run rather than leave a half-generated tree), so a target directory can safely hold both generated and hand-authored files.
+Every emitted file carries a generated-by header and a content hash; `build` refuses to overwrite any file it did not write (and aborts the whole run rather than leave a half-generated tree), so a target directory can safely hold both generated and hand-authored files. `relearn verify` is the read-only complement: it recomputes each generated file's body hash and re-emits from the current rules, reporting any file that was hand-edited or has drifted from its source — a drop-in CI check that the committed instruction files are in sync.
 
 Build from source with `cargo build --release`; the binary is `relearn`.
 

@@ -37,7 +37,8 @@
 - [x] Read side: load `rules/*.md` (sorted) into `Library<Unvalidated>`, file-named diagnostics (`fsio::load_rules`)
 - [x] Generated-by header + content hash on every emitted file (`fsio::write_all` appends marker + version + source tags + `sha256`)
 - [x] Overwrite guard: pre-flight marker check, all-or-nothing abort; refuse to clobber a file lacking the header (`fsio::write_all` → `WriteError::WouldClobberUnversioned`; `[R:generate-guards-unversioned]`)
-- [ ] Detect a hand-edited generated file (recompute body `sha256`, compare to the header's) — deferred; the marker guard already prevents clobbering human files
+- [x] Detect a hand-edited generated file (recompute body `sha256`, compare to the header's) — **done via `relearn verify`** (`fsio::verify_all`): classifies each generated file `Ok`/`Missing`/`Unversioned`/`HandEdited`/`Stale` and exits non-zero on drift. Integrity (body-hash vs own header) checked before freshness (vs a fresh emission), so a hand edit is never mislabelled stale. The marker guard *prevents* clobbering; this *detects* drift — complementary. `build`/`verify` share `cli::emit_selected`.
+- [ ] **Orphan detection in `verify`** (follow-up): a generated file on disk whose rule was deleted still lingers; `verify` currently only checks the *expected* set, so it won't flag an orphan. Needs a directory-walk policy (which subtree relearn "owns") to avoid false positives — deferred until that policy is decided.
 
 ### CLI
 - [x] `check`, `build --targets`, `list --home` (`cli::run` → `check`/`build`/`list`; `CliError` wraps `LoadError`/`ValidationError`/`WriteError`; `main` is a thin `ExitCode` shell)
@@ -60,14 +61,16 @@
 ### Open design question surfaced by the graduated rules
 - [x] Should `emit` **filter by status**? **Decided 2026-08-13 (George): emit `active` + `graduated`, suppress `attic`; graduated is emitted *annotated* with its destination.** Rationale: the instruction layer *tunes* generation before the fact, the graduated-to hook *catches* after — distinct controls, both raising first-time-right, so a graduated rule keeps its tuning job (annotated so a reader knows a stronger control also holds it); a retired rule must never leak into an active instruction file. Implemented as `Status::emittability` (exhaustive match → a new status must decide its policy) applied once in `emit::emittable`, with `emit::graduation_note` for the annotation. Property-tested whole-space (`atticked_rules_never_leak_into_any_emitter`, `active_and_graduated_rules_all_reach_copilot`) + unit pins; FEATURES row "Emission respects rule status". Verified through the binary: the two seed graduated rules render `> Also enforced by hook:…` in all four target formats. (Attic *suppression* is proven by property + unit, not the binary — no honest attic rule exists in the corpus to feed it, and fabricating one is out.)
 
-## Phase B — linter (started; `lint` module + `relearn lint`, advisory only)
+## Phase B — linter (functionally complete; `lint` module + `relearn lint` + `relearn verify`, advisory/read-only)
+*Only open item is cold-surface, which is blocked on Phase-C runtime data — relocated to Phase C below where its data lives.*
 - [x] Overlapping-scope detection (same error class, case-insensitive) — `lint::overlapping_scope`
 - [x] Home-slug collision detection: two *distinct* homes whose `HomeSlug` collides would silently share one skill file — flagged `Error`-severity (not merged, not deleted). `lint::home_slug_collisions`. Closes the 2026-08-13 TDP-scan edge.
 - [x] Dangling references (rule cites an `R:...` tag absent from the library; `OR:`/`FOR:` in prose excluded; a tag cited in body **and** incident is one finding) — `lint::reference_checks`
 - [x] Retired references (rule cites a rule that exists but is atticked/graduated) — flagged `Info`; `lint::reference_checks`
 - [x] `relearn lint` CLI: advisory, writes nothing; exit non-zero only on `Warning`/`Error` (`Info` informs without failing CI); clean on the seed
 - [x] Contradiction detection — **resolved as a process-control**, not a code check: a periodic Claude review pass over the corpus (semantic judgment, delegated per doctrine; a keyword heuristic would be dishonest). **First review 2026-08-13: no contradictions among the six seed rules, no problematic overlap, homes consistent. One scoping observation — `parse-wide` (domain rust) and `order-by-explicit-rank` (project relearn) express principles that generalize beyond their homes; promote only if the class recurs elsewhere.** Re-run each time the corpus changes materially.
-- [ ] Cold-surface / uncited report — **deferred**: "cold" needs runtime invocation data (phase C, stochos-lab); "uncited" alone is noise (a standalone rule is legitimately uncited)
+- [x] `relearn verify` — read-only drift detection: each generated file classified `Ok`/`Missing`/`Unversioned`/`HandEdited`/`Stale`, non-zero exit on any drift (`cli::verify` → `fsio::verify_all`). The CI "committed generated tree is in sync with the rules" gate; complements the write-side clobber guard. (Was the Phase A hand-edit-detection item; landed here as it is a checking feature.)
+- [→] Cold-surface / uncited report — **relocated to Phase C** (see below): "cold" needs runtime invocation data (stochos-lab observability), which does not live in this repo; "uncited" alone is noise (a standalone rule is legitimately uncited). Not buildable here without faking a signal.
 
 ## Phase D — public release (gated on arXiv ID)
 - [ ] README public framing: versioned instruction artifacts + the governance loop
@@ -78,6 +81,7 @@
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [ ] Error-class recurrence — partly exists in the ledger
 - [ ] First-time-right capture on AI-assisted work
+- [ ] **Cold-surface / uncited report** (moved from Phase B): flag rules that runtime data shows are never invoked — candidates for the attic cut-list. Needs skill-invocation / hook-fire counts from the stochos-lab observability layers; once that feed exists, the report itself can live either here or as a relearn lint check fed by an exported dataset.
 - [ ] *(Deferred, needs a field site: rework rate, time-to-competence — study-design items, not build items)*
 
 ## Resolved decisions (2026-08-13 — see ARCHITECTURE decisions log)
