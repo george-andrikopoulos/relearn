@@ -10,7 +10,7 @@
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
-use super::{HomeSlug, OutputFile, RelativePath, home_rank};
+use super::{HomeSlug, OutputFile, RelativePath, emittable, graduation_note, home_rank};
 use crate::library::{Library, Validated};
 use crate::rule::{Rule, RuleTag};
 
@@ -26,8 +26,9 @@ use crate::rule::{Rule, RuleTag};
 /// guard.
 #[must_use]
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
+    // Only emittable rules (active + graduated); atticked guidance is suppressed.
     // `&Rule` borrows the library for this call; nothing is cloned to sort.
-    let mut rules: Vec<&Rule> = library.rules().iter().collect();
+    let mut rules: Vec<&Rule> = emittable(library);
     if rules.is_empty() {
         return Vec::new();
     }
@@ -59,6 +60,9 @@ fn render(rules: &[&Rule]) -> String {
             r.title().as_str(),
             r.tag().as_str()
         ));
+        if let Some(note) = graduation_note(r) {
+            out.push_str(&note);
+        }
         out.push_str(&format!("{}\n", r.body().as_str()));
     }
     out

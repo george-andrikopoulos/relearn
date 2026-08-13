@@ -8,7 +8,7 @@
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
-use super::{OutputFile, RelativePath};
+use super::{OutputFile, RelativePath, emittable, graduation_note};
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule, RuleTag};
 
@@ -22,9 +22,10 @@ use crate::rule::{Home, Rule, RuleTag};
 /// this type, so emitting unchecked rules is a compile error.
 #[must_use]
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
-    let mut project_rules: Vec<&Rule> = library
-        .rules()
-        .iter()
+    // Emittable (active + graduated) project-layer rules only: atticked guidance
+    // is suppressed here too, so a retired project rule never reaches CLAUDE.md.
+    let mut project_rules: Vec<&Rule> = emittable(library)
+        .into_iter()
         .filter(|r| matches!(r.home(), Home::Project { .. }))
         .collect();
     if project_rules.is_empty() {
@@ -45,11 +46,14 @@ fn render_claude_md(rules: &[&Rule]) -> String {
     out.push_str("# Project rules\n");
     for r in rules {
         out.push_str(&format!(
-            "\n## {} [{}]\n\n{}\n",
+            "\n## {} [{}]\n\n",
             r.title().as_str(),
-            r.tag().as_str(),
-            r.body().as_str()
+            r.tag().as_str()
         ));
+        if let Some(note) = graduation_note(r) {
+            out.push_str(&note);
+        }
+        out.push_str(&format!("{}\n", r.body().as_str()));
     }
     out
 }

@@ -11,7 +11,7 @@
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
-use super::{HomeSlug, OutputFile, RelativePath, home_rank};
+use super::{HomeSlug, OutputFile, RelativePath, emittable, graduation_note, home_rank};
 use crate::library::{Library, Validated};
 use crate::rule::{Rule, RuleTag};
 
@@ -28,12 +28,12 @@ use crate::rule::{Rule, RuleTag};
 /// instructions file.
 #[must_use]
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
-    if library.rules().is_empty() {
+    // Only emittable rules (active + graduated); atticked guidance is suppressed.
+    // `&Rule`/`&Home` borrow the library for this call; nothing is cloned.
+    let mut rules: Vec<&Rule> = emittable(library);
+    if rules.is_empty() {
         return Vec::new();
     }
-
-    // `&Rule`/`&Home` borrow the library for this call; nothing is cloned.
-    let mut rules: Vec<&Rule> = library.rules().iter().collect();
     rules.sort_by(|a, b| {
         let (ha, hb) = (HomeSlug::of(a.home()), HomeSlug::of(b.home()));
         home_rank(a.home())
@@ -57,11 +57,14 @@ fn render(rules: &[&Rule]) -> String {
     out.push_str("# Copilot instructions\n");
     for r in rules {
         out.push_str(&format!(
-            "\n## {} [{}]\n\n{}\n",
+            "\n## {} [{}]\n\n",
             r.title().as_str(),
-            r.tag().as_str(),
-            r.body().as_str()
+            r.tag().as_str()
         ));
+        if let Some(note) = graduation_note(r) {
+            out.push_str(&note);
+        }
+        out.push_str(&format!("{}\n", r.body().as_str()));
     }
     out
 }
@@ -148,5 +151,58 @@ mod tests {
             ),
         ]);
         assert_eq!(emit(&lib), emit(&lib));
+    }
+
+    fn rule_with_status(tag: &str, status: Status, body: &str) -> Rule {
+        Rule::new(
+            RuleTag::parse(tag).expect("valid tag"),
+            Title::parse("Title").expect("non-empty title"),
+            ErrorClass::parse("ec").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-08-13").expect("valid date"),
+            status,
+            Incident::parse("an incident").expect("non-empty incident"),
+            Body::parse(body).expect("non-empty body"),
+        )
+    }
+
+    #[test]
+    fn atticked_rule_is_excluded_and_graduated_is_annotated() {
+        let date = Date::parse("2026-09-01").expect("valid date");
+        let lib = validated(vec![
+            rule_with_status("R:active", Status::active(), "Active body."),
+            rule_with_status(
+                "R:grad",
+                Status::graduated("hook:no-unwrap-in-src").expect("non-empty destination"),
+                "Graduated body.",
+            ),
+            rule_with_status(
+                "R:attic",
+                Status::attic("retired", date).expect("non-empty reason"),
+                "Atticked body.",
+            ),
+        ]);
+        let files = emit(&lib);
+        let c = files[0].contents();
+        // Withdrawn guidance is absent — heading, body, and provenance.
+        assert!(!c.contains("[R:attic]"), "atticked rule is not written");
+        assert!(!c.contains("Atticked body."));
+        assert!(
+            !files[0].sources().iter().any(|t| t.as_str() == "R:attic"),
+            "atticked rule is absent from provenance"
+        );
+        // Graduated guidance is present and annotated with its destination.
+        assert!(c.contains("[R:grad]"));
+        assert!(c.contains("> Also enforced by hook:no-unwrap-in-src."));
+        // The active rule carries no such annotation.
+        let active_at = c.find("[R:active]").expect("active rule present");
+        let after_active = &c[active_at..];
+        assert!(
+            !after_active[..after_active
+                .find("Active body.")
+                .expect("active body present")]
+                .contains("Also enforced by"),
+            "an active rule is not annotated"
+        );
     }
 }

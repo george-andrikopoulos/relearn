@@ -4,10 +4,12 @@
 //! rules, serialize-then-parse is the identity" and "for all libraries, every
 //! emitter is a deterministic function".
 
+use std::collections::BTreeSet;
+
 use proptest::prelude::*;
 
 use relearn::emit;
-use relearn::library::Library;
+use relearn::library::{Library, Validated};
 use relearn::rule::{
     Body, Date, ErrorClass, Home, Incident, Rule, RuleTag, Status, Title, parse_document,
     to_document,
@@ -77,8 +79,48 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
         )
 }
 
+/// A validated library of up to six rules with distinct tags, varied homes, and
+/// **varied statuses** (active / graduated / atticked). Distinct from
+/// [`arb_library`] (all-active) because the emit-status policy — suppress
+/// atticked, emit active + graduated — is only exercised when a library carries
+/// a mix of lifecycle states.
+fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
+    proptest::collection::vec((arb_tag_body(), arb_home(), arb_text(), arb_status()), 0..6)
+        .prop_map(|items| {
+            let mut seen = BTreeSet::new();
+            let mut rules = Vec::new();
+            for (tag_body, home, text, status) in items {
+                if !seen.insert(tag_body.clone()) {
+                    continue; // keep tags distinct so validation succeeds
+                }
+                rules.push(Rule::new(
+                    RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
+                    Title::parse(text).expect("non-empty title"),
+                    ErrorClass::parse("error class").expect("non-empty error class"),
+                    home,
+                    Date::parse("2026-08-13").expect("valid date"),
+                    status,
+                    Incident::parse("incident").expect("non-empty incident"),
+                    Body::parse("body").expect("non-empty body"),
+                ));
+            }
+            Library::from_rules(rules)
+                .validate()
+                .expect("distinct tags validate")
+        })
+}
+
+/// The tags of every atticked rule in a library.
+fn atticked_tags(lib: &Library<Validated>) -> BTreeSet<String> {
+    lib.rules()
+        .iter()
+        .filter(|r| matches!(r.status(), Status::Attic { .. }))
+        .map(|r| r.tag().as_str().to_owned())
+        .collect()
+}
+
 /// A validated library of up to five rules with distinct tags and varied homes.
-fn arb_library() -> impl Strategy<Value = Library<relearn::library::Validated>> {
+fn arb_library() -> impl Strategy<Value = Library<Validated>> {
     proptest::collection::vec((arb_tag_body(), arb_home(), arb_text()), 0..5).prop_map(|items| {
         let mut seen = std::collections::BTreeSet::new();
         let mut rules = Vec::new();
@@ -124,5 +166,53 @@ proptest! {
         prop_assert_eq!(emit::copilot::emit(&lib), emit::copilot::emit(&lib));
         prop_assert_eq!(emit::agents::emit(&lib), emit::agents::emit(&lib));
         prop_assert_eq!(emit::claude_md::emit(&lib), emit::claude_md::emit(&lib));
+    }
+
+    /// **Withdrawn guidance never leaks.** For any library, no atticked rule's
+    /// tag appears in the provenance of any file any emitter produces — the
+    /// whole-space form of "an active instruction file must not instruct a
+    /// retired rule". `sources` (tags), not body substrings, is the honest check.
+    #[test]
+    fn atticked_rules_never_leak_into_any_emitter(lib in arb_library_mixed()) {
+        let atticked = atticked_tags(&lib);
+        let outputs = [
+            emit::claude::emit(&lib),
+            emit::cursor::emit(&lib),
+            emit::copilot::emit(&lib),
+            emit::agents::emit(&lib),
+            emit::claude_md::emit(&lib),
+        ];
+        for files in &outputs {
+            for file in files {
+                for tag in file.sources() {
+                    prop_assert!(
+                        !atticked.contains(tag.as_str()),
+                        "atticked rule {} leaked into {}",
+                        tag.as_str(),
+                        file.path().as_str()
+                    );
+                }
+            }
+        }
+    }
+
+    /// The suppression is exactly Attic — no over-suppression. The Copilot file
+    /// concatenates every home, so its provenance must be precisely the set of
+    /// non-atticked (active + graduated) rules: nothing withdrawn present,
+    /// nothing in-force missing.
+    #[test]
+    fn active_and_graduated_rules_all_reach_copilot(lib in arb_library_mixed()) {
+        let expected: BTreeSet<String> = lib
+            .rules()
+            .iter()
+            .filter(|r| !matches!(r.status(), Status::Attic { .. }))
+            .map(|r| r.tag().as_str().to_owned())
+            .collect();
+        let emitted: BTreeSet<String> = emit::copilot::emit(&lib)
+            .iter()
+            .flat_map(|f| f.sources())
+            .map(|t| t.as_str().to_owned())
+            .collect();
+        prop_assert_eq!(emitted, expected);
     }
 }

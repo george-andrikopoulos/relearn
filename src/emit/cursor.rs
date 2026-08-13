@@ -14,7 +14,7 @@
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
-use super::{OutputFile, RelativePath, Scope};
+use super::{OutputFile, RelativePath, Scope, emittable, graduation_note};
 use crate::library::{Library, Validated};
 use crate::rule::Rule;
 
@@ -25,7 +25,8 @@ use crate::rule::Rule;
 /// this type, so emitting unchecked rules is a compile error.
 #[must_use]
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
-    let mut rules: Vec<&Rule> = library.rules().iter().collect();
+    // Only emittable rules (active + graduated); atticked guidance is suppressed.
+    let mut rules: Vec<&Rule> = emittable(library);
     rules.sort_by(|a, b| a.tag().as_str().cmp(b.tag().as_str()));
     rules.into_iter().map(render_rule).collect()
 }
@@ -64,6 +65,9 @@ fn render_mdc(rule: &Rule, scope: &Scope) -> String {
         rule.title().as_str(),
         rule.tag().as_str()
     ));
+    if let Some(note) = graduation_note(rule) {
+        out.push_str(&note);
+    }
     out.push_str(rule.body().as_str());
     out.push('\n');
     out

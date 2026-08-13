@@ -62,6 +62,7 @@ Build from source with `cargo build --release`; the binary is `relearn`.
 - Emitters are pure functions of a *validated* library; a rule that fails to parse stops the build rather than being skipped, because a silently dropped rule is a lost correction.
 - Type-driven: illegal states — two homes for one rule, a graduated rule with no destination, a tag of the wrong shape — are unrepresentable rather than merely discouraged.
 - Emitted files are never sources. They carry a generated-by header and a hash, and the compiler refuses to overwrite anything it did not write.
+- A rule's lifecycle status decides whether it is emitted: **active** and **graduated** rules are written (a graduated rule is annotated with the stronger control that also enforces it), while a **retired** (atticked) rule is suppressed, so withdrawn guidance never leaks into a live instruction file. The retired rule stays in the library — the linter still needs it to flag references to it.
 
 See `ARCHITECTURE.md` for the pipeline and the decisions log, `CLAUDE.md` for the full recreation standard.
 

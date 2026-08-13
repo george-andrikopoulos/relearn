@@ -40,6 +40,28 @@ impl Reason {
     }
 }
 
+/// Whether a rule's lifecycle status permits writing it into an active
+/// instruction layer (a skill, `AGENTS.md`, a project `CLAUDE.md`, …).
+///
+/// This is the type home of the emit-status policy (decision 2026-08-13): the
+/// instruction layer states *currently-in-force* guidance, so a rule is emitted
+/// iff its guidance still stands — regardless of which layer ultimately enforces
+/// it. Producing this from an exhaustive match on [`Status`] means a future
+/// status variant cannot compile until its emit policy is decided here, rather
+/// than defaulting to "emitted" and silently leaking.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Emittability {
+    /// Write the rule into the instruction layer. Both `Active` (enforced by the
+    /// prose itself) and `Graduated` (enforced by a stronger layer *as well*)
+    /// qualify: the instruction layer tunes generation *before* it happens — a
+    /// control distinct from the layer that catches *after* — so a graduated
+    /// rule keeps its tuning job. The emitter annotates it with its destination.
+    Emit,
+    /// Keep the rule out of the instruction layer: its guidance has been
+    /// withdrawn (`Attic`), and writing it would instruct a retired rule.
+    Suppress,
+}
+
 /// A rule's lifecycle state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Status {
@@ -81,6 +103,18 @@ impl Status {
             date,
         })
     }
+
+    /// Whether this status permits the rule to be written into an active
+    /// instruction layer. The single authority for the emit-status policy; every
+    /// emitter filters through it (via `emit::emittable`) rather than deciding
+    /// per target. The match is exhaustive by design — see [`Emittability`].
+    #[must_use]
+    pub fn emittability(&self) -> Emittability {
+        match self {
+            Status::Active | Status::Graduated { .. } => Emittability::Emit,
+            Status::Attic { .. } => Emittability::Suppress,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -104,5 +138,23 @@ mod tests {
         let s = Status::attic("cold surface, challenge-tested", date).expect("non-empty reason");
         assert!(matches!(s, Status::Attic { .. }));
         assert!(Status::attic("  ", date).is_err());
+    }
+
+    #[test]
+    fn active_and_graduated_emit_but_attic_is_suppressed() {
+        let date = Date::parse("2026-09-01").expect("valid date");
+        assert_eq!(Status::active().emittability(), Emittability::Emit);
+        assert_eq!(
+            Status::graduated("hook:no-unwrap-in-src")
+                .expect("non-empty destination")
+                .emittability(),
+            Emittability::Emit,
+        );
+        assert_eq!(
+            Status::attic("retired", date)
+                .expect("non-empty reason")
+                .emittability(),
+            Emittability::Suppress,
+        );
     }
 }

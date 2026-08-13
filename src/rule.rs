@@ -32,6 +32,6 @@ pub use def::Rule;
 pub use home::{DomainName, Home, ProjectPath};
 pub use parse::{ParseError, parse_document};
 pub use serialize::to_document;
-pub use status::{Destination, Reason, Status};
+pub use status::{Destination, Emittability, Reason, Status};
 pub use tag::{RuleTag, RuleTagError};
 pub use text::{Body, EmptyText, ErrorClass, Incident, Title};

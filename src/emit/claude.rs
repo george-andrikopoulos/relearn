@@ -9,7 +9,7 @@
 
 use std::collections::BTreeMap;
 
-use super::{HomeSlug, OutputFile, RelativePath, yaml_double_quote};
+use super::{HomeSlug, OutputFile, RelativePath, emittable, graduation_note, yaml_double_quote};
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule};
 
@@ -24,8 +24,10 @@ use crate::rule::{Home, Rule};
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
     // Group by home slug, keeping a reference to the home for its human label.
     // `&Rule`/`&Home` borrow the library for this call; nothing is cloned.
+    // Only emittable rules (active + graduated); atticked guidance is suppressed,
+    // so a home whose rules are all atticked produces no skill.
     let mut by_home: BTreeMap<HomeSlug, (&Home, Vec<&Rule>)> = BTreeMap::new();
-    for rule in library.rules() {
+    for rule in emittable(library) {
         let slug = HomeSlug::of(rule.home());
         by_home
             .entry(slug)
@@ -76,6 +78,9 @@ fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
             r.title().as_str(),
             r.tag().as_str()
         ));
+        if let Some(note) = graduation_note(r) {
+            out.push_str(&note);
+        }
         out.push_str(r.body().as_str());
         out.push('\n');
     }
@@ -214,5 +219,57 @@ mod tests {
     fn emission_is_deterministic() {
         let lib = mixed_library();
         assert_eq!(emit(&lib), emit(&lib));
+    }
+
+    fn rule_with_status(tag: &str, home: Home, status: Status, body: &str) -> Rule {
+        Rule::new(
+            RuleTag::parse(tag).expect("valid tag"),
+            Title::parse("Title").expect("non-empty title"),
+            ErrorClass::parse("ec").expect("non-empty error class"),
+            home,
+            Date::parse("2026-08-13").expect("valid date"),
+            status,
+            Incident::parse("an incident").expect("non-empty incident"),
+            Body::parse(body).expect("non-empty body"),
+        )
+    }
+
+    #[test]
+    fn a_home_with_only_atticked_rules_produces_no_skill() {
+        let date = Date::parse("2026-09-01").expect("valid date");
+        let lib = validated(vec![
+            rule_with_status("R:g", Home::global(), Status::active(), "Global body."),
+            rule_with_status(
+                "R:r",
+                Home::domain("rust").expect("non-empty domain"),
+                Status::attic("retired", date).expect("non-empty reason"),
+                "Rust body.",
+            ),
+        ]);
+        let files = emit(&lib);
+        let paths: Vec<&str> = files.iter().map(|f| f.path().as_str()).collect();
+        assert!(paths.contains(&"skills/global/SKILL.md"));
+        assert!(
+            !paths.contains(&"skills/domain-rust/SKILL.md"),
+            "the rust home's only rule is atticked, so no skill is written for it"
+        );
+    }
+
+    #[test]
+    fn a_graduated_rule_is_annotated_in_its_skill() {
+        let lib = validated(vec![rule_with_status(
+            "R:grad",
+            Home::domain("rust").expect("non-empty domain"),
+            Status::graduated("hook:no-unwrap-in-src").expect("non-empty destination"),
+            "Never unwrap in production.",
+        )]);
+        let files = emit(&lib);
+        let rust = files
+            .iter()
+            .find(|f| f.path().as_str() == "skills/domain-rust/SKILL.md")
+            .expect("the rust skill is present");
+        let c = rust.contents();
+        assert!(c.contains("[R:grad]"));
+        assert!(c.contains("> Also enforced by hook:no-unwrap-in-src."));
     }
 }

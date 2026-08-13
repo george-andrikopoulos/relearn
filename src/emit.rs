@@ -24,7 +24,8 @@ pub mod claude_md;
 pub mod copilot;
 pub mod cursor;
 
-use crate::rule::{Home, RuleTag};
+use crate::library::{Library, Validated};
+use crate::rule::{Emittability, Home, Rule, RuleTag, Status};
 
 /// A path relative to the output root, in portable forward-slash form. Built
 /// only from known-safe segments inside this crate (`pub(crate)` constructor),
@@ -236,10 +237,99 @@ pub(crate) fn home_rank(home: &Home) -> u8 {
     }
 }
 
+/// The rules a library permits into the instruction layer, in library order:
+/// every rule whose [`Status::emittability`] is `Emit` (active + graduated),
+/// with atticked rules filtered out. The single place the emit-status policy is
+/// applied — every emitter starts here rather than from `library.rules()`, so
+/// "withdrawn guidance never leaks" is enforced once, not re-derived five times.
+/// The full library (including atticked rules) stays available to `lint`, which
+/// needs retired rules present to flag references to them.
+#[must_use]
+pub(crate) fn emittable(library: &Library<Validated>) -> Vec<&Rule> {
+    library
+        .rules()
+        .iter()
+        .filter(|r| r.status().emittability() == Emittability::Emit)
+        .collect()
+}
+
+/// The one-line annotation a graduated rule carries in every emitted format: a
+/// markdown blockquote naming the stronger control that *also* holds the
+/// guarantee, so a reader of the instruction layer knows the prose is
+/// belt-and-suspenders rather than the sole enforcement (decision 2026-08-13).
+/// `None` for any non-graduated rule — active rules need no note, and atticked
+/// rules never reach an emitter. Returns the note plus its trailing blank line,
+/// so a caller splices it between a rule's heading and body with one `push_str`.
+#[must_use]
+pub(crate) fn graduation_note(rule: &Rule) -> Option<String> {
+    match rule.status() {
+        Status::Graduated { to } => Some(format!("> Also enforced by {}.\n\n", to.as_str())),
+        Status::Active | Status::Attic { .. } => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rule::Home;
+    use crate::library::Library;
+    use crate::rule::{Body, Date, ErrorClass, Home, Incident, RuleTag, Status, Title};
+
+    fn rule_with_status(tag: &str, status: Status) -> Rule {
+        Rule::new(
+            RuleTag::parse(tag).expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-08-13").expect("valid date"),
+            status,
+            Incident::parse("an incident").expect("non-empty incident"),
+            Body::parse("Do the thing.").expect("non-empty body"),
+        )
+    }
+
+    #[test]
+    fn emittable_keeps_active_and_graduated_and_drops_attic() {
+        let date = Date::parse("2026-09-01").expect("valid date");
+        let lib = Library::from_rules(vec![
+            rule_with_status("R:active", Status::active()),
+            rule_with_status(
+                "R:grad",
+                Status::graduated("hook:x").expect("non-empty destination"),
+            ),
+            rule_with_status(
+                "R:attic",
+                Status::attic("retired", date).expect("non-empty reason"),
+            ),
+        ])
+        .validate()
+        .expect("distinct tags validate");
+
+        let kept: Vec<&str> = emittable(&lib).iter().map(|r| r.tag().as_str()).collect();
+        assert_eq!(kept, vec!["R:active", "R:grad"]);
+    }
+
+    #[test]
+    fn graduation_note_only_annotates_graduated_rules() {
+        let date = Date::parse("2026-09-01").expect("valid date");
+        assert_eq!(
+            graduation_note(&rule_with_status("R:a", Status::active())),
+            None
+        );
+        assert_eq!(
+            graduation_note(&rule_with_status(
+                "R:x",
+                Status::attic("retired", date).expect("non-empty reason"),
+            )),
+            None
+        );
+        assert_eq!(
+            graduation_note(&rule_with_status(
+                "R:g",
+                Status::graduated("hook:no-unwrap-in-src").expect("non-empty destination"),
+            )),
+            Some("> Also enforced by hook:no-unwrap-in-src.\n\n".to_owned())
+        );
+    }
 
     #[test]
     fn global_slug_is_global() {
