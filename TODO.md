@@ -11,12 +11,12 @@
 ## Phase A — portability (v0.1)
 
 ### Types first (before any emitter)
-- [ ] `RuleTag` newtype, `parse` only, shape `R:[a-z0-9][a-z0-9-]*`
-- [ ] `Home` sum type: `Global | Domain{name} | Project{path}`
-- [ ] `Status` sum type carrying payloads: `Active | Graduated{to} | Attic{reason,date}`
-- [ ] `Incident`, `ErrorClass` newtypes (non-empty by construction)
-- [ ] Date field: parse wide, then range-check (dogfood `[R:parse-wide-then-range-check]`)
-- [ ] `Library<Unvalidated>` / `Library<Validated>` typestate; `emit` accepts only the latter
+- [x] `RuleTag` newtype, `parse` only, shape `R:[a-z0-9][a-z0-9-]*`
+- [x] `Home` sum type: `Global | Domain{name} | Project{path}` (+ `DomainName`/`ProjectPath` non-empty newtypes)
+- [x] `Status` sum type carrying payloads: `Active | Graduated{to} | Attic{reason,date}` (+ `Destination`/`Reason` newtypes)
+- [x] `Incident`, `ErrorClass` newtypes (non-empty by construction, over a shared `nonempty` perimeter)
+- [x] Date field: parse wide, then range-check (dogfood `[R:parse-wide-then-range-check]`) — `Date::parse` into `i64` then narrow; property-tested
+- [ ] `Library<Unvalidated>` / `Library<Validated>` typestate; `emit` accepts only the latter — **next step**
 
 ### Parsing
 - [ ] TOML front-matter reader (`+++` delimited) → `Rule`

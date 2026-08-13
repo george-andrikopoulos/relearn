@@ -15,3 +15,15 @@
 //!
 //! **Must NOT:** know anything about output formats. An emitter's concerns
 //! never leak into the rule type.
+
+mod date;
+mod home;
+mod status;
+mod tag;
+mod text;
+
+pub use date::{Date, DateError};
+pub use home::{DomainName, Home, ProjectPath};
+pub use status::{Destination, Reason, Status};
+pub use tag::{RuleTag, RuleTagError};
+pub use text::{EmptyText, ErrorClass, Incident};
