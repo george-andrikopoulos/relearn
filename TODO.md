@@ -50,9 +50,14 @@
 - [ ] unit pins: one per bug found, added with the fix
 
 ### Seed content
-- [x] Migrate a first real rule set into the neutral format (`rules/*.md`, 6 rules from dated incidents: `parse-wide-then-range-check`, `no-sentinel-values`, `verify-through-production-path`, `measure-cost-per-task`, `revision-integrity`, `order-by-explicit-rank`) — **the first real test of format adequacy**. Finding: the schema (tag / title / error_class / home / created / status / incident / body) held every rule across all three homes (4 global, 1 domain, 1 project) with no missing field; `check` + `build` produce 12 files, ordering and project-only `CLAUDE.md` correct.
-- [ ] Only real rules with documented, dated incidents were ported (fabricating provenance is the sediment the tool fights). Still unexercised by *real* seed data: `graduated` / `attic` status and multiple rules sharing one non-global home — covered by unit tests, awaiting a real rule that carries them.
-- [ ] Port the remaining `[R:...]` rules as their incidents are on hand (project-discipline, rust-typedd, stochos-lab layers)
+- [x] Migrate a first real rule set into the neutral format (`rules/*.md`) — **the first real test of format adequacy**. The schema (tag / title / error_class / home / created / status / incident / body) held every rule with no missing field.
+- [x] Grow the corpus to **10 rules** (added `parse-dont-validate`, `no-unwrap-in-production`, `no-anyhow-in-libraries`, `make-illegal-states-unrepresentable`). Now exercises: `graduated` status on real data (`no-unwrap`/`no-anyhow` graduated to the actual `no-unwrap-in-src`/`no-anyhow-in-lib` hooks); multiple rules per non-global home (4 in domain-rust); and real cross-references (`parse-dont-validate`→`parse-wide`, `illegal-states`→`no-sentinel-values`, both resolving to active — the reference checker runs clean on real data). Homes: 5 global, 4 domain-rust, 1 project-relearn. `check`/`lint`/`build` all green (16 emitted files); contradiction re-review clean.
+- [ ] Provenance note: the first 6 rules are single-incident-dated; this batch mixes single-incident (the mesh-watchdog realization) with **codification-dated** provenance — the two graduated rules' provenance is the graduation to a real hook; the two principle rules (`parse-dont-validate`, `illegal-states`) are dated to their codification in the rust-typedd discipline, not an invented event. No fabricated incidents.
+- [ ] Still no real **attic** rule in the corpus (only `graduated`) — the retired-reference *attic* path stays unit-test-only until a rule is genuinely retired.
+- [ ] Port the remaining `[R:...]` rules as their incidents are on hand (project-discipline, stochos-lab layers)
+
+### Open design question surfaced by the graduated rules
+- [ ] Should `emit` **filter by status**? An `attic` (retired) rule almost certainly should not be written into an active instruction file; a `graduated` rule is debatable (its guarantee is in a hook, so re-emitting it as a skill is redundant but harmless documentation). Emitters currently emit every validated rule regardless of status. Decide the policy (likely: skip `attic`, keep or annotate `graduated`) before it matters — a retired rule leaking into a `CLAUDE.md` would be instructing withdrawn guidance.
 
 ## Phase B — linter (started; `lint` module + `relearn lint`, advisory only)
 - [x] Overlapping-scope detection (same error class, case-insensitive) — `lint::overlapping_scope`

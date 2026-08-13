@@ -134,7 +134,7 @@ What: a rule that cites another rule which *exists* but is retired (atticked or 
 
 ### Contradiction detection
 What: two rules that semantically contradict each other.
-**Enforced by:** a **process-control**, not a code artifact — a periodic *Claude review pass* over the corpus (the rule bodies are readable markdown; Claude judges consistency, delegated through the subscription per doctrine). Deliberately **not** a keyword heuristic in the linter: a heuristic dressed up as certainty would be worse than the honest absence. *First review 2026-08-13: no contradictions among the six seed rules, no problematic overlap, homes consistent (recorded in TODO.md). This row is `exposed` by design — there is no deterministic code artifact to name, and inventing one would be the dishonesty the tool exists to prevent.*
+**Enforced by:** a **process-control**, not a code artifact — a periodic *Claude review pass* over the corpus (the rule bodies are readable markdown; Claude judges consistency, delegated through the subscription per doctrine). Deliberately **not** a keyword heuristic in the linter: a heuristic dressed up as certainty would be worse than the honest absence. *Review 2026-08-13 (re-run after the corpus grew to ten rules): no contradictions, no problematic overlap, homes consistent (recorded in TODO.md). This row is `exposed` by design — there is no deterministic code artifact to name, and inventing one would be the dishonesty the tool exists to prevent.*
 
 ### Cold-surface / uncited report
 What: rules that nothing exercises (candidates for the attic cut-list).
