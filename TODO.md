@@ -19,8 +19,8 @@
 - [x] `Library<Unvalidated>` / `Library<Validated>` typestate; `validate` is the only path to `Validated` (`emit` will accept only the latter)
 
 ### Parsing
-- [ ] TOML front-matter reader (`+++` delimited) → `Rule`
-- [ ] Parse failure aborts with file + field in the diagnostic; never skip
+- [x] TOML front-matter reader (`+++` delimited) → `Rule` (`rule::parse_document`; dates are quoted strings so `Date::parse` keeps the range check)
+- [x] Parse failure names the field and never skips (`ParseError`); *file name prepended by `fsio`/`cli` — pending*
 - [x] Duplicate-tag detection at library level (`Library::validate` → `ValidationError::DuplicateTag`)
 
 ### Emitters (pure functions returning `Vec<OutputFile>`)

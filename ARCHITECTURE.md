@@ -33,7 +33,7 @@ tag        = "R:parse-wide-then-range-check"
 title      = "Parse wide, then range-check"
 error_class = "Range-validating by parsing into the target narrow type, making the out-of-range case unreachable"
 home       = { kind = "domain", name = "rust" }
-created    = 2026-07-23
+created    = "2026-07-23"     # quoted string, parsed by Date::parse (see decisions log)
 status     = { kind = "active" }
 incident   = "Grouping task 01: 5/5 samples parsed into u16, so 70000 returned NotANumber; OutOfRange unreachable."
 +++
@@ -44,7 +44,7 @@ order to name it illegal.
 ```
 
 `status` is a sum type, so a graduated or atticked rule carries its destination:
-`{ kind = "graduated", to = "hook:no-narrow-parse" }`, `{ kind = "attic", reason = "...", date = 2026-09-01 }`.
+`{ kind = "graduated", to = "hook:no-narrow-parse" }`, `{ kind = "attic", reason = "...", date = "2026-09-01" }`.
 
 ## Type-driven decisions
 
@@ -78,3 +78,4 @@ Every emitted file carries a generated-by header naming the source rule(s) and a
 | 2026-08-13 | Type-Driven Design, not test-first | Standing doctrine (`rust-typedd`): a type constrains the whole space, a test samples points; in an AI-assisted pipeline the compiler is the cheapest retirement stage | TDD-first |
 | 2026-08-13 | Claude skill emitter is one skill **per home layer**, not per rule | The skill *description* is always-resident metadata (P6, context is finite); per-rule grows it `O(rules)` and this library is built to grow. Matches the existing hand-authored skills (`project-discipline`, `rust-typedd`) which bundle many rules by domain; domain-level triggering is the right granularity. Future escape hatch: an optional `skill_group` field only if one home ever needs more than one skill. | One skill per rule — precise triggers, but unbounded resident-metadata growth |
 | 2026-08-13 | Cursor `globs`/`alwaysApply` are **derived from `Home`**, not carried as target-specific fields | `Home` already *is* the neutral scoping concept; translating it into Cursor's vocabulary is the emitter's job, and vendor knowledge belongs in the emitter. Rule-level `cursor.*` fields would fragment the neutral format (every vendor then wants its own), contradicting P2. If finer scope than `Home` expresses is ever needed, enrich `Home` so every emitter benefits — never add a Cursor-only field. | Optional `cursor.*` fields on the rule — flexible, but rots the neutral format into a union of vendor front-matters |
+| 2026-08-13 | Dates in front-matter are **quoted strings**, parsed by `Date::parse`, not TOML's native date literal | Preserves the `[R:parse-wide-then-range-check]` dogfood and the "out-of-range dates report as out-of-range" feature end to end: an impossible date (`2026-13-01`) must surface as `MonthOutOfRange(13)`, but a native TOML date would reject it as a *syntax* error first, collapsing the class. A quoted string reaches `Date::parse` intact. | Native TOML dates — nicer syntax, but defeats the dogfood and couples the range semantics to the TOML crate |

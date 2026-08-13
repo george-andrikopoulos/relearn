@@ -4,19 +4,19 @@
 
 > **This file is only load-bearing if it is read before every change.** Check 2 of the definition of done in `CLAUDE.md` requires re-reading this ledger and *running* the enforcing artifacts of any feature a change could plausibly touch: **a fix that breaks another documented feature is not a fix.** The "Enforced by" column is what makes that check executable rather than aspirational — it names precisely what to run.
 
-*Status (2026-08-13): the Phase A **value types and the library typestate** have shipped — tag shape, one-home, out-of-range dates, non-empty provenance text, status payloads, and duplicate-tag rejection are enforced (`rule` + `library` modules, 31 tests, all passing). The remaining entries (TOML front-matter parsing, emission, CLI) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
+*Status (2026-08-13): Phase A is complete **through parsing** — the value types, the library typestate, and the neutral-format parser have shipped. Enforced: tag shape, one-home, out-of-range dates (end to end, through the parser), non-empty provenance, status payloads, duplicate-tag rejection, and format parsing (`rule` + `library` modules, 43 tests, all passing). The remaining entries (emission, CLI, and the `fsio` file layer) stay `NOTHING YET — exposed` and mirrored in TODO.md until their enforcing artifact ships, in the same change — never later.*
 
 ---
 
 ## Rule parsing (v0.1)
 
 ### Neutral rule format parses
-What: `rules/<tag>.md` with TOML front-matter (`+++`) and markdown body parses into a `Rule`.
-**Enforced by: NOTHING YET — exposed**
+What: `rules/<tag>.md` with TOML front-matter (`+++`) and markdown body parses into a `Rule`. Dates are quoted strings (parsed by `Date::parse`, not TOML) to keep the range check ours.
+**Enforced by:** `rule::parse_document` + `rule::parse` tests (`parses_a_full_document`, `attic_status_parses_with_reason_and_date`).
 
 ### Malformed rule stops the build
-What: any parse failure aborts with a diagnostic naming the file and field; no rule is ever skipped silently.
-**Enforced by: NOTHING YET — exposed**
+What: any parse failure aborts with a diagnostic naming the field; no rule is ever skipped silently.
+**Enforced by:** `rule::parse_document` returns a typed `ParseError` naming the field and never yields a partial or skipped `Rule` + `rule::parse` error tests (missing front-matter, unterminated, invalid TOML, bad tag, unknown/incomplete `home`/`status`). *(The file name is prepended by `fsio`/`cli` — pending; the field-level diagnostic and never-skip guarantee are enforced now.)*
 
 ### Tag shape is enforced at the perimeter
 What: `RuleTag::parse` accepts only `R:[a-z0-9][a-z0-9-]*`; nothing downstream re-validates.
@@ -24,7 +24,7 @@ What: `RuleTag::parse` accepts only `R:[a-z0-9][a-z0-9-]*`; nothing downstream r
 
 ### Provenance is mandatory
 What: a rule missing `created`, `incident`, or `error_class` fails to parse.
-**Enforced by: NOTHING YET — exposed**
+**Enforced by:** `RawRule` deserialization (a missing key → `ParseError::Toml`) + the non-empty newtypes (an empty value → `ParseError::Text`) + `rule::parse` tests. A missing or empty provenance field never yields a `Rule`.
 
 ### Duplicate tags are rejected
 What: two rules sharing a tag is a library-level error.
