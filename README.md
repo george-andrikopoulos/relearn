@@ -14,7 +14,7 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. Not yet released. See `TODO.md`.
 
-The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md` — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/) (ten rules ported from George's engineering discipline, spanning global / domain / project homes and active / graduated statuses); `relearn build` compiles it end to end, and `relearn lint` reports advisory findings without ever touching a rule.
+The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md` — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/) (fourteen rules ported from George's engineering discipline, spanning global, domain-rust, and two project homes, with active and graduated statuses); `relearn build` compiles it end to end, `relearn lint` reports advisory findings without ever touching a rule, and `relearn verify` checks the emitted tree has not drifted from it.
 
 ## Usage
 
