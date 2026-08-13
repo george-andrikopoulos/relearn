@@ -1,0 +1,8 @@
+# [R:pin-eol-for-executable-text] — pin LF for every text layer. A platform
+# line-ending default (core.autocrlf on Windows) silently breaks a build layer
+# on fresh clone, with no error. Fix structurally, not with a check.
+*.rs   text eol=lf
+*.md   text eol=lf
+*.toml text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf

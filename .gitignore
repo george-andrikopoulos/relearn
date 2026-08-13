@@ -1,0 +1,12 @@
+# Rust build output
+/target
+
+# Backups and crash artifacts
+**/*.rs.bk
+*.pdb
+
+# Editor / OS cruft
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

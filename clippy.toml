@@ -1,0 +1,3 @@
+# This crate will be published, so lint the public API too rather than
+# exempting exported items (default is to avoid breaking exported API).
+avoid-breaking-exported-api = false
