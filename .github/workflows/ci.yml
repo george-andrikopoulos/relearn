@@ -4,15 +4,32 @@ on:
   push:
   pull_request:
 
+# Cancel superseded runs on the same ref so only the latest push is graded.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
-    name: fmt · clippy · test
-    runs-on: ubuntu-latest
+    name: fmt · clippy · test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # A Windows-only or Linux-only break must stay visible even when the other
+      # OS is green — that divergence is the entire reason [R:xplat-fixtures]
+      # exists, so one OS failing must never cancel the other's evidence.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - run: cargo fmt --check
-      - run: cargo clippy -- -D warnings
-      - run: cargo test
+      - name: rustfmt
+        run: cargo fmt --check
+      # --all-targets so the test and fixture code — where [R:xplat-fixtures]
+      # breakage lives — is linted too, not only lib + bins.
+      - name: clippy (all targets, deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+      - name: test
+        run: cargo test
