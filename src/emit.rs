@@ -37,6 +37,7 @@ pub struct RelativePath(String);
 impl RelativePath {
     /// Join ordered path segments with `/`. Internal to `emit` — callers pass
     /// literal, already-safe segments (`"skills"`, a [`HomeSlug`], `"SKILL.md"`).
+    #[must_use]
     pub(crate) fn from_segments(segments: &[&str]) -> Self {
         RelativePath(segments.join("/"))
     }
@@ -45,6 +46,7 @@ impl RelativePath {
     /// when it discovers a generated file on disk (orphan detection) and needs to
     /// compare its path against the emitters' output paths, which are also
     /// forward-slash. Internal to the crate; the caller normalizes separators.
+    #[must_use]
     pub(crate) fn from_forward_slash(s: impl Into<String>) -> Self {
         RelativePath(s.into())
     }
@@ -71,6 +73,7 @@ pub struct OutputFile {
 impl OutputFile {
     /// Assemble an output file. Internal to `emit`. `sources` are the tags of
     /// the rules that produced `contents`, in a deterministic order.
+    #[must_use]
     pub(crate) fn new(path: RelativePath, contents: String, sources: Vec<RuleTag>) -> Self {
         OutputFile {
             path,
@@ -151,6 +154,7 @@ fn slugify(s: &str) -> String {
 /// front-matter as **strict** YAML (Claude skills) and so needs a rule title
 /// or error class containing `:` or `"` kept safe. Targets with a lenient
 /// line-based front-matter (Cursor `.mdc`) deliberately do not use this.
+#[must_use]
 pub(crate) fn yaml_double_quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');

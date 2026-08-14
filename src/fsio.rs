@@ -750,8 +750,11 @@ mod tests {
         // Generate CLAUDE.md, then verify against an EMPTY expected set — as if
         // the last project rule were deleted, so `build` emits no CLAUDE.md while
         // the marked one lingers.
-        write_all(dir.path(), &[output(&["CLAUDE.md"], "project body\n", &["R:p"])])
-            .expect("write");
+        write_all(
+            dir.path(),
+            &[output(&["CLAUDE.md"], "project body\n", &["R:p"])],
+        )
+        .expect("write");
         let reports = verify_all(dir.path(), &[]).expect("verify reads");
         assert_eq!(reports.len(), 1);
         assert_eq!(*reports[0].status(), VerifyStatus::Orphan);
@@ -764,8 +767,11 @@ mod tests {
         // A marker-bearing file somewhere relearn does NOT emit to. The ownership
         // policy scopes the orphan scan to owned locations, so this is left alone
         // even though it carries the marker.
-        write_all(dir.path(), &[output(&["notes", "stray.md"], "body\n", &["R:x"])])
-            .expect("write");
+        write_all(
+            dir.path(),
+            &[output(&["notes", "stray.md"], "body\n", &["R:x"])],
+        )
+        .expect("write");
         let reports = verify_all(dir.path(), &[]).expect("verify reads");
         assert!(
             reports.is_empty(),
