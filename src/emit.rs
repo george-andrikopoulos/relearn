@@ -41,6 +41,14 @@ impl RelativePath {
         RelativePath(segments.join("/"))
     }
 
+    /// A relative path already in portable forward-slash form. Used by `fsio`
+    /// when it discovers a generated file on disk (orphan detection) and needs to
+    /// compare its path against the emitters' output paths, which are also
+    /// forward-slash. Internal to the crate; the caller normalizes separators.
+    pub(crate) fn from_forward_slash(s: impl Into<String>) -> Self {
+        RelativePath(s.into())
+    }
+
     /// The path text, forward-slash separated.
     #[must_use]
     pub fn as_str(&self) -> &str {

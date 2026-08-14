@@ -112,3 +112,56 @@ fn a_file_that_no_longer_matches_the_rules_is_stale() {
         "the on-disk file is self-consistent but not what the current rules emit"
     );
 }
+
+fn validated(rules: Vec<Rule>) -> Library<Validated> {
+    Library::from_rules(rules)
+        .validate()
+        .expect("distinct tags validate")
+}
+
+#[test]
+fn an_orphan_generated_file_is_reported() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    // Two rules → two Cursor `.mdc` files (one per rule).
+    let two = validated(vec![rule("R:alpha", "A body."), rule("R:beta", "B body.")]);
+    fsio::write_all(dir.path(), &emit::cursor::emit(&two)).expect("write both");
+
+    // The corpus shrinks to one rule: R:beta's `.mdc` now lingers on disk with
+    // nothing to regenerate it — an orphan.
+    let one = validated(vec![rule("R:alpha", "A body.")]);
+    let reports =
+        fsio::verify_all(dir.path(), &emit::cursor::emit(&one)).expect("verify reads succeed");
+
+    assert!(
+        reports
+            .iter()
+            .any(|r| *r.status() == VerifyStatus::Ok
+                && r.path().as_str() == ".cursor/rules/alpha.mdc"),
+        "the surviving rule's file is Ok"
+    );
+    assert!(
+        reports.iter().any(|r| *r.status() == VerifyStatus::Orphan
+            && r.path().as_str() == ".cursor/rules/beta.mdc"),
+        "the deleted rule's generated file is reported as an orphan"
+    );
+}
+
+#[test]
+fn an_unmarked_file_in_an_owned_dir_is_not_an_orphan() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let one = validated(vec![rule("R:alpha", "A body.")]);
+    let f = emit::cursor::emit(&one);
+    fsio::write_all(dir.path(), &f).expect("write");
+
+    // A hand-authored, marker-less file inside a relearn-owned dir must NOT be
+    // claimed as an orphan — relearn only owns files carrying its own marker.
+    let hand = dir.path().join("skills/mine/SKILL.md");
+    fs::create_dir_all(hand.parent().expect("has parent")).expect("mkdir");
+    fs::write(&hand, "hand-authored skill, no marker\n").expect("seed a human file");
+
+    let reports = fsio::verify_all(dir.path(), &f).expect("verify reads succeed");
+    assert!(
+        reports.iter().all(|r| *r.status() != VerifyStatus::Orphan),
+        "an unmarked hand-authored file is not relearn's to flag"
+    );
+}

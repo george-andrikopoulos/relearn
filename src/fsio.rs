@@ -7,6 +7,7 @@
 //! to diagnostics; every decision about *what* a document means is made in
 //! `rule` (parsing) and every decision about *what* to write is made in `emit`.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -219,6 +220,12 @@ pub enum VerifyStatus {
     /// hash), but not what the current rules (or tool version) emit — stale;
     /// regenerate with `relearn build`.
     Stale,
+    /// A relearn-generated file (it carries the marker) sitting in a relearn-owned
+    /// location that the current rules would NOT emit — its rule or home was
+    /// removed, so `build` leaves it untouched and it lingers forever. Delete it,
+    /// or restore the rule. Reported for paths NOT in the expected set, so it
+    /// never overlaps the per-expected-file states above.
+    Orphan,
 }
 
 impl VerifyStatus {
@@ -242,6 +249,9 @@ impl std::fmt::Display for VerifyStatus {
             }
             VerifyStatus::Stale => {
                 "stale — does not match the current rules; run `relearn build` to regenerate"
+            }
+            VerifyStatus::Orphan => {
+                "orphan — a relearn-generated file whose rule was removed; `build` will not touch it. Delete it, or restore the rule"
             }
         };
         f.write_str(msg)
@@ -279,6 +289,8 @@ impl VerifyReport {
 /// file that was hand-edited or left stale.
 #[must_use = "the verify reports are the whole result; ignoring them discards every drift finding"]
 pub fn verify_all(out_dir: &Path, files: &[OutputFile]) -> Result<Vec<VerifyReport>, VerifyError> {
+    let expected: BTreeSet<&str> = files.iter().map(|f| f.path().as_str()).collect();
+
     let mut reports = Vec::with_capacity(files.len());
     for file in files {
         let target = out_dir.join(file.path().as_str());
@@ -297,7 +309,107 @@ pub fn verify_all(out_dir: &Path, files: &[OutputFile]) -> Result<Vec<VerifyRepo
             status,
         });
     }
+
+    // Orphan pass: relearn-generated files (marker-bearing) in owned locations
+    // that the current rules would NOT emit — their rule or home was removed, so
+    // `build` never touches them again and they linger. Reported for paths not in
+    // the expected set, so they never overlap the per-expected-file states above.
+    for path in scan_orphans(out_dir, &expected)? {
+        reports.push(VerifyReport {
+            path,
+            status: VerifyStatus::Orphan,
+        });
+    }
     Ok(reports)
+}
+
+/// relearn-owned directories, walked recursively for its own generated files.
+/// These hold the variable per-home / per-rule targets where a removed rule can
+/// strand an orphan (`skills/<slug>/SKILL.md`, `.cursor/rules/<tag>.mdc`). Only
+/// files carrying the marker are ever considered, so a hand-authored file here is
+/// left alone; and only these subtrees are walked, so unrelated content elsewhere
+/// under the output root is never inspected.
+const OWNED_DIRS: &[&str] = &["skills", ".cursor/rules"];
+
+/// relearn-owned fixed single-file targets. Each has exactly one path, so an
+/// orphan arises only when the file is no longer emitted at all (e.g. the last
+/// project rule was deleted, so no `CLAUDE.md` is produced) yet a marked one
+/// lingers on disk.
+const OWNED_FILES: &[&str] = &["AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md"];
+
+/// Find relearn-generated files (marker-bearing) under `out_dir`'s owned
+/// locations whose relative path is not in `expected` — orphans. Read only, and
+/// scoped to owned locations and marked files: an unrelated or hand-authored file
+/// is never claimed. Sorted, for a deterministic report order.
+fn scan_orphans(
+    out_dir: &Path,
+    expected: &BTreeSet<&str>,
+) -> Result<Vec<RelativePath>, VerifyError> {
+    let mut found: Vec<PathBuf> = Vec::new();
+    for dir in OWNED_DIRS {
+        collect_files(&out_dir.join(dir), &mut found)?;
+    }
+    for f in OWNED_FILES {
+        let p = out_dir.join(f);
+        if p.is_file() {
+            found.push(p);
+        }
+    }
+
+    let mut orphans: Vec<RelativePath> = Vec::new();
+    for full in found {
+        // The emitters' paths are forward-slash and relative to the output root;
+        // normalize the discovered path the same way before comparing.
+        let rel = match full.strip_prefix(out_dir) {
+            Ok(r) => r.to_string_lossy().replace('\\', "/"),
+            Err(_) => continue,
+        };
+        if expected.contains(rel.as_str()) {
+            continue; // an expected path — already classified by the main loop
+        }
+        match fs::read(&full) {
+            Ok(bytes) if contains_marker(&bytes) => {
+                orphans.push(RelativePath::from_forward_slash(rel));
+            }
+            Ok(_) => {} // unmarked → not relearn's
+            Err(source) if source.kind() == ErrorKind::NotFound => {} // vanished mid-scan
+            Err(source) => return Err(VerifyError::Io { path: full, source }),
+        }
+    }
+    orphans.sort();
+    Ok(orphans)
+}
+
+/// Recursively collect regular files under `dir` into `out`. A missing directory
+/// is simply empty, not an error — an output root need not contain every target.
+fn collect_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), VerifyError> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(VerifyError::Io {
+                path: dir.to_path_buf(),
+                source,
+            });
+        }
+    };
+    for entry in entries {
+        let entry = entry.map_err(|source| VerifyError::Io {
+            path: dir.to_path_buf(),
+            source,
+        })?;
+        let file_type = entry.file_type().map_err(|source| VerifyError::Io {
+            path: entry.path(),
+            source,
+        })?;
+        let path = entry.path();
+        if file_type.is_dir() {
+            collect_files(&path, out)?;
+        } else if file_type.is_file() {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 /// Classify one on-disk file against the fresh emission `expected`. Precedence:
@@ -630,5 +742,34 @@ mod tests {
         let after = verify_all(dir.path(), &files).expect("verify reads");
         assert_eq!(*after[0].status(), VerifyStatus::Ok);
         assert_eq!(after[0].path().as_str(), "AGENTS.md");
+    }
+
+    #[test]
+    fn an_orphaned_fixed_target_is_reported() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        // Generate CLAUDE.md, then verify against an EMPTY expected set — as if
+        // the last project rule were deleted, so `build` emits no CLAUDE.md while
+        // the marked one lingers.
+        write_all(dir.path(), &[output(&["CLAUDE.md"], "project body\n", &["R:p"])])
+            .expect("write");
+        let reports = verify_all(dir.path(), &[]).expect("verify reads");
+        assert_eq!(reports.len(), 1);
+        assert_eq!(*reports[0].status(), VerifyStatus::Orphan);
+        assert_eq!(reports[0].path().as_str(), "CLAUDE.md");
+    }
+
+    #[test]
+    fn a_marked_file_outside_owned_locations_is_not_scanned() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        // A marker-bearing file somewhere relearn does NOT emit to. The ownership
+        // policy scopes the orphan scan to owned locations, so this is left alone
+        // even though it carries the marker.
+        write_all(dir.path(), &[output(&["notes", "stray.md"], "body\n", &["R:x"])])
+            .expect("write");
+        let reports = verify_all(dir.path(), &[]).expect("verify reads");
+        assert!(
+            reports.is_empty(),
+            "a marked file outside skills/ .cursor/rules/ and the fixed targets is not relearn's to police: {reports:?}"
+        );
     }
 }
