@@ -237,13 +237,27 @@ fn status_kind(status: &Status) -> &'static str {
     }
 }
 
-/// Every well-formed `R:...` tag mentioned in a rule's body or incident, each
-/// once. Deduplicated (and sorted, for determinism) so a rule that cites the
-/// same tag in both its body and its incident yields a single finding, not two.
+/// Every well-formed `R:...` tag cited in a rule's **body**, each once, sorted
+/// for determinism.
+///
+/// The `incident` field is deliberately NOT scanned. It is provenance, and
+/// provenance legitimately names tags that are retired, renamed, or owned by
+/// another library — "retagged from R:x", "supersedes R:y". Those are
+/// historical mentions, not live citations. Scanning them made the linter flag
+/// its own provenance: documentation *about* a tag read as a citation *of* it,
+/// which is exactly `[R:detector-excludes-own-definitions]`. An always-warning
+/// linter gets muted, and a muted check is worse than none.
+///
+/// Cost asymmetry settles the scope: a citation missed in provenance is
+/// harmless, a false dangling-reference is permanent noise.
+///
+/// Incident 2026-08-16: splitting `R:revision-integrity` into `R:doc-currency`,
+/// the new rule's incident recorded "retagged from <the old tag>" and lint
+/// reported a dangling reference to a tag appearing nowhere but provenance —
+/// so the wording had to be contorted to silence a false positive.
 fn cited_tags(rule: &Rule) -> Vec<RuleTag> {
     let mut out = Vec::new();
     collect_tag_tokens(rule.body().as_str(), &mut out);
-    collect_tag_tokens(rule.incident().as_str(), &mut out);
     out.sort();
     out.dedup();
     out

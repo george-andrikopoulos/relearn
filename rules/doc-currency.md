@@ -16,5 +16,7 @@ in the `~/.claude` skill layer under the tag this rule used to carry. This rule
 is about a document's *external* currency: it still describes a reality that has
 since moved. A file can pass one and fail the other.
 
-(Named without a formal tag citation on purpose: that rule is not in this
-library yet, so citing it would dangle -- `relearn lint` catches exactly that.)
+The sibling is still named in prose rather than cited by tag, because it is not
+in this library yet and a real citation would genuinely dangle. The *provenance*
+above may now name it freely: since 2026-08-16 the linter reads citations from
+rule bodies only, so recording why a tag changed no longer trips it.

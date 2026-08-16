@@ -134,7 +134,7 @@ What: two or more rules with **different** homes whose slugs collide (would sile
 
 ### Dangling-reference detection
 What: a rule that cites another rule's tag (`R:...`, in its body or incident) which is not present in the library is flagged (`Warning`). `OR:`/`FOR:` in prose is not mistaken for a citation, and a tag cited in both body and incident is one finding, not two.
-**Enforced by:** `lint::lint` (the `reference_checks` + `cited_tags` checks; `cited_tags` deduplicates) + `tests/lint.rs::dangling_reference_flags_an_unknown_cited_tag`, `a_resolved_reference_is_not_flagged`, `or_in_prose_is_not_read_as_a_tag`, `a_tag_cited_in_both_body_and_incident_yields_one_finding`.
+**Enforced by:** `lint::lint` (`reference_checks` + `cited_tags`; citations are read from the rule **body only** — `incident` is provenance, not a citation surface, and scanning it made the linter flag its own history: `[R:detector-excludes-own-definitions]`, fixed 2026-08-16) + `tests/lint.rs::dangling_reference_flags_an_unknown_cited_tag`, `a_resolved_reference_is_not_flagged`, `or_in_prose_is_not_read_as_a_tag`, `a_tag_cited_twice_in_the_body_yields_one_finding`, `a_tag_named_only_in_provenance_is_not_a_dangling_reference`, `a_tag_cited_in_the_body_is_still_flagged`.
 
 ### Retired-reference detection
 What: a rule that cites another rule which *exists* but is retired (atticked or graduated) is flagged `Info` — likely a historical pointer, but worth confirming the citation isn't building on withdrawn guidance.

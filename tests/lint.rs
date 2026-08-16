@@ -200,10 +200,16 @@ fn a_retired_reference_is_info_severity() {
 }
 
 #[test]
-fn a_tag_cited_in_both_body_and_incident_yields_one_finding() {
-    // Regression pin: cited tags are deduplicated per rule, so a rule that
-    // mentions R:ghost in both its body and its incident is one dangling
-    // reference, not two.
+fn a_tag_cited_twice_in_the_body_yields_one_finding() {
+    // Regression pin: cited tags are deduplicated per rule, so a body that
+    // mentions R:ghost twice is one dangling reference, not two.
+    //
+    // Renamed 2026-08-16. It previously read "..._in_both_body_and_incident",
+    // pinning dedup ACROSS those two fields — but `cited_tags` now reads the
+    // body only (provenance is not a citation surface), so that framing
+    // described behaviour the code no longer has. The test kept passing, which
+    // made it read stronger than it was: a green test with a false comment is
+    // the test-level form of [R:guarantee-needs-a-reader].
     let lib = validated(vec![Rule::new(
         RuleTag::parse("R:a").expect("valid tag"),
         Title::parse("A title").expect("non-empty title"),
@@ -211,8 +217,8 @@ fn a_tag_cited_in_both_body_and_incident_yields_one_finding() {
         Home::global(),
         Date::parse("2026-08-13").expect("valid date"),
         Status::active(),
-        Incident::parse("first seen alongside R:ghost").expect("non-empty incident"),
-        Body::parse("This builds on R:ghost.").expect("non-empty body"),
+        Incident::parse("first seen alongside no tags at all").expect("non-empty incident"),
+        Body::parse("This builds on R:ghost, and again on R:ghost.").expect("non-empty body"),
     )]);
     let dangling: Vec<_> = lint(&lib)
         .into_iter()
@@ -276,5 +282,69 @@ fn findings_are_sorted_most_severe_first() {
         findings[0].severity(),
         Severity::Error,
         "the collision (Error) sorts before the warnings"
+    );
+}
+
+// ── Provenance is not a citation surface ──────────────────────────────────
+//
+// `incident` records why a rule exists. It legitimately names tags that are
+// retired, renamed, or owned by another library — "retagged from R:x",
+// "supersedes R:y". Those are historical mentions, not live citations, and
+// reading them as citations makes the linter flag its own provenance.
+//
+// Same class as [R:detector-excludes-own-definitions]: documentation *about* a
+// pattern must never be read as an instance of it. An always-warning linter
+// gets muted, and a muted check is worse than none.
+//
+// Incident 2026-08-16: splitting R:revision-integrity into R:doc-currency, the
+// new rule recorded "retagged from <old tag>" in its incident. `relearn lint`
+// reported a dangling reference to a tag that only appeared in provenance, and
+// the wording had to be contorted to silence a false positive.
+
+fn rule_with_incident(tag: &str, incident: &str, body: &str) -> Rule {
+    Rule::new(
+        RuleTag::parse(tag).expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse("some class").expect("non-empty error class"),
+        Home::global(),
+        Date::parse("2026-08-16").expect("valid date"),
+        Status::active(),
+        Incident::parse(incident).expect("non-empty incident"),
+        Body::parse(body).expect("non-empty body"),
+    )
+}
+
+#[test]
+fn a_tag_named_only_in_provenance_is_not_a_dangling_reference() {
+    let lib = validated(vec![rule_with_incident(
+        "R:beta",
+        "beta (2026-08-16): retagged from R:gamma because that tag was taken.",
+        "The body cites nobody.",
+    )]);
+    let findings = lint(&lib);
+    assert!(
+        !findings
+            .iter()
+            .any(|f| matches!(f, Finding::DanglingReference { .. })),
+        "a tag mentioned only in `incident` is provenance, not a citation: {findings:?}"
+    );
+}
+
+#[test]
+fn a_tag_cited_in_the_body_is_still_flagged() {
+    // The regression guard for the fix above: narrowing the scan to `body`
+    // must not blind the detector to real dangling citations.
+    let lib = validated(vec![rule_with_incident(
+        "R:beta",
+        "beta (2026-08-16): an ordinary incident naming no tags.",
+        "This rule builds on R:ghost, which was never written.",
+    )]);
+    let findings = lint(&lib);
+    assert!(
+        findings.iter().any(|f| matches!(
+            f,
+            Finding::DanglingReference { to, .. } if to.as_str() == "R:ghost"
+        )),
+        "a dangling citation in the BODY must still be reported: {findings:?}"
     );
 }
