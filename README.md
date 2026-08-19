@@ -12,7 +12,7 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 ## Status
 
-Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release) is in progress**: the licence and a worked example are in place; going fully public is gated on the companion paper's arXiv identifier. Not yet released. See `TODO.md`.
+Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release): released** under Apache-2.0, with a worked example in place. The companion paper *Tuning the Stochastic Machine* is forthcoming on arXiv; its identifier will be added here on publication. See `TODO.md`.
 
 For an end-to-end walk-through — one real incident becoming one rule and compiling out to all five instruction layers, with actual `relearn build` output — see [`docs/worked-example.md`](docs/worked-example.md).
 
@@ -75,7 +75,7 @@ See `ARCHITECTURE.md` for the pipeline and the decisions log, `CLAUDE.md` for th
 
 ## Background
 
-`relearn` is the reference implementation of the error loop described in *Tuning the Stochastic Machine: A Systems Engineer's Operating Model for Human-AI Engineering* (George Andrikopoulos, 2026) and of the Stochos framework's first two principles: **persist or perish**, and **one home per rule**.
+`relearn` is the reference implementation of the error loop described in *Tuning the Stochastic Machine: A Systems Engineer's Operating Model for Human-AI Engineering* (George Andrikopoulos, 2026; forthcoming on arXiv) and of the Stochos framework's first two principles: **persist or perish**, and **one home per rule**.
 
 ## Licence
 

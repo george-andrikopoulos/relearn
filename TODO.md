@@ -77,7 +77,7 @@
 - [x] README public framing: versioned instruction artifacts + the governance loop (Why/Background + Status link the worked example; the loop — persist-or-perish, one-home-per-rule — is stated).
 - [x] Licence (Apache-2.0 — includes the patent grant that matters for enterprise adoption). `LICENSE` file added; `Cargo.toml` already declares `license = "Apache-2.0"`.
 - [x] Worked example: one incident → one rule → five emitted formats (`docs/worked-example.md`) — **generated from real `relearn build` output**, not a mock-up, with the regeneration command recorded so it can't silently drift (honours `R:revision-integrity`).
-- [ ] **Point at the arXiv identifier; make the repo public — BLOCKED, and George's call.** Needs (a) the companion paper's real arXiv ID to exist, and (b) George's explicit go: per the private-by-default rule, the repo is never made public without an explicit instruction. Do not flip visibility autonomously. When the ID exists: add it to the README Background, then `gh repo edit --visibility public` on George's word.
+- [x] **Repo made public 2026-08-19 on George's explicit go.** Per the private-by-default rule this required an explicit instruction — given. Note: the two gate conditions were (a) the real arXiv ID exists and (b) George's explicit go; George deliberately waived (a) and gave (b), taking the repo public ahead of the paper (arXiv not yet visible). Release language de-contradicted first (README/CLAUDE no longer say "not yet released"). **Follow-up:** when the arXiv ID exists, add it to the README Status + Background lines and to `CLAUDE.md`.
 
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [ ] Error-class recurrence — partly exists in the ledger

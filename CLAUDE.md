@@ -6,7 +6,7 @@
 
 `relearn` is a Rust CLI that stores an engineering team's correction-derived rules **once**, in a neutral versioned form, and **compiles** them out to every AI assistant's native instruction layer — Claude skills, Cursor `.mdc` rules, GitHub Copilot instruction files, `AGENTS.md`, plain `CLAUDE.md`.
 
-It is the reference implementation of the error loop described in *Tuning the Stochastic Machine* (George Andrikopoulos, arXiv preprint, 2026) and of the Stochos framework's P1 (persist or perish) and P2 (one home per rule).
+It is the reference implementation of the error loop described in *Tuning the Stochastic Machine* (George Andrikopoulos, 2026; forthcoming on arXiv) and of the Stochos framework's P1 (persist or perish) and P2 (one home per rule).
 
 **The problem it solves.** When an expert corrects an AI assistant, the correction dies with the session unless it is written into the instruction layer. But every assistant has its own instruction format, so a rule written for one does not travel — the correction persists but is *locked to a vendor*. `relearn` makes the rule the artifact and the vendor format a build target.
 
