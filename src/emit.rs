@@ -170,49 +170,84 @@ pub(crate) fn yaml_double_quote(s: &str) -> String {
     out
 }
 
-/// How a rule's [`Home`] translates into a target's scope vocabulary. The
-/// neutral concept is `Home`; turning it into Cursor's `globs`/`alwaysApply`
-/// (and, later, Copilot's ordering) is the emitter's job, and that translation
-/// lives here — in one place — rather than being re-derived per emitter or,
-/// worse, carried as vendor-specific fields on the rule (decision 2026-08-13).
+/// The glob set a [`LoadSemantics::WhenReading`] scope attaches to — **non-empty
+/// by construction**.
+///
+/// The private field and fallible constructor are the point. An empty glob list
+/// is not a narrower scope, it is the *absence* of one, and the two readings of
+/// it diverge silently across targets: Cursor treats a blank `globs` line as "no
+/// auto-attach", while a Claude rule file with `paths: []` loads at
+/// `session_start` — measured 2026-08-22, i.e. resident in **every** session, the
+/// exact opposite. A `(globs, always_apply)` pair let that state be built; this
+/// type does not.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Scope {
-    globs: Vec<String>,
-    always_apply: bool,
-}
+pub struct Globs(Vec<String>);
 
-impl Scope {
-    /// Derive the scope for a home:
-    /// - `Global` → always applies, no globs.
-    /// - `Project` → always applies within its tree, no globs.
-    /// - `Domain` with a known language → auto-attaches on that language's file
-    ///   globs (`rust` → `**/*.rs`), not always-on.
-    /// - `Domain` with an unknown language → no globs and not always-on, i.e.
-    ///   agent-requested via its description (never silently everywhere).
+impl Globs {
+    /// Build a glob set, rejecting the empty one. `None` means "this home has no
+    /// file globs", and the caller must choose a different [`LoadSemantics`]
+    /// variant rather than carry an empty list.
     #[must_use]
-    pub fn for_home(home: &Home) -> Self {
-        match home {
-            Home::Global | Home::Project { .. } => Scope {
-                globs: Vec::new(),
-                always_apply: true,
-            },
-            Home::Domain { name } => Scope {
-                globs: domain_globs(name.as_str()),
-                always_apply: false,
-            },
+    pub fn new(globs: Vec<String>) -> Option<Self> {
+        if globs.is_empty() {
+            None
+        } else {
+            Some(Globs(globs))
         }
     }
 
-    /// The file globs this scope auto-attaches to (may be empty).
+    /// The globs — always at least one.
     #[must_use]
-    pub fn globs(&self) -> &[String] {
-        &self.globs
+    pub fn as_slice(&self) -> &[String] {
+        &self.0
     }
+}
 
-    /// Whether the rule applies to every file regardless of glob.
+/// How a rule's [`Home`] translates into a target's **load model**. The neutral
+/// concept is `Home`; turning it into Cursor's `globs`/`alwaysApply`, or a Claude
+/// rule file's `paths:`, is the emitter's job, and that translation lives here —
+/// in one place — rather than being re-derived per emitter or, worse, carried as
+/// vendor-specific fields on the rule (decision 2026-08-13).
+///
+/// **Why an enum, not a `(globs, always_apply)` pair** (decision 2026-08-22). The
+/// pair carried three real states in two fields, so a fourth combination — no
+/// globs and not always-on — was representable and meant something different
+/// again. Every target had to re-derive which of the three it was holding, and a
+/// target that could not express one of them had no way to say so: it rendered
+/// something plausible instead. That is how a rule meant to be reachable only by
+/// description would have become a rule resident in every session on the machine.
+/// As variants, a target that cannot represent a case must match it and decide,
+/// and a fourth load model added later is a compile error at every emitter rather
+/// than a silent default. `[R:prefer-by-construction]`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoadSemantics {
+    /// Resident in every session, whatever files are touched: `Global` (applies
+    /// everywhere) and `Project` (applies throughout its own tree).
+    Always,
+    /// Attaches when the assistant reads a file matching one of these globs — a
+    /// known language domain, `rust` → `**/*.rs`.
+    WhenReading(Globs),
+    /// Reachable only when the assistant asks for it by description; never
+    /// blanket-applied. An unknown language domain, for which no glob is known.
+    OnRequest,
+}
+
+impl LoadSemantics {
+    /// Derive the load model for a home:
+    /// - `Global` / `Project` → [`Always`](LoadSemantics::Always).
+    /// - `Domain` with a known language → [`WhenReading`](LoadSemantics::WhenReading)
+    ///   that language's globs.
+    /// - `Domain` with an unknown language → [`OnRequest`](LoadSemantics::OnRequest),
+    ///   never silently everywhere.
     #[must_use]
-    pub fn always_apply(&self) -> bool {
-        self.always_apply
+    pub fn for_home(home: &Home) -> Self {
+        match home {
+            Home::Global | Home::Project { .. } => LoadSemantics::Always,
+            Home::Domain { name } => match Globs::new(domain_globs(name.as_str())) {
+                Some(globs) => LoadSemantics::WhenReading(globs),
+                None => LoadSemantics::OnRequest,
+            },
+        }
     }
 }
 
@@ -375,32 +410,47 @@ mod tests {
     }
 
     #[test]
-    fn global_scope_always_applies_with_no_globs() {
-        let scope = Scope::for_home(&Home::global());
-        assert!(scope.always_apply());
-        assert!(scope.globs().is_empty());
+    fn global_scope_is_always() {
+        assert_eq!(
+            LoadSemantics::for_home(&Home::global()),
+            LoadSemantics::Always
+        );
     }
 
     #[test]
-    fn project_scope_always_applies_with_no_globs() {
-        let scope = Scope::for_home(&Home::project("C:/repo").expect("non-empty project"));
-        assert!(scope.always_apply());
-        assert!(scope.globs().is_empty());
+    fn project_scope_is_always() {
+        assert_eq!(
+            LoadSemantics::for_home(&Home::project("C:/repo").expect("non-empty project")),
+            LoadSemantics::Always
+        );
     }
 
     #[test]
-    fn known_domain_scopes_to_language_globs_and_is_not_always() {
-        let scope = Scope::for_home(&Home::domain("rust").expect("non-empty domain"));
-        assert!(!scope.always_apply());
-        assert_eq!(scope.globs(), &["**/*.rs".to_owned()]);
+    fn known_domain_scopes_to_language_globs() {
+        let scope = LoadSemantics::for_home(&Home::domain("rust").expect("non-empty domain"));
+        match scope {
+            LoadSemantics::WhenReading(globs) => {
+                assert_eq!(globs.as_slice(), &["**/*.rs".to_owned()]);
+            }
+            other => panic!("expected WhenReading, got {other:?}"),
+        }
     }
 
     #[test]
-    fn unknown_domain_has_no_globs_and_is_not_always() {
-        // Agent-requested via description — never blanket-applied.
-        let scope = Scope::for_home(&Home::domain("cobol").expect("non-empty domain"));
-        assert!(!scope.always_apply());
-        assert!(scope.globs().is_empty());
+    fn unknown_domain_is_on_request() {
+        // Reachable by description — never blanket-applied, and never an empty
+        // glob list, which some targets read as "everything".
+        assert_eq!(
+            LoadSemantics::for_home(&Home::domain("cobol").expect("non-empty domain")),
+            LoadSemantics::OnRequest
+        );
+    }
+
+    #[test]
+    fn an_empty_glob_list_cannot_be_built() {
+        // The illegal state, refused at the constructor rather than rendered.
+        assert!(Globs::new(Vec::new()).is_none());
+        assert!(Globs::new(vec!["**/*.rs".to_owned()]).is_some());
     }
 
     #[test]
@@ -415,11 +465,17 @@ mod tests {
     #[test]
     fn domain_matching_is_case_insensitive_and_aliased() {
         assert_eq!(
-            Scope::for_home(&Home::domain("TypeScript").expect("non-empty domain")).globs(),
+            match LoadSemantics::for_home(&Home::domain("TypeScript").expect("non-empty domain")) {
+                LoadSemantics::WhenReading(g) => g.as_slice().to_vec(),
+                other => panic!("expected WhenReading, got {other:?}"),
+            },
             &["**/*.ts".to_owned(), "**/*.tsx".to_owned()]
         );
         assert_eq!(
-            Scope::for_home(&Home::domain("ts").expect("non-empty domain")).globs(),
+            match LoadSemantics::for_home(&Home::domain("ts").expect("non-empty domain")) {
+                LoadSemantics::WhenReading(g) => g.as_slice().to_vec(),
+                other => panic!("expected WhenReading, got {other:?}"),
+            },
             &["**/*.ts".to_owned(), "**/*.tsx".to_owned()]
         );
     }

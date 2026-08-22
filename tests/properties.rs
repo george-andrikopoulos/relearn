@@ -250,9 +250,12 @@ proptest! {
                     .iter()
                     .find(|r| r.tag() == tag)
                     .ok_or_else(|| TestCaseError::fail("provenance names a rule not in the library"))?;
+                // Project and known-domain homes both reach this layer (2026-08-22);
+                // `Global` does not — it already has an always-resident home, and a
+                // second copy here would put one rule in two Claude files.
                 prop_assert!(
-                    matches!(rule.home(), Home::Project { .. }),
-                    "a non-project rule reached the project layer: {}",
+                    matches!(rule.home(), Home::Project { .. } | Home::Domain { .. }),
+                    "a global rule reached the rules layer: {}",
                     tag.as_str()
                 );
                 let rule_slug = emit::HomeSlug::of(rule.home());
@@ -284,5 +287,54 @@ proptest! {
             .map(|t| t.as_str().to_owned())
             .collect();
         prop_assert_eq!(emitted, expected);
+    }
+
+    /// **A rules file never carries an empty `paths:` list.** This is the whole-
+    /// space form of the state `LoadSemantics` exists to make unrepresentable.
+    ///
+    /// The two readings of an empty glob list diverge silently across targets:
+    /// Cursor reads a blank `globs` line as "no auto-attach", while a Claude rule
+    /// file with `paths: []` loads at `session_start` — measured 2026-08-22, i.e.
+    /// resident in every session, the exact opposite. A domain whose language has
+    /// no known globs must therefore reach the assistant some other way, never as
+    /// an empty glob list rendered into a file that then applies to everything.
+    #[test]
+    fn no_rules_file_ever_carries_an_empty_paths_list(lib in arb_library_mixed()) {
+        for file in emit::claude_md::emit(&lib) {
+            prop_assert!(
+                !file.contents().contains("paths: []"),
+                "{} carries an empty paths list, which loads always",
+                file.path().as_str()
+            );
+            prop_assert!(
+                !file.contents().contains("paths:\n---"),
+                "{} carries a paths key with no globs under it",
+                file.path().as_str()
+            );
+        }
+    }
+
+    /// **An unknown-language domain never reaches the rules layer.** Its
+    /// `LoadSemantics` is `OnRequest`, which the `paths:` front-matter has no
+    /// spelling for — the target is two-state (always / glob-scoped) and cannot
+    /// say "reachable by description only". Emitting it anyway would promote a
+    /// rule meant to be asked for into one resident in every session.
+    ///
+    /// `arb_home` generates domain names from arbitrary text, so essentially
+    /// every generated domain is unknown: this exercises the negative case hard.
+    #[test]
+    fn unknown_domains_never_reach_the_rules_layer(lib in arb_library_mixed()) {
+        for file in emit::claude_md::emit(&lib) {
+            let is_unknown_domain_file = lib.rules().iter().any(|r| {
+                matches!(r.home(), Home::Domain { .. })
+                    && matches!(emit::LoadSemantics::for_home(r.home()), emit::LoadSemantics::OnRequest)
+                    && file.sources().iter().any(|t| t == r.tag())
+            });
+            prop_assert!(
+                !is_unknown_domain_file,
+                "{} carries an on-request domain rule",
+                file.path().as_str()
+            );
+        }
     }
 }

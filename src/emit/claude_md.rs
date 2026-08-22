@@ -1,5 +1,20 @@
-//! `emit::claude_md` — the Claude **project layer**: one file per project home
-//! (`Home::Project`), at `<out>/.claude/rules/<home-slug>.md`.
+//! `emit::claude_md` — the Claude **rules layer**: one file per home, at
+//! `<out>/.claude/rules/<home-slug>.md`.
+//!
+//! **Which homes reach it is a question about the target, not the home**
+//! (2026-08-22). A `.claude/rules/` file has a **two-state** load model: no
+//! front-matter means resident in every session, and a `paths:` list means it
+//! attaches when the assistant reads a matching file. [`LoadSemantics`] has
+//! three states, so one of them — `OnRequest`, reachable by description only —
+//! has no spelling here at all. It is skipped rather than written unscoped,
+//! because an unscoped file is not a narrower rule, it is one loaded *always*:
+//! `paths: []` was measured on 2026-08-22 to load at `session_start`, so the
+//! empty list says the opposite of what it reads as. `Global` is likewise kept
+//! out: it is `Always`, but it already has an always-resident home, and a second
+//! copy here would be the duplication this tool exists to prevent.
+//!
+//! The module name is historical — it stopped writing `CLAUDE.md` on 2026-08-22
+//! (below) and now writes only rule files. Renaming it is tracked in `TODO.md`.
 //!
 //! **Why not `<out>/CLAUDE.md`** (the original path; changed 2026-08-22). A
 //! repository-root `CLAUDE.md` is the *hand-authored* project charter by Claude
@@ -28,31 +43,51 @@
 
 use std::collections::BTreeMap;
 
-use super::{HomeSlug, OutputFile, RelativePath, emittable, graduation_note};
+use super::{
+    HomeSlug, LoadSemantics, OutputFile, RelativePath, emittable, graduation_note,
+    yaml_double_quote,
+};
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule, RuleTag};
 
 /// The directory this emitter owns. Every file it writes lives here, named by
 /// the home slug — see the module docs for why this is not the repository root.
-pub(crate) const PROJECT_LAYER_DIR: &[&str] = &[".claude", "rules"];
+pub(crate) const RULES_LAYER_DIR: &[&str] = &[".claude", "rules"];
 
-/// Emit one project-layer file per project home, each containing only that
+/// Emit one rules-layer file per home that this target can scope, each holding only that
 /// home's rules, ordered by tag so the output is a deterministic function of
 /// the library.
 ///
-/// Returns an empty `Vec` (no file) when the library carries no project-layer
+/// Returns an empty `Vec` (no file) when the library carries no rules-layer
 /// rules — this emitter never writes an empty file.
 ///
 /// Accepts only `&Library<Validated>` — an unvalidated library does not have
 /// this type, so emitting unchecked rules is a compile error.
 #[must_use]
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
-    // Group the emittable (active + graduated) project rules by home, so each
-    // project's file carries its own rules and no others. Atticked guidance is
-    // suppressed here too: a retired project rule never reaches the layer.
+    // Group the emittable (active + graduated) rules by home, so each home's file
+    // carries its own rules and no others. Atticked guidance is suppressed here
+    // too: a retired rule never reaches the layer.
+    //
+    // Which homes reach this layer is decided by what the target can *say*, not
+    // by the kind of home: a `.claude/rules/` file has a two-state load model
+    // (front-matter absent → always; `paths:` present → on reading a match), so
+    // `Always` and `WhenReading` are representable and `OnRequest` is not. An
+    // unknown-language domain is therefore skipped rather than written with no
+    // `paths:` — which would not be a narrower rule, it would be one resident in
+    // every session. Those domains keep reaching the assistant through the skill
+    // target, which is the mechanism that actually implements "by description".
     let mut by_home: BTreeMap<HomeSlug, Vec<&Rule>> = BTreeMap::new();
     for rule in emittable(library) {
-        if matches!(rule.home(), Home::Project { .. }) {
+        let representable = match LoadSemantics::for_home(rule.home()) {
+            LoadSemantics::Always | LoadSemantics::WhenReading(_) => true,
+            LoadSemantics::OnRequest => false,
+        };
+        // `Global` is `Always` too, but it is not a *rules-layer* concern: it has
+        // an always-resident home already, and emitting it here as well would put
+        // one rule in two Claude files — the duplication this tool exists to stop.
+        let in_layer = matches!(rule.home(), Home::Project { .. } | Home::Domain { .. });
+        if representable && in_layer {
             by_home
                 .entry(HomeSlug::of(rule.home()))
                 .or_default()
@@ -63,12 +98,15 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
     let mut files = Vec::with_capacity(by_home.len());
     for (slug, mut rules) in by_home {
         rules.sort_by(|a, b| a.tag().as_str().cmp(b.tag().as_str()));
-        let contents = render_project_layer(&rules);
+        // Every rule in a group shares a home (they were grouped by its slug), so
+        // the first rule's home speaks for the group.
+        let home = rules[0].home();
+        let contents = render_layer(home, &rules);
         // The path is a function of the home, not a constant: `HomeSlug` is
         // `[a-z0-9-]+` by construction, so no rule's project path can steer
         // this emitter at a hand-authored file.
         let file_name = format!("{}.md", slug.as_str());
-        let mut segments: Vec<&str> = PROJECT_LAYER_DIR.to_vec();
+        let mut segments: Vec<&str> = RULES_LAYER_DIR.to_vec();
         segments.push(&file_name);
         let path = RelativePath::from_segments(&segments);
         let sources: Vec<RuleTag> = rules
@@ -80,11 +118,27 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
     files
 }
 
-/// Render one project layer: a heading then one markdown section per rule, in
-/// the tag order the caller sorted them into.
-fn render_project_layer(rules: &[&Rule]) -> String {
+/// Render one home's layer: the load-model front-matter (when the target needs
+/// one), a heading, then one markdown section per rule, in the tag order the
+/// caller sorted them into.
+///
+/// **Front-matter is emitted only for [`LoadSemantics::WhenReading`].** `Always`
+/// is spelled by its *absence*: a rule file with no front-matter loads at session
+/// start. It must not be spelled `paths: []`, which was measured on 2026-08-22 to
+/// load at session start as well — the same meaning by accident, and the opposite
+/// of what an empty glob list reads as anywhere else. `OnRequest` never reaches
+/// this function; `emit` filters it out, because this target has no spelling for
+/// it at all.
+fn render_layer(home: &Home, rules: &[&Rule]) -> String {
     let mut out = String::new();
-    out.push_str("# Project rules\n");
+    if let LoadSemantics::WhenReading(globs) = LoadSemantics::for_home(home) {
+        out.push_str("---\npaths:\n");
+        for glob in globs.as_slice() {
+            out.push_str(&format!("  - {}\n", yaml_double_quote(glob)));
+        }
+        out.push_str("---\n\n");
+    }
+    out.push_str(&format!("# {}\n", layer_heading(home)));
     for r in rules {
         out.push_str(&format!(
             "\n## {} [{}]\n\n",
@@ -97,6 +151,19 @@ fn render_project_layer(rules: &[&Rule]) -> String {
         out.push_str(&format!("{}\n", r.body().as_str()));
     }
     out
+}
+
+/// The layer's heading. Project layers keep the wording they have always had;
+/// a domain layer names its language so a reader of the file knows what it scopes
+/// to without parsing the front-matter.
+fn layer_heading(home: &Home) -> String {
+    match home {
+        Home::Project { .. } => "Project rules".to_owned(),
+        Home::Domain { name } => format!("Rules for domain: {}", name.as_str()),
+        // Not reachable: `emit` keeps `Global` out of this layer. Rendering a
+        // truthful heading is cheaper than a panic and keeps the function total.
+        Home::Global => "Global rules".to_owned(),
+    }
 }
 
 #[cfg(test)]
@@ -123,8 +190,11 @@ mod tests {
             .expect("distinct tags validate")
     }
 
+    /// Project and known-domain homes each get their own file; `Global` does not
+    /// reach this layer at all (it already has an always-resident home, and a
+    /// second copy here would be the duplication the tool exists to prevent).
     #[test]
-    fn only_project_rules_are_included() {
+    fn project_and_domain_homes_each_get_a_file_but_global_does_not() {
         let lib = validated(vec![
             rule("R:g", Home::global(), "Global rule", "gc", "Global body."),
             rule(
@@ -143,11 +213,72 @@ mod tests {
             ),
         ]);
         let files = emit(&lib);
-        assert_eq!(files.len(), 1, "one file, for the single project home");
+        assert_eq!(
+            files.len(),
+            2,
+            "one file each for the domain and project homes"
+        );
+        let all: String = files.iter().map(|f| f.contents()).collect();
+        assert!(all.contains("[R:p]"), "project rule is present");
+        assert!(all.contains("[R:d]"), "known-domain rule is present");
+        assert!(!all.contains("[R:g]"), "global rule is excluded");
+    }
+
+    /// A known-language domain is scoped with `paths:` — it loads when a matching
+    /// file is read, not in every session.
+    #[test]
+    fn a_known_domain_layer_carries_its_language_globs() {
+        let lib = validated(vec![rule(
+            "R:d",
+            Home::domain("rust").expect("non-empty domain"),
+            "Rust rule",
+            "dc",
+            "Rust body.",
+        )]);
+        let files = emit(&lib);
+        assert_eq!(files[0].path().as_str(), ".claude/rules/domain-rust.md");
         let c = files[0].contents();
-        assert!(c.contains("[R:p]"), "project rule is present");
-        assert!(!c.contains("[R:g]"), "global rule is excluded");
-        assert!(!c.contains("[R:d]"), "domain rule is excluded");
+        assert!(
+            c.starts_with("---\npaths:\n  - \"**/*.rs\"\n---\n\n"),
+            "got: {c}"
+        );
+        assert!(c.contains("# Rules for domain: rust"));
+    }
+
+    /// A project layer carries **no** front-matter: absence is how this target
+    /// spells "always resident". It must not be spelled `paths: []`, which loads
+    /// always as well and so says the same thing by accident.
+    #[test]
+    fn a_project_layer_carries_no_front_matter() {
+        let lib = validated(vec![rule(
+            "R:p",
+            Home::project("repo").expect("non-empty project"),
+            "Project rule",
+            "pc",
+            "Project body.",
+        )]);
+        let files = emit(&lib);
+        let c = files[0].contents();
+        assert!(c.starts_with("# Project rules\n"), "got: {c}");
+        assert!(!c.contains("paths:"));
+    }
+
+    /// An unknown-language domain has no glob to scope by, and this target cannot
+    /// say "reach this by description". It is skipped rather than written
+    /// unscoped, which would make it resident in every session.
+    #[test]
+    fn an_unknown_domain_is_not_emitted_to_this_layer() {
+        let lib = validated(vec![rule(
+            "R:d",
+            Home::domain("cobol").expect("non-empty domain"),
+            "Cobol rule",
+            "dc",
+            "Cobol body.",
+        )]);
+        assert!(
+            emit(&lib).is_empty(),
+            "on-request domains do not reach this layer"
+        );
     }
 
     #[test]
@@ -233,19 +364,22 @@ mod tests {
     }
 
     #[test]
-    fn no_project_rules_emits_nothing() {
+    fn no_rules_for_this_layer_emits_nothing() {
         let lib = validated(vec![
             rule("R:g", Home::global(), "Global rule", "gc", "Global body."),
             rule(
                 "R:d",
-                Home::domain("rust").expect("non-empty domain"),
-                "Domain rule",
+                Home::domain("cobol").expect("non-empty domain"),
+                "Cobol rule",
                 "dc",
-                "Domain body.",
+                "Cobol body.",
             ),
         ]);
         let files = emit(&lib);
-        assert!(files.is_empty(), "no project rules means no file");
+        assert!(
+            files.is_empty(),
+            "a global home and an on-request domain both stay out of this layer"
+        );
     }
 
     #[test]

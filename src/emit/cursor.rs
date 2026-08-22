@@ -1,8 +1,14 @@
 //! `emit::cursor` — one Cursor rule file per rule: `<out>/.cursor/rules/<tag-
 //! body>.mdc` with front-matter (`description`, `globs`, `alwaysApply`). The
 //! `globs`/`alwaysApply` are **derived from the rule's `Home`** via the shared
-//! [`Scope`](super::Scope) helper, never carried on the rule (decision
-//! 2026-08-13) — vendor scope vocabulary is the emitter's job.
+//! [`LoadSemantics`](super::LoadSemantics) helper, never carried on the rule
+//! (decision 2026-08-13) — vendor scope vocabulary is the emitter's job.
+//!
+//! Cursor is the target that can express **all three** load models: `Always` is
+//! `alwaysApply: true`, `WhenReading` is a glob list, and `OnRequest` is the
+//! blank-globs / not-always combination Cursor reads as "reach this rule by its
+//! description". The Claude rules layer cannot say the third — see
+//! `emit::claude_md`.
 //!
 //! The filename is the tag **body** (`R:foo` → `foo.mdc`): the full tag's `:`
 //! is not a valid filename character on every platform, and the body is already
@@ -14,7 +20,7 @@
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
-use super::{OutputFile, RelativePath, Scope, emittable, graduation_note};
+use super::{LoadSemantics, OutputFile, RelativePath, emittable, graduation_note};
 use crate::library::{Library, Validated};
 use crate::rule::Rule;
 
@@ -33,7 +39,7 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
 
 /// Render one rule into its `.mdc` output file.
 fn render_rule(rule: &Rule) -> OutputFile {
-    let scope = Scope::for_home(rule.home());
+    let scope = LoadSemantics::for_home(rule.home());
     let filename = format!("{}.mdc", rule.tag().body());
     let path = RelativePath::from_segments(&[".cursor", "rules", filename.as_str()]);
     // The OutputFile owns its provenance tag, outliving the `&Library` borrow.
@@ -43,7 +49,7 @@ fn render_rule(rule: &Rule) -> OutputFile {
 
 /// Render the `.mdc` body: lenient front-matter (Cursor's own format) then the
 /// rule as a markdown section.
-fn render_mdc(rule: &Rule, scope: &Scope) -> String {
+fn render_mdc(rule: &Rule, scope: &LoadSemantics) -> String {
     // Description is a single line; strip any embedded newline defensively so it
     // cannot break the line-based front-matter.
     let description = format!(
@@ -52,13 +58,21 @@ fn render_mdc(rule: &Rule, scope: &Scope) -> String {
         rule.error_class().as_str()
     )
     .replace('\n', " ");
-    let globs = scope.globs().join(",");
+    // Cursor's two front-matter fields express all three load models: `OnRequest`
+    // is the blank-globs / not-always combination, which Cursor reads as "reach
+    // this rule by its description". This target can say all three, so it matches
+    // all three — unlike the Claude rules layer, which must refuse one.
+    let (globs, always_apply) = match scope {
+        LoadSemantics::Always => (String::new(), true),
+        LoadSemantics::WhenReading(g) => (g.as_slice().join(","), false),
+        LoadSemantics::OnRequest => (String::new(), false),
+    };
 
     let mut out = String::new();
     out.push_str("---\n");
     out.push_str(&format!("description: {description}\n"));
     out.push_str(&format!("globs: {globs}\n"));
-    out.push_str(&format!("alwaysApply: {}\n", scope.always_apply()));
+    out.push_str(&format!("alwaysApply: {always_apply}\n"));
     out.push_str("---\n\n");
     out.push_str(&format!(
         "# {} [{}]\n\n",
