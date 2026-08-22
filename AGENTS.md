@@ -31,6 +31,32 @@ If "absent / stopped / unknown" is a real state, make it an enum variant, not a 
 
 Work that needs judgment goes to a capable model. Do not embed a sub-tier local LLM (a 7B/13B behind Ollama, llama.cpp or similar) in a tool as a convenient, API-key-free fallback: a meaningfully dumber model degrades the tool it is wedged into, everywhere and silently, and the output looks like ordinary tool output rather than like a downgrade. When a tool needs intelligence, delegate to the capable model through the existing subscription -- the MCP server is the abstraction boundary and clients are peers. Note that the cost argument usually offered for the local model is the price-tier fallacy R:measure-cost-per-task names; but this rule is not an economic one and does not dissolve if the sums come out favourably. Mechanical, tool-restricted passes are a different matter and may be scoped tightly; the floor applies to work where the answer is a judgement.
 
+## Pin the line endings of text a machine executes or hashes [R:pin-eol-for-executable-text]
+
+When a file's exact bytes are load-bearing, do not leave its line endings to whatever the
+checkout decides. Two kinds of file qualify: text a machine executes, where a stray
+carriage return on the shebang means the interpreter is not found; and generated text
+whose content is hashed and compared, where a rewritten line ending changes the hash and
+the file reports as modified by a human who never touched it.
+
+Pin it structurally, in `.gitattributes`, for the paths that need it. This is a
+by-construction fix applied once at the repository boundary, not a check that runs later
+and reports what has already gone wrong.
+
+Do not repair this by teaching the comparison to forgive line endings. Normalising before
+hashing makes the check tolerant of a class of real edit, and it hides the platform
+difference rather than removing it. The guarantee is about the bytes on disk, so it is the
+bytes on disk that must be fixed.
+
+The characteristic damage is that it is invisible from where the work was done. The
+authoring platform stays green; the breakage appears only on the other one, and it appears
+as a symptom that names something else entirely -- a missing interpreter, a hand-edited
+file, a failing gate with nothing wrong in the diff.
+
+This is the at-rest half of a pair. Its sibling governs bytes in flight -- what another
+tool emits into a pipe at runtime, which no file attribute can reach, so that fix belongs
+at the consuming end instead. A repository can satisfy either and fail the other.
+
 ## Prefer by-construction impossibility over after-the-fact controls [R:prefer-by-construction]
 
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
@@ -95,6 +121,47 @@ Parse into a type wide enough to *represent* the out-of-range value, then range-
 
 When a sequence has rules -- connect before authenticate, init before run, configure before start -- encode the stage in the type, not in a field. Each step consumes the value in one state and produces it in the next, so a method that is invalid in the current state simply does not exist and calling it is a compile error. This is R:make-illegal-states-unrepresentable applied to time rather than to structure: the illegal thing is not a contradictory pair of fields but an operation at the wrong moment, and the same remedy applies -- make it unrepresentable rather than guarded. A runtime `if !self.authenticated { return Err(...) }` in a method that should not exist yet is the shape to look for.
 
+## A test fixture must work on every OS the repository runs on [R:xplat-fixtures]
+
+A test that passes only on the machine that wrote it is a latent lie, and it is a
+particularly expensive one: it does not fail, it certifies. Where a repository is worked
+on from more than one operating system, every fixture that spawns a process, locates a
+binary, compares filesystem paths, or parses another tool's output must be written for
+both, because the one that is not will report success on the authoring OS indefinitely.
+
+Locate a sibling binary from the running test, never from a constructed path.
+`CARGO_BIN_EXE_*` exists only for the bins of the crate under test; for anything else,
+start at `current_exe()`, pop `deps`, pop the profile directory, and join the name with
+`std::env::consts::EXE_SUFFIX`. A literal `target/<profile>/<name>` ignores both
+`CARGO_TARGET_DIR` and the platform's executable suffix, and the failure it produces is
+an exec error rather than a missing-file error, which reads as a broken binary rather
+than a broken path.
+
+A fixture that must run as a child process is a small program in the language of the
+repository, compiled once per test run into `CARGO_TARGET_TMPDIR` behind a `OnceLock`.
+The toolchain is guaranteed present wherever the tests run; an interpreter is not. When
+generating such a program's source, write the payload through a byte-level write rather
+than a formatting macro, or braces in the payload are parsed as format placeholders.
+
+Canonicalize both sides before any path comparison. On Windows `canonicalize` returns the
+extended-length form, so a prefix or equality assertion against a raw path fails for a
+path that is in fact correct.
+
+Strip carriage returns from another tool's output before comparing it. Many ports
+terminate lines with CRLF; capturing a command's output removes the trailing newline but
+leaves the final line's CR, so exactly one record per stream carries a stray byte and
+never matches its twin. The result looks like real drift, is invisible on the other OS,
+and an always-red check is a muted check.
+
+Treat a green run as evidence for the operating system it ran on and no other. A fixture
+recorded as an enforcing artefact on the strength of a single-platform run is a claim
+about a guarantee that was never tested where it was most likely to break.
+
+This is the in-flight half of a pair. Its sibling governs bytes at rest -- what a checkout
+puts on disk, fixed once and structurally in `.gitattributes`. This rule governs bytes in
+flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
+the fix belongs at the consuming end. A repository can satisfy either and fail the other.
+
 ## A generator never overwrites content it did not generate [R:generate-guards-unversioned]
 
 A generator that writes into a directory shared with hand-authored files must never overwrite a file it did not itself generate. Stamp every generated file with a marker the generator can recognise on the next run, refuse to overwrite any target lacking it, and make the check all-or-nothing: abort the whole write before touching disk if any target is unversioned, rather than leave a half-generated tree. A dropped rule is a lost correction; a clobbered human file is a lost correction the tool itself destroyed.
@@ -111,4 +178,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=5e8cc5d74822f614cedca5ac84cc184941aa2a85e1953ece905b1c14c935c658 rules=R:doc-currency,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-weak-model-for-judgment,R:prefer-by-construction,R:source-practice-from-its-artefact,R:verify-through-production-path,R:design-types-first,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:typestate-for-protocols,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=099513d0bc57c5f09deae5f17cd39a8a10b3206faa48bd9ba1a750ed8ca4ee36 rules=R:doc-currency,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:source-practice-from-its-artefact,R:verify-through-production-path,R:design-types-first,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:typestate-for-protocols,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -37,4 +37,45 @@ Parse into a type wide enough to *represent* the out-of-range value, then range-
 
 When a sequence has rules -- connect before authenticate, init before run, configure before start -- encode the stage in the type, not in a field. Each step consumes the value in one state and produces it in the next, so a method that is invalid in the current state simply does not exist and calling it is a compile error. This is R:make-illegal-states-unrepresentable applied to time rather than to structure: the illegal thing is not a contradictory pair of fields but an operation at the wrong moment, and the same remedy applies -- make it unrepresentable rather than guarded. A runtime `if !self.authenticated { return Err(...) }` in a method that should not exist yet is the shape to look for.
 
-<!-- relearn:generated v0.1.0 sha256=5b71d09c25ec7e7ad2fdabed4333a051d28995da54e7294cdbf36d2e72d5cd75 rules=R:design-types-first,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:typestate-for-protocols -- DO NOT EDIT; regenerate with `relearn build` -->
+## A test fixture must work on every OS the repository runs on [R:xplat-fixtures]
+
+A test that passes only on the machine that wrote it is a latent lie, and it is a
+particularly expensive one: it does not fail, it certifies. Where a repository is worked
+on from more than one operating system, every fixture that spawns a process, locates a
+binary, compares filesystem paths, or parses another tool's output must be written for
+both, because the one that is not will report success on the authoring OS indefinitely.
+
+Locate a sibling binary from the running test, never from a constructed path.
+`CARGO_BIN_EXE_*` exists only for the bins of the crate under test; for anything else,
+start at `current_exe()`, pop `deps`, pop the profile directory, and join the name with
+`std::env::consts::EXE_SUFFIX`. A literal `target/<profile>/<name>` ignores both
+`CARGO_TARGET_DIR` and the platform's executable suffix, and the failure it produces is
+an exec error rather than a missing-file error, which reads as a broken binary rather
+than a broken path.
+
+A fixture that must run as a child process is a small program in the language of the
+repository, compiled once per test run into `CARGO_TARGET_TMPDIR` behind a `OnceLock`.
+The toolchain is guaranteed present wherever the tests run; an interpreter is not. When
+generating such a program's source, write the payload through a byte-level write rather
+than a formatting macro, or braces in the payload are parsed as format placeholders.
+
+Canonicalize both sides before any path comparison. On Windows `canonicalize` returns the
+extended-length form, so a prefix or equality assertion against a raw path fails for a
+path that is in fact correct.
+
+Strip carriage returns from another tool's output before comparing it. Many ports
+terminate lines with CRLF; capturing a command's output removes the trailing newline but
+leaves the final line's CR, so exactly one record per stream carries a stray byte and
+never matches its twin. The result looks like real drift, is invisible on the other OS,
+and an always-red check is a muted check.
+
+Treat a green run as evidence for the operating system it ran on and no other. A fixture
+recorded as an enforcing artefact on the strength of a single-platform run is a claim
+about a guarantee that was never tested where it was most likely to break.
+
+This is the in-flight half of a pair. Its sibling governs bytes at rest -- what a checkout
+puts on disk, fixed once and structurally in `.gitattributes`. This rule governs bytes in
+flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
+the fix belongs at the consuming end. A repository can satisfy either and fail the other.
+
+<!-- relearn:generated v0.1.0 sha256=4d492d5ade82525544509fab50af151f378b3f8f383f79cde2b50758a497cba3 rules=R:design-types-first,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:typestate-for-protocols,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
