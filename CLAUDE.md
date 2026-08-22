@@ -6,9 +6,11 @@
 
 `relearn` is a Rust CLI that stores an engineering team's correction-derived rules **once**, in a neutral versioned form, and **compiles** them out to every AI assistant's native instruction layer — Claude skills, Cursor `.mdc` rules, GitHub Copilot instruction files, `AGENTS.md`, plain `CLAUDE.md`.
 
-It is the reference implementation of the error loop described in *Tuning the Stochastic Machine* (George Andrikopoulos, 2026, arXiv:2608.19125) and of the Stochos framework's P1 (persist or perish) and P2 (one home per rule). The precision-measurement companion, *Grouping the Stochastic Machine* (arXiv:2608.19140), references this repository.
+It is the reference implementation of the error loop described in *Tuning the Stochastic Machine* (George Andrikopoulos, 2026, arXiv:2608.19125) and of the Stochos framework's P1 (persist or perish) and P2 (one home per rule). The precision-measurement companion, *Grouping the Stochastic Machine* (arXiv:2608.19140), references this repository. The third in the series, *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([arXiv ID pending — submitted 2026-08-21]), specifies the four-file repository discipline this repo is built on and names this repository as its worked case (§8).
 
 **The problem it solves.** When an expert corrects an AI assistant, the correction dies with the session unless it is written into the instruction layer. But every assistant has its own instruction format, so a rule written for one does not travel — the correction persists but is *locked to a vendor*. `relearn` makes the rule the artifact and the vendor format a build target.
+
+**The failure class upstream of that.** A correction is needed in the first place because the assistant acted on a requirement nobody gave it. Paper 3 names those **invented requirements**, and names their visible residue **skedasis** (σκεδάννυμι, to scatter): the fraction of a change that nobody requested — a ratio, not a size. Two hundred lines is not skedasis if the task needed two hundred; it is skedasis when the task needed three. A persisted rule is how an invented requirement is retired instead of re-invented next session.
 
 ## Core design decisions (and why)
 
@@ -72,6 +74,14 @@ These come from the author's rule library and are cited by tag elsewhere in thes
 - **`[R:pin-eol-for-executable-text]`** — pin end-of-lines for any executable text layer (`.gitattributes`, `text eol=lf`). A platform line-ending default silently breaks the shell layer on fresh clone, with no error. Fix structurally, not with a check.
 - **`[R:revision-integrity]`** — after restructuring any document, verify references as a distinct pass: pronouns and comparatives resolve in the *current* text, cross-references point where they claim, announced counts match, terms are defined before use. Ask: *what did this edit quietly leave pointing at nothing?*
 - **`[R:parse-wide-then-range-check]`** — parse into a type wide enough to *represent* the out-of-range value, then range-check to mint the narrow newtype. The perimeter must be able to see the illegal value in order to name it illegal.
+- **`[R:prefer-by-construction]`** — design the mistake out at the level where it is made, rather than adding a runtime control that absorbs it. A guard that never fails visibly is indistinguishable from a guard that is not needed. Ask: *is this guard protecting against something, or hiding it?*
+- **`[R:pin-eol-for-executable-text]`** — pin end-of-lines for any text layer whose bytes are compared (`.gitattributes`, `text eol=lf`). A platform line-ending default silently breaks the comparison on a fresh clone, with no error and on one OS only.
+
+## The generated project layer
+
+The `claude-md` target emits **`.claude/rules/<home-slug>.md`**, one file per project home — *not* the repository-root `CLAUDE.md`, which is this hand-authored charter. That separation is deliberate and was a defect until 2026-08-22; `ARCHITECTURE.md`'s decisions log carries the full account. This file pulls the generated layer in:
+
+@.claude/rules/project-relearn.md
 
 ## Where the rest is
 

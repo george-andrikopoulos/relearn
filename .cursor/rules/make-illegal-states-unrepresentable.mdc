@@ -1,0 +1,11 @@
+---
+description: Make illegal states unrepresentable (Designing types that permit contradictory or invalid states -- a bool beside an Option that can disagree, two fields that can contradict -- so the logic must defensively guard what the type should have forbidden)
+globs: 
+alwaysApply: true
+---
+
+# Make illegal states unrepresentable [R:make-illegal-states-unrepresentable]
+
+Before writing logic, design the types so invalid states cannot be constructed: sum types over boolean flags, one field that cannot contradict another. If two fields can disagree, redesign until they cannot. R:no-sentinel-values is the corollary -- an absent or stopped state is an enum variant, not a magic value the surrounding logic must remember to special-case.
+
+<!-- relearn:generated v0.1.0 sha256=771e3f2f40746d7217702f09a4dc687a2a49ae5c432e51b67728f30b67b0e476 rules=R:make-illegal-states-unrepresentable -- DO NOT EDIT; regenerate with `relearn build` -->

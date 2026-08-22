@@ -1,0 +1,11 @@
+---
+description: A generator never overwrites content it did not generate (A code or artifact generator overwriting a target file it did not create, destroying hand-authored content that was never generated output)
+globs: 
+alwaysApply: true
+---
+
+# A generator never overwrites content it did not generate [R:generate-guards-unversioned]
+
+A generator that writes into a directory shared with hand-authored files must never overwrite a file it did not itself generate. Stamp every generated file with a marker the generator can recognise on the next run, refuse to overwrite any target lacking it, and make the check all-or-nothing: abort the whole write before touching disk if any target is unversioned, rather than leave a half-generated tree. A dropped rule is a lost correction; a clobbered human file is a lost correction the tool itself destroyed.
+
+<!-- relearn:generated v0.1.0 sha256=4aa9ecd01fb28f4333d6ea57cc61c9e893372dfea9702cab344b90cd5e8c3248 rules=R:generate-guards-unversioned -- DO NOT EDIT; regenerate with `relearn build` -->

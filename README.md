@@ -2,7 +2,7 @@
 
 **Write the rule once. Compile it to every assistant.**
 
-`relearn` stores the rules an engineering team derives from its own mistakes as **versioned instruction artifacts** — one neutral file per rule, carrying its text, its error class, its triggering incident, and its provenance — and compiles them out to whichever instruction layer a given AI assistant reads: Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, project `CLAUDE.md`.
+`relearn` stores the rules an engineering team derives from its own mistakes as **versioned instruction artifacts** — one neutral file per rule, carrying its text, its error class, its triggering incident, and its provenance — and compiles them out to whichever instruction layer a given AI assistant reads: Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, a Claude project layer.
 
 ## Why
 
@@ -10,13 +10,23 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 `relearn` makes the **rule** the artifact and the vendor format a build target. It also refuses to let a rule exist without provenance: a date, the incident that caused it, and the error class it retires. Rules that cannot say where they came from cannot be audited, and a library that cannot be audited becomes sediment.
 
+Behind most corrections is a decision the assistant made for itself. It extracted the helper because it judged the duplication to matter; it renamed the field because it judged the old name misleading. Those are **invented requirements** — requirements the model gave itself, on no evidence in the repository — and their visible residue is **skedasis** (from σκεδάννυμι, to scatter): the fraction of a change nobody requested. A ratio, not a size; two hundred lines is not skedasis if the task needed two hundred. Writing the correction down is how an invented requirement gets retired once instead of re-invented every session.
+
 ## Status
 
-Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release): released** under Apache-2.0, with a worked example in place. Companion papers: *Tuning the Stochastic Machine* ([arXiv:2608.19125](https://arxiv.org/abs/2608.19125)) — the operating discipline this implements — and *Grouping the Stochastic Machine* ([arXiv:2608.19140](https://arxiv.org/abs/2608.19140)), which references this repository. See `TODO.md`.
+Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release): released** under Apache-2.0, with a worked example in place. Companion papers: *Tuning the Stochastic Machine* ([arXiv:2608.19125](https://arxiv.org/abs/2608.19125)) — the operating discipline this implements — *Grouping the Stochastic Machine* ([arXiv:2608.19140](https://arxiv.org/abs/2608.19140)), which references this repository, and *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([arXiv ID pending — submitted 2026-08-21]), which specifies the four-file repository discipline this repo is built on and uses this repository as its worked case. See `TODO.md`.
+
+### What was measured, including what failed
+
+Paper 3 pre-registered its metrics and its falsification conditions before reading any commit history, and **its headline hypothesis was refuted.** Across nine of the author's repositories, the discipline leaves no mark on the size of a change: median lines added per code-changing commit sit in a common band whether a repository is governed or not, and the one adequately powered governed repository is if anything larger than its ungoverned neighbours. The paper attributes this to the instrument rather than rescuing the claim — skedasis is a ratio and commit size measures only its numerator — but the prediction failed and is reported as a failure, not as a limitation of the study. Capture of deferred work is the one that separated: the parking lot fires in a fifth to two-fifths of code-changing commits in governed repositories and under five per cent in ungoverned ones.
+
+`relearn` is in the governed arm of that commit-history comparison. It is **excluded** from the paper's second study — the hand-coded invented-requirements measurement — because its build sessions ran with `~/.claude` as the working directory, so its transcripts are co-mingled with hundreds of unrelated sessions in one store; the feasibility report records its pairability as **"plausible but unconfirmed."** Nothing here should be read as an efficacy claim for this repository. The discipline is implemented and the evidence for it is one refuted prediction, one correlational separation, and a single-author corpus that cannot establish causation either way.
 
 For an end-to-end walk-through — one real incident becoming one rule and compiling out to all five instruction layers, with actual `relearn build` output — see [`docs/worked-example.md`](docs/worked-example.md).
 
-The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a project `CLAUDE.md` — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/) (fourteen rules ported from George's engineering discipline, spanning global, domain-rust, and two project homes, with active and graduated statuses); `relearn build` compiles it end to end, `relearn lint` reports advisory findings without ever touching a rule, and `relearn verify` checks the emitted tree has not drifted from it.
+The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a Claude project layer — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/), ported from George's engineering discipline and spanning global, domain-rust and two project homes, with active and graduated statuses. `relearn build` compiles it end to end, `relearn lint` reports advisory findings without ever touching a rule, and `relearn verify` checks the emitted tree has not drifted from it — the emitted tree is committed and CI runs `verify` bare on every push, so the command that grades the repository is the default one.
+
+*(The corpus size is deliberately not written here. `relearn check` prints it — `ok: N rule(s) validated` — and a count in prose is a claim nothing checks, which is how this README came to say "fourteen" for two days after the fifteenth rule landed. `[R:doc-currency]`)*
 
 ## Usage
 
@@ -76,6 +86,8 @@ See `ARCHITECTURE.md` for the pipeline and the decisions log, `CLAUDE.md` for th
 ## Background
 
 `relearn` is the reference implementation of the error loop described in *Tuning the Stochastic Machine: A Systems Engineer's Operating Model for Human-AI Engineering* (George Andrikopoulos, 2026, [arXiv:2608.19125](https://arxiv.org/abs/2608.19125)) and of the Stochos framework's first two principles: **persist or perish**, and **one home per rule**. Its precision-measurement companion, *Grouping the Stochastic Machine* ([arXiv:2608.19140](https://arxiv.org/abs/2608.19140)), references this repository as its reference system.
+
+The third paper in the series, *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([arXiv ID pending — submitted 2026-08-21]), specifies the four-file repository discipline this repo is built on — `CLAUDE.md`, `ARCHITECTURE.md`, `TODO.md` as aiming inputs and `FEATURES.md` as the self-check — and names this repository as its worked case (§8). It is also where this repository's own defects are reported rather than quietly fixed first: §8 walks through the `claude-md` target collision found here on 2026-08-20, and §9 generalises it into the sharpest limit of the enforced-by format, that the column records *enforcement* and not *invocation*. Both are closed here as of 2026-08-22, after the paper was submitted.
 
 ## Licence
 

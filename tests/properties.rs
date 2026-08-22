@@ -196,6 +196,76 @@ proptest! {
         }
     }
 
+    /// **The hand-authored charter is never a target.** For any library, no
+    /// emitter produces a file at the repository-root `CLAUDE.md` — the
+    /// whole-space form of the collision fixed on 2026-08-22, when the project
+    /// layer moved from that constant path to `.claude/rules/<home-slug>.md`.
+    ///
+    /// This is the artefact that keeps the fix fixed. A regression pointing any
+    /// emitter back at the root charter fails here rather than being absorbed
+    /// by the write-side marker guard, which is what hid the defect for months
+    /// (`[R:prefer-by-construction]`).
+    #[test]
+    fn no_emitter_ever_targets_the_repo_root_claude_md(lib in arb_library_mixed()) {
+        let outputs = [
+            emit::claude::emit(&lib),
+            emit::cursor::emit(&lib),
+            emit::copilot::emit(&lib),
+            emit::agents::emit(&lib),
+            emit::claude_md::emit(&lib),
+        ];
+        for files in &outputs {
+            for file in files {
+                prop_assert_ne!(
+                    file.path().as_str(),
+                    "CLAUDE.md",
+                    "an emitter targeted the hand-authored project charter"
+                );
+            }
+        }
+    }
+
+    /// **The project layer is project-scoped.** Every file the `claude_md`
+    /// emitter produces lives under the directory it owns, is named for a home
+    /// slug, and carries *only* the rules of that slug's home — so one
+    /// repository's project layer can never absorb another project's rules
+    /// (P2, one home per rule, enforced at the emission layer).
+    ///
+    /// Keyed on the slug rather than the `Home` because two distinct project
+    /// paths may slugify alike; that collision is `lint`'s to report, and the
+    /// slug is this emitter's identity either way.
+    #[test]
+    fn each_project_layer_file_carries_only_its_own_homes_rules(lib in arb_library_mixed()) {
+        for file in emit::claude_md::emit(&lib) {
+            let path = file.path().as_str().to_owned();
+            let slug = path
+                .strip_prefix(".claude/rules/")
+                .and_then(|s| s.strip_suffix(".md"))
+                .ok_or_else(|| TestCaseError::fail(format!("unexpected path {path}")))?
+                .to_owned();
+
+            for tag in file.sources() {
+                let rule = lib
+                    .rules()
+                    .iter()
+                    .find(|r| r.tag() == tag)
+                    .ok_or_else(|| TestCaseError::fail("provenance names a rule not in the library"))?;
+                prop_assert!(
+                    matches!(rule.home(), Home::Project { .. }),
+                    "a non-project rule reached the project layer: {}",
+                    tag.as_str()
+                );
+                let rule_slug = emit::HomeSlug::of(rule.home());
+                prop_assert_eq!(
+                    rule_slug.as_str(),
+                    slug.as_str(),
+                    "rule {} does not belong to the home this file is named for",
+                    tag.as_str()
+                );
+            }
+        }
+    }
+
     /// The suppression is exactly Attic — no over-suppression. The Copilot file
     /// concatenates every home, so its provenance must be precisely the set of
     /// non-atticked (active + graduated) rules: nothing withdrawn present,

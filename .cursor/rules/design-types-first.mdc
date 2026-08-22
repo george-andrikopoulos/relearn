@@ -1,0 +1,11 @@
+---
+description: Design by writing the types first, before any logic (Starting a design with function bodies or with a failing test, so the type-level specification is back-filled to fit code that already exists rather than constraining it)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Design by writing the types first, before any logic [R:design-types-first]
+
+Sketch the types until the design falls out, then write the logic. The type-level sketch is the executable specification a test-first red phase is reaching for, and it is the stronger one: a test samples points of the behaviour space, a type constrains the whole space and the compiler proves it everywhere, at compile time, for as long as the code exists. When the types are right much of the implementation writes itself, and many wrong implementations stop compiling. In Rust this ordering supersedes any test-first default -- tests are not removed, they are demoted to the layer where they are the right tool: property tests for behavioural laws the types cannot encode, unit tests as regression pins for past bugs. Apply each guarantee at the strongest layer that can hold it, and when reviewing, ask first not "does it pass" but "which of these guarantees could move up a layer?"
+
+<!-- relearn:generated v0.1.0 sha256=a8e36089e021bab65562574b39cd1e739371b6952dd0e00b346625ca7610f760 rules=R:design-types-first -- DO NOT EDIT; regenerate with `relearn build` -->

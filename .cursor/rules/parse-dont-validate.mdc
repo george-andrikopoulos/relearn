@@ -1,0 +1,11 @@
+---
+description: Parse, don't validate (Re-validating already-checked data at interior call sites instead of carrying a witness newtype minted once at the boundary)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Parse, don't validate [R:parse-dont-validate]
+
+Transform raw input into a rich domain type at the outermost boundary, producing a witness newtype whose existence proves the check happened. Interior code takes the witness and never re-checks -- one perimeter, one check, enforced everywhere after by the compiler. R:parse-wide-then-range-check sharpens this: the boundary must be able to see the illegal value in order to name it.
+
+<!-- relearn:generated v0.1.0 sha256=2b22b4d145a5974a2b0c10987a239abd60322c00fcf9ca449abf0906216a0787 rules=R:parse-dont-validate -- DO NOT EDIT; regenerate with `relearn build` -->

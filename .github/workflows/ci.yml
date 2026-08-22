@@ -33,3 +33,11 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: test
         run: cargo test
+      # The gate the ledger claims. Invoked BARE — no --targets, no --out —
+      # because the default path through a control is the one that has to work:
+      # a gate whose green invocation needs a flag teaches every reader that the
+      # bare command is noisy and trains them to reach for the flag. This step
+      # is what makes FEATURES.md's "CI gate" row name a real invocation rather
+      # than an artefact that would catch drift if someone ran it correctly.
+      - name: verify (generated tree in sync with rules)
+        run: cargo run --quiet -- verify

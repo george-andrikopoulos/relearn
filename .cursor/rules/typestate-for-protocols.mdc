@@ -1,0 +1,11 @@
+---
+description: Typestate for protocols: out-of-order calls should not compile (Encoding a protocol's stage as runtime data on one type, so a method invalid in the current stage still exists and must be rejected at runtime)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Typestate for protocols: out-of-order calls should not compile [R:typestate-for-protocols]
+
+When a sequence has rules -- connect before authenticate, init before run, configure before start -- encode the stage in the type, not in a field. Each step consumes the value in one state and produces it in the next, so a method that is invalid in the current state simply does not exist and calling it is a compile error. This is R:make-illegal-states-unrepresentable applied to time rather than to structure: the illegal thing is not a contradictory pair of fields but an operation at the wrong moment, and the same remedy applies -- make it unrepresentable rather than guarded. A runtime `if !self.authenticated { return Err(...) }` in a method that should not exist yet is the shape to look for.
+
+<!-- relearn:generated v0.1.0 sha256=b90d725d389ebe0cc5f2fe19d06a94d01345d7bdc006fe5a46d44a0cb5f94d86 rules=R:typestate-for-protocols -- DO NOT EDIT; regenerate with `relearn build` -->

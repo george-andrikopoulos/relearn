@@ -1,0 +1,11 @@
+---
+description: Parse wide, then range-check (Range-validating by parsing straight into the target narrow type, so the out-of-range case is unreachable for the very value it exists to name)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Parse wide, then range-check [R:parse-wide-then-range-check]
+
+Parse into a type wide enough to *represent* the out-of-range value, then range-check to mint the narrow newtype. The perimeter must be able to see the illegal value in order to name it illegal; parsing directly into the target type collapses "out of range" into "not a number" and makes the OutOfRange class a lie the compiler will not catch.
+
+<!-- relearn:generated v0.1.0 sha256=a72d6ca50f83696da77ee744b3b64af7cd123408aa7b850eb2d56488efd4f4fd rules=R:parse-wide-then-range-check -- DO NOT EDIT; regenerate with `relearn build` -->

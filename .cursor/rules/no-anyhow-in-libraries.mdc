@@ -1,0 +1,13 @@
+---
+description: No anyhow in library return types (anyhow in a library crate's return types, erasing the typed error contract a Result is supposed to state)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# No anyhow in library return types [R:no-anyhow-in-libraries]
+
+> Also enforced by hook:no-anyhow-in-lib.
+
+Library crates return typed error enums (thiserror), so a Result says exactly what can go wrong and callers can match on it. anyhow belongs only at the outermost binary edge. This rule has graduated: the no-anyhow-in-lib hook now enforces it deterministically at write time.
+
+<!-- relearn:generated v0.1.0 sha256=2031cef18509bcdbfe965a203d42bd17a59b19f86b8c51e88703eb46fb4603e4 rules=R:no-anyhow-in-libraries -- DO NOT EDIT; regenerate with `relearn build` -->

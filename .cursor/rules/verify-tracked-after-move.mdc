@@ -1,0 +1,11 @@
+---
+description: Verify a moved file is still tracked in a whitelist-gitignore repo (Relocating a file in a repository whose .gitignore is a whitelist (ignore-all, then re-include named paths), so the moved file silently falls outside the re-included set and leaves version control unnoticed)
+globs: 
+alwaysApply: true
+---
+
+# Verify a moved file is still tracked in a whitelist-gitignore repo [R:verify-tracked-after-move]
+
+After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
+
+<!-- relearn:generated v0.1.0 sha256=25e6bbc81487b582cd9b106ed25d4ba010cea4d55611074a6c02942b777cb2db rules=R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

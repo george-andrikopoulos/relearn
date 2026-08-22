@@ -1,0 +1,11 @@
+---
+description: Prefer by-construction impossibility over after-the-fact controls (Reaching for a runtime control (a check, a guard, a review step) to catch a mistake after it occurs when the design could have made that mistake impossible to express in the first place)
+globs: 
+alwaysApply: true
+---
+
+# Prefer by-construction impossibility over after-the-fact controls [R:prefer-by-construction]
+
+When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
+
+<!-- relearn:generated v0.1.0 sha256=6a1961ce03d3d515a7c364b86788e9bfc48b444154ba5becd5451b44939a6c6d rules=R:prefer-by-construction -- DO NOT EDIT; regenerate with `relearn build` -->

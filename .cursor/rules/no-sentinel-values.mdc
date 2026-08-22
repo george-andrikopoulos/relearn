@@ -1,0 +1,11 @@
+---
+description: No sentinel values: absent states are enum variants (Encoding a distinct state as a magic value of an existing type (0, -1, "", T::zero()) that downstream logic must remember to special-case)
+globs: 
+alwaysApply: true
+---
+
+# No sentinel values: absent states are enum variants [R:no-sentinel-values]
+
+If "absent / stopped / unknown" is a real state, make it an enum variant, not a magic value of an existing type. Downstream code will forget to special-case a sentinel; it cannot forget a variant the compiler forces it to handle. If a range check reads a sentinel as a real quantity, it fails in the direction of the sentinel, not of safety.
+
+<!-- relearn:generated v0.1.0 sha256=93ee2608e5c254003d87332902094bab2955de3bbccb760679ef745ac9087b7d rules=R:no-sentinel-values -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -44,7 +44,10 @@ exists to fight.
 ## 3. The five instruction layers (`relearn build`)
 
 This rule's home is a **project** layer, so it compiles out to all five targets — including
-the project `CLAUDE.md`, which carries project-home rules only. Each emitted file carries a
+the Claude project layer at `.claude/rules/<home-slug>.md`, which carries that home's rules
+only. (That target wrote to the repository-root `CLAUDE.md` until 2026-08-22; the path is now
+derived from the rule's `Home` so it cannot collide with a hand-authored charter — see the
+ARCHITECTURE decisions log.) Each emitted file carries a
 generated-by header naming its source rule(s) and a `sha256` of the body; `relearn build`
 refuses to overwrite any file lacking that marker, and `relearn verify` reports any that
 drifted from it.
@@ -115,7 +118,7 @@ When output has a meaningful order, derive it from an explicit rank that states 
 <!-- relearn:generated v0.1.0 sha256=62122865a5cc009cc59e1fe348aa5d884bb90b10bc380a45910574c65cd4b394 rules=R:order-by-explicit-rank -- DO NOT EDIT; regenerate with `relearn build` -->
 ```
 
-### Project `CLAUDE.md` (project-home rules only)
+### Claude project layer — `.claude/rules/project-relearn.md` (that home's rules only)
 
 ```markdown
 # Project rules
@@ -130,7 +133,7 @@ When output has a meaningful order, derive it from an explicit rank that states 
 ## The loop this closes
 
 The correction was made once, written once, and now travels to every assistant the team uses
-— Claude, Cursor, Copilot, any tool that reads `AGENTS.md`, and the project's own `CLAUDE.md`
+— Claude, Cursor, Copilot, any tool that reads `AGENTS.md`, and the project's own Claude layer
 — from a single audited source. When the rule graduates to a stronger control (a lint, a
 commit hook, a type), its status changes in the one file and the change propagates on the next
 build; when it is retired, `relearn` stops emitting it so no assistant is left instructing

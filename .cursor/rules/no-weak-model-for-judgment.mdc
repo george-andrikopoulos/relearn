@@ -1,0 +1,11 @@
+---
+description: Never route judgment work to a weak model, and never embed a sub-tier local LLM (Wiring a meaningfully less capable model into a tool for work that needs judgment, on convenience or API-key-free grounds, so the tool is degraded wherever that model runs)
+globs: 
+alwaysApply: true
+---
+
+# Never route judgment work to a weak model, and never embed a sub-tier local LLM [R:no-weak-model-for-judgment]
+
+Work that needs judgment goes to a capable model. Do not embed a sub-tier local LLM (a 7B/13B behind Ollama, llama.cpp or similar) in a tool as a convenient, API-key-free fallback: a meaningfully dumber model degrades the tool it is wedged into, everywhere and silently, and the output looks like ordinary tool output rather than like a downgrade. When a tool needs intelligence, delegate to the capable model through the existing subscription -- the MCP server is the abstraction boundary and clients are peers. Note that the cost argument usually offered for the local model is the price-tier fallacy R:measure-cost-per-task names; but this rule is not an economic one and does not dissolve if the sums come out favourably. Mechanical, tool-restricted passes are a different matter and may be scoped tightly; the floor applies to work where the answer is a judgement.
+
+<!-- relearn:generated v0.1.0 sha256=40b5df5c040fb0918070debe21a4363d030217e2db5adbe4fb836647963a1834 rules=R:no-weak-model-for-judgment -- DO NOT EDIT; regenerate with `relearn build` -->

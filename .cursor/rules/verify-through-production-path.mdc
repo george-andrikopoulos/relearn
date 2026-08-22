@@ -1,0 +1,11 @@
+---
+description: Verify through the production path (Verifying a feature through a stand-in wiring (dev override, mock transport, alternate config channel) instead of the exact channel production uses)
+globs: 
+alwaysApply: true
+---
+
+# Verify through the production path [R:verify-through-production-path]
+
+Before declaring anything verified, run at least one check through the exact channel production uses: same env var, same startup script, same config file, same transport. A test that exercises a stand-in is evidence the stand-in works, not that the feature does. Ask: which line of production wiring did my test NOT execute? That line is where it breaks.
+
+<!-- relearn:generated v0.1.0 sha256=95b551ff489590f824da175a7ac821b7f97eff6e38f290b3066d2c6baf7fe2b2 rules=R:verify-through-production-path -- DO NOT EDIT; regenerate with `relearn build` -->

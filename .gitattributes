@@ -2,3 +2,15 @@
 # expected-error `.stderr` matches on a Windows checkout as well as on Linux CI.
 tests/compile_fail/**/*.stderr text eol=lf
 tests/compile_fail/**/*.rs    text eol=lf
+
+# The emitted tree is committed so `relearn verify` has something to verify in
+# CI. `verify` recomputes each file's body `sha256` and compares it to the hash
+# in its own header, so a checkout that rewrote LF to CRLF would hash as
+# `HandEdited` and fail on Windows runners while passing on Linux — a break
+# visible on one OS only. Pin the bytes at rest rather than teaching the hash to
+# forgive them. `[R:pin-eol-for-executable-text]`
+skills/**                       text eol=lf
+.cursor/rules/**                text eol=lf
+.claude/rules/**                text eol=lf
+AGENTS.md                       text eol=lf
+.github/copilot-instructions.md text eol=lf

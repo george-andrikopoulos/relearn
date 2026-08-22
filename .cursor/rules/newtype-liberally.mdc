@@ -1,0 +1,11 @@
+---
+description: Newtype liberally: distinct concepts get distinct types (Passing a bare primitive across a function boundary, so two values the domain treats as different are interchangeable to the compiler and can be swapped silently)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Newtype liberally: distinct concepts get distinct types [R:newtype-liberally]
+
+Give every domain concept its own type, even when the underlying representation is identical. `Miles(f64)` and `Kilometers(f64)`, `Host(String)` and `Port(u16)` -- never two bare `f64`s or a `String` and a `u16` whose order only a human remembers. Newtypes are zero-cost: they compile to the same machine code as the primitive, so the only thing they add is the compile error you want. The unit mix-up that cannot be written is cheaper than the one caught in review, and far cheaper than the one that is not. R:parse-dont-validate is where the newtype comes from -- the boundary mints it as a witness; this rule is about carrying it everywhere afterwards instead of unwrapping back to the primitive.
+
+<!-- relearn:generated v0.1.0 sha256=e9a37d207ee38ce97b39e9e71689574699d83e9ab4952eacb7fa7b4ec610ea8d rules=R:newtype-liberally -- DO NOT EDIT; regenerate with `relearn build` -->

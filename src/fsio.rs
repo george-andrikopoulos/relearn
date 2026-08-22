@@ -325,17 +325,23 @@ pub fn verify_all(out_dir: &Path, files: &[OutputFile]) -> Result<Vec<VerifyRepo
 
 /// relearn-owned directories, walked recursively for its own generated files.
 /// These hold the variable per-home / per-rule targets where a removed rule can
-/// strand an orphan (`skills/<slug>/SKILL.md`, `.cursor/rules/<tag>.mdc`). Only
-/// files carrying the marker are ever considered, so a hand-authored file here is
-/// left alone; and only these subtrees are walked, so unrelated content elsewhere
-/// under the output root is never inspected.
-const OWNED_DIRS: &[&str] = &["skills", ".cursor/rules"];
+/// strand an orphan (`skills/<slug>/SKILL.md`, `.cursor/rules/<tag>.mdc`,
+/// `.claude/rules/<slug>.md`). Only files carrying the marker are ever
+/// considered, so a hand-authored file here is left alone; and only these
+/// subtrees are walked, so unrelated content elsewhere under the output root is
+/// never inspected.
+const OWNED_DIRS: &[&str] = &["skills", ".cursor/rules", ".claude/rules"];
 
 /// relearn-owned fixed single-file targets. Each has exactly one path, so an
-/// orphan arises only when the file is no longer emitted at all (e.g. the last
-/// project rule was deleted, so no `CLAUDE.md` is produced) yet a marked one
-/// lingers on disk.
-const OWNED_FILES: &[&str] = &["AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md"];
+/// orphan arises only when the file is no longer emitted at all yet a marked
+/// one lingers on disk.
+///
+/// The repository-root `CLAUDE.md` is deliberately **absent**: it is the
+/// hand-authored project charter, and since 2026-08-22 the project layer is
+/// emitted per home under `.claude/rules/` instead. Claiming the charter as an
+/// owned path is the collision this repository shipped for months — see
+/// `emit::claude_md` for the full account.
+const OWNED_FILES: &[&str] = &["AGENTS.md", ".github/copilot-instructions.md"];
 
 /// Find relearn-generated files (marker-bearing) under `out_dir`'s owned
 /// locations whose relative path is not in `expected` — orphans. Read only, and
@@ -747,18 +753,59 @@ mod tests {
     #[test]
     fn an_orphaned_fixed_target_is_reported() {
         let dir = tempfile::tempdir().expect("tempdir");
-        // Generate CLAUDE.md, then verify against an EMPTY expected set — as if
-        // the last project rule were deleted, so `build` emits no CLAUDE.md while
-        // the marked one lingers.
+        // Generate AGENTS.md, then verify against an EMPTY expected set — as if
+        // the library were emptied, so `build` emits no AGENTS.md while the
+        // marked one lingers.
         write_all(
             dir.path(),
-            &[output(&["CLAUDE.md"], "project body\n", &["R:p"])],
+            &[output(&["AGENTS.md"], "agents body\n", &["R:p"])],
         )
         .expect("write");
         let reports = verify_all(dir.path(), &[]).expect("verify reads");
         assert_eq!(reports.len(), 1);
         assert_eq!(*reports[0].status(), VerifyStatus::Orphan);
-        assert_eq!(reports[0].path().as_str(), "CLAUDE.md");
+        assert_eq!(reports[0].path().as_str(), "AGENTS.md");
+    }
+
+    #[test]
+    fn an_orphaned_project_layer_file_is_reported() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        // `.claude/rules/` is an owned *directory*: deleting the last rule of a
+        // project home must strand its layer file as an orphan, exactly as a
+        // deleted rule strands its `.cursor/rules/*.mdc`.
+        write_all(
+            dir.path(),
+            &[output(
+                &[".claude", "rules", "project-gone.md"],
+                "project body\n",
+                &["R:p"],
+            )],
+        )
+        .expect("write");
+        let reports = verify_all(dir.path(), &[]).expect("verify reads");
+        assert_eq!(reports.len(), 1);
+        assert_eq!(*reports[0].status(), VerifyStatus::Orphan);
+        assert_eq!(reports[0].path().as_str(), ".claude/rules/project-gone.md");
+    }
+
+    /// The regression pin for the collision fixed on 2026-08-22: a hand-authored
+    /// repository-root `CLAUDE.md` is not a relearn-owned path, so the orphan
+    /// scan must not look at it and `verify` must not classify it at all. Before
+    /// the fix, bare `verify` reported it `Unversioned` and exited non-zero on a
+    /// clean tree.
+    #[test]
+    fn a_hand_authored_root_claude_md_is_never_claimed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("CLAUDE.md"),
+            "# Hand-authored charter\n\nThe recreation standard lives here.\n",
+        )
+        .expect("write the charter");
+        let reports = verify_all(dir.path(), &[]).expect("verify reads");
+        assert!(
+            reports.is_empty(),
+            "the hand-authored project charter is not relearn's to police: {reports:?}"
+        );
     }
 
     #[test]

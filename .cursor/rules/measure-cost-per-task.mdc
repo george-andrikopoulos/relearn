@@ -1,0 +1,11 @@
+---
+description: Measure cost-per-completed-task; never choose by price tier (Selecting a mechanism or model by its reputation or price tier rather than its measured cost to complete the task)
+globs: 
+alwaysApply: true
+---
+
+# Measure cost-per-completed-task; never choose by price tier [R:measure-cost-per-task]
+
+Do not pick a mechanism or model by reputation or sticker price. State what it actually costs to complete the task -- tokens consumed times price, including retries -- and choose on that measured cost. After choosing, run one failure-mode check: under what configuration does this cause the exact harm it was chosen to prevent? Then bound that configuration.
+
+<!-- relearn:generated v0.1.0 sha256=5eaa7c96c08157ecc850c050c0f7a4674a08d6795e597eb2a1ce47364d856357 rules=R:measure-cost-per-task -- DO NOT EDIT; regenerate with `relearn build` -->
