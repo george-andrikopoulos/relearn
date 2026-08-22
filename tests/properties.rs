@@ -165,7 +165,7 @@ proptest! {
         prop_assert_eq!(emit::cursor::emit(&lib), emit::cursor::emit(&lib));
         prop_assert_eq!(emit::copilot::emit(&lib), emit::copilot::emit(&lib));
         prop_assert_eq!(emit::agents::emit(&lib), emit::agents::emit(&lib));
-        prop_assert_eq!(emit::claude_md::emit(&lib), emit::claude_md::emit(&lib));
+        prop_assert_eq!(emit::claude_rules::emit(&lib), emit::claude_rules::emit(&lib));
     }
 
     /// **Withdrawn guidance never leaks.** For any library, no atticked rule's
@@ -180,7 +180,7 @@ proptest! {
             emit::cursor::emit(&lib),
             emit::copilot::emit(&lib),
             emit::agents::emit(&lib),
-            emit::claude_md::emit(&lib),
+            emit::claude_rules::emit(&lib),
         ];
         for files in &outputs {
             for file in files {
@@ -212,7 +212,7 @@ proptest! {
             emit::cursor::emit(&lib),
             emit::copilot::emit(&lib),
             emit::agents::emit(&lib),
-            emit::claude_md::emit(&lib),
+            emit::claude_rules::emit(&lib),
         ];
         for files in &outputs {
             for file in files {
@@ -225,7 +225,7 @@ proptest! {
         }
     }
 
-    /// **The project layer is project-scoped.** Every file the `claude_md`
+    /// **The project layer is project-scoped.** Every file the `claude_rules`
     /// emitter produces lives under the directory it owns, is named for a home
     /// slug, and carries *only* the rules of that slug's home — so one
     /// repository's project layer can never absorb another project's rules
@@ -236,7 +236,7 @@ proptest! {
     /// slug is this emitter's identity either way.
     #[test]
     fn each_project_layer_file_carries_only_its_own_homes_rules(lib in arb_library_mixed()) {
-        for file in emit::claude_md::emit(&lib) {
+        for file in emit::claude_rules::emit(&lib) {
             let path = file.path().as_str().to_owned();
             let slug = path
                 .strip_prefix(".claude/rules/")
@@ -300,7 +300,7 @@ proptest! {
     /// an empty glob list rendered into a file that then applies to everything.
     #[test]
     fn no_rules_file_ever_carries_an_empty_paths_list(lib in arb_library_mixed()) {
-        for file in emit::claude_md::emit(&lib) {
+        for file in emit::claude_rules::emit(&lib) {
             prop_assert!(
                 !file.contents().contains("paths: []"),
                 "{} carries an empty paths list, which loads always",
@@ -324,7 +324,7 @@ proptest! {
     /// every generated domain is unknown: this exercises the negative case hard.
     #[test]
     fn unknown_domains_never_reach_the_rules_layer(lib in arb_library_mixed()) {
-        for file in emit::claude_md::emit(&lib) {
+        for file in emit::claude_rules::emit(&lib) {
             let is_unknown_domain_file = lib.rules().iter().any(|r| {
                 matches!(r.home(), Home::Domain { .. })
                     && matches!(emit::LoadSemantics::for_home(r.home()), emit::LoadSemantics::OnRequest)

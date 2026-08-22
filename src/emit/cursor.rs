@@ -8,7 +8,7 @@
 //! `alwaysApply: true`, `WhenReading` is a glob list, and `OnRequest` is the
 //! blank-globs / not-always combination Cursor reads as "reach this rule by its
 //! description". The Claude rules layer cannot say the third — see
-//! `emit::claude_md`.
+//! `emit::claude_rules`.
 //!
 //! The filename is the tag **body** (`R:foo` → `foo.mdc`): the full tag's `:`
 //! is not a valid filename character on every platform, and the body is already

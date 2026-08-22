@@ -62,7 +62,7 @@ enum Command {
         #[arg(
             long,
             value_delimiter = ',',
-            default_value = "claude,cursor,copilot,agents,claude-md"
+            default_value = "claude,cursor,copilot,agents,claude-rules"
         )]
         targets: Vec<Target>,
         /// Only emit rules homed in this layer (its slug: `global`, `domain-<name>`,
@@ -102,7 +102,7 @@ enum Command {
         #[arg(
             long,
             value_delimiter = ',',
-            default_value = "claude,cursor,copilot,agents,claude-md"
+            default_value = "claude,cursor,copilot,agents,claude-rules"
         )]
         targets: Vec<Target>,
         /// Only emit rules homed in this layer (its slug: `global`, `domain-<name>`,
@@ -127,7 +127,7 @@ enum Target {
     /// A single `AGENTS.md` at the repository root.
     Agents,
     /// A project-layer `CLAUDE.md` (project-home rules only).
-    ClaudeMd,
+    ClaudeRules,
 }
 
 /// Anything the CLI can fail with. Each variant is transparent over the typed
@@ -230,7 +230,7 @@ fn emit_selected(validated: &Library<Validated>, targets: &[Target]) -> Vec<Outp
             Target::Cursor => files.extend(emit::cursor::emit(validated)),
             Target::Copilot => files.extend(emit::copilot::emit(validated)),
             Target::Agents => files.extend(emit::agents::emit(validated)),
-            Target::ClaudeMd => files.extend(emit::claude_md::emit(validated)),
+            Target::ClaudeRules => files.extend(emit::claude_rules::emit(validated)),
         }
     }
     files
@@ -433,7 +433,7 @@ mod tests {
         build(
             rules.path(),
             out.path(),
-            &[Target::ClaudeMd],
+            &[Target::ClaudeRules],
             Some("domain-rust"),
         )
         .expect("build succeeds");
@@ -460,7 +460,7 @@ mod tests {
         let err = build(
             rules.path(),
             out.path(),
-            &[Target::ClaudeMd],
+            &[Target::ClaudeRules],
             Some("domain-cobol"),
         )
         .expect_err("an unknown home must fail");

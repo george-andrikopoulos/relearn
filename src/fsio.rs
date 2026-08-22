@@ -340,7 +340,7 @@ const OWNED_DIRS: &[&str] = &["skills", ".cursor/rules", ".claude/rules"];
 /// hand-authored project charter, and since 2026-08-22 the project layer is
 /// emitted per home under `.claude/rules/` instead. Claiming the charter as an
 /// owned path is the collision this repository shipped for months — see
-/// `emit::claude_md` for the full account.
+/// `emit::claude_rules` for the full account.
 const OWNED_FILES: &[&str] = &["AGENTS.md", ".github/copilot-instructions.md"];
 
 /// Find relearn-generated files (marker-bearing) under `out_dir`'s owned

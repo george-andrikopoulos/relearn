@@ -53,7 +53,7 @@ fn restricting_keeps_only_the_named_home() {
 #[test]
 fn the_rules_layer_for_one_domain_emits_exactly_one_file() {
     let lib = mixed();
-    let files = emit::claude_md::emit(&lib.filter(|r| slug_of(r) == "domain-rust"));
+    let files = emit::claude_rules::emit(&lib.filter(|r| slug_of(r) == "domain-rust"));
     assert_eq!(files.len(), 1, "only the domain layer");
     assert_eq!(files[0].path().as_str(), ".claude/rules/domain-rust.md");
     assert!(files[0].contents().contains("paths:"), "still scoped");
@@ -63,7 +63,7 @@ fn the_rules_layer_for_one_domain_emits_exactly_one_file() {
 /// is measuring the filter, not an accident of the fixture.
 #[test]
 fn without_the_filter_the_project_layer_is_emitted_as_well() {
-    let paths: Vec<String> = emit::claude_md::emit(&mixed())
+    let paths: Vec<String> = emit::claude_rules::emit(&mixed())
         .iter()
         .map(|f| f.path().as_str().to_owned())
         .collect();
@@ -81,7 +81,7 @@ fn a_filter_matching_nothing_yields_an_empty_library() {
     let lib = mixed();
     let none = lib.filter(|r| slug_of(r) == "domain-cobol");
     assert!(none.is_empty());
-    assert!(emit::claude_md::emit(&none).is_empty());
+    assert!(emit::claude_rules::emit(&none).is_empty());
 }
 
 /// Filtering a validated library needs no re-validation: tag uniqueness over a
@@ -96,5 +96,5 @@ fn a_filtered_library_is_still_a_validated_library_for_every_emitter() {
     assert!(!emit::cursor::emit(&lib).is_empty());
     assert!(!emit::copilot::emit(&lib).is_empty());
     assert!(!emit::agents::emit(&lib).is_empty());
-    assert!(!emit::claude_md::emit(&lib).is_empty());
+    assert!(!emit::claude_rules::emit(&lib).is_empty());
 }

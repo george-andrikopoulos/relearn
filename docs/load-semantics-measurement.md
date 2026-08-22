@@ -73,7 +73,7 @@ against the documented field name would have logged nothing useful.
    is the finding `Globs`' non-empty-by-construction invariant exists to respect.
 2. **The load model is two-state**: front-matter absent → always; `paths: [globs]`
    → on reading a match. There is no spelling for "reachable by description only",
-   which is why `emit::claude_md` skips `LoadSemantics::OnRequest` rather than
+   which is why `emit::claude_rules` skips `LoadSemantics::OnRequest` rather than
    writing it unscoped.
 3. **User-scope `paths:` works.** `~/.claude/rules/ecc/rust/*.md` all fired with
    `memory_type: "User"`, `load_reason: "path_glob_match"` on reading a `.rs`

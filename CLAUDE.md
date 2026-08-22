@@ -79,7 +79,7 @@ These come from the author's rule library and are cited by tag elsewhere in thes
 
 ## The generated project layer
 
-The `claude-md` target emits **`.claude/rules/<home-slug>.md`**, one file per project home — *not* the repository-root `CLAUDE.md`, which is this hand-authored charter. That separation is deliberate and was a defect until 2026-08-22; `ARCHITECTURE.md`'s decisions log carries the full account. This file pulls the generated layer in:
+The `claude-rules` target emits **`.claude/rules/<home-slug>.md`**, one file per project home — *not* the repository-root `CLAUDE.md`, which is this hand-authored charter. That separation is deliberate and was a defect until 2026-08-22; `ARCHITECTURE.md`'s decisions log carries the full account. This file pulls the generated layer in:
 
 @.claude/rules/project-relearn.md
 

@@ -1,4 +1,4 @@
-//! `emit::claude_md` — the Claude **rules layer**: one file per home, at
+//! `emit::claude_rules` — the Claude **rules layer**: one file per home, at
 //! `<out>/.claude/rules/<home-slug>.md`.
 //!
 //! **Which homes reach it is a question about the target, not the home**
@@ -13,8 +13,9 @@
 //! out: it is `Always`, but it already has an always-resident home, and a second
 //! copy here would be the duplication this tool exists to prevent.
 //!
-//! The module name is historical — it stopped writing `CLAUDE.md` on 2026-08-22
-//! (below) and now writes only rule files. Renaming it is tracked in `TODO.md`.
+//! Named `claude_md` until 2026-08-22, when it stopped writing a `CLAUDE.md`
+//! (below) and the name outlived what it describes. The CLI target it backs was
+//! renamed with it: `--targets claude-md` is now `--targets claude-rules`.
 //!
 //! **Why not `<out>/CLAUDE.md`** (the original path; changed 2026-08-22). A
 //! repository-root `CLAUDE.md` is the *hand-authored* project charter by Claude

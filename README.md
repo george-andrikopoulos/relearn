@@ -39,7 +39,7 @@ relearn list --rules ./rules
 relearn list --rules ./rules --home domain-rust
 
 # Compile the library to an output root. Defaults to every target
-# (claude, cursor, copilot, agents, claude-md); pass --targets to narrow.
+# (claude, cursor, copilot, agents, claude-rules); pass --targets to narrow.
 relearn build --rules ./rules --out .
 relearn build --rules ./rules --out . --targets cursor,copilot
 
@@ -87,7 +87,7 @@ See `ARCHITECTURE.md` for the pipeline and the decisions log, `CLAUDE.md` for th
 
 `relearn` is the reference implementation of the error loop described in *Tuning the Stochastic Machine: A Systems Engineer's Operating Model for Human-AI Engineering* (George Andrikopoulos, 2026, [arXiv:2608.19125](https://arxiv.org/abs/2608.19125)) and of the Stochos framework's first two principles: **persist or perish**, and **one home per rule**. Its precision-measurement companion, *Grouping the Stochastic Machine* ([arXiv:2608.19140](https://arxiv.org/abs/2608.19140)), references this repository as its reference system.
 
-The third paper in the series, *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([arXiv ID pending — submitted 2026-08-21]), specifies the four-file repository discipline this repo is built on — `CLAUDE.md`, `ARCHITECTURE.md`, `TODO.md` as aiming inputs and `FEATURES.md` as the self-check — and names this repository as its worked case (§8). It is also where this repository's own defects are reported rather than quietly fixed first: §8 walks through the `claude-md` target collision found here on 2026-08-20, and §9 generalises it into the sharpest limit of the enforced-by format, that the column records *enforcement* and not *invocation*. Both are closed here as of 2026-08-22, after the paper was submitted.
+The third paper in the series, *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([arXiv ID pending — submitted 2026-08-21]), specifies the four-file repository discipline this repo is built on — `CLAUDE.md`, `ARCHITECTURE.md`, `TODO.md` as aiming inputs and `FEATURES.md` as the self-check — and names this repository as its worked case (§8). It is also where this repository's own defects are reported rather than quietly fixed first: §8 walks through the `claude-rules` target collision found here on 2026-08-20, and §9 generalises it into the sharpest limit of the enforced-by format, that the column records *enforcement* and not *invocation*. Both are closed here as of 2026-08-22, after the paper was submitted.
 
 ## Licence
 

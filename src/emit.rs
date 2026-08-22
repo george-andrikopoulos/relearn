@@ -20,7 +20,7 @@
 
 pub mod agents;
 pub mod claude;
-pub mod claude_md;
+pub mod claude_rules;
 pub mod copilot;
 pub mod cursor;
 
