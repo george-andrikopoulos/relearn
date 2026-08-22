@@ -4,6 +4,14 @@
 //! target is a `clap` parse error, so it is rejected before any write), `list
 //! --home <slug>` (rules filtered by home layer).
 //!
+//! `build` and `verify` also take `--home <slug>`, restricting the emission to
+//! one home layer. It exists for emitting into a **user** scope, where the
+//! domain layer is wanted and the project layer is not: project homes are
+//! always-resident, so a project layer written to a user scope would load
+//! unscoped in every session in every repository. Unlike `list --home`, a slug
+//! no rule is in is an **error** — an empty emission would make the paired
+//! `verify --home` pass over nothing.
+//!
 //! **Must NOT:** contain business logic. It translates arguments into calls on
 //! `library`/`emit`/`fsio` and formats their results; the rules of the domain
 //! live in those modules. Library code returns typed errors ([`CliError`] wraps
@@ -57,6 +65,10 @@ enum Command {
             default_value = "claude,cursor,copilot,agents,claude-md"
         )]
         targets: Vec<Target>,
+        /// Only emit rules homed in this layer (its slug: `global`, `domain-<name>`,
+        /// `project-<slug>`). A slug no rule is in is an error, not an empty emission.
+        #[arg(long)]
+        home: Option<String>,
     },
     /// List rules, optionally filtered by home layer (its slug).
     List {
@@ -93,6 +105,10 @@ enum Command {
             default_value = "claude,cursor,copilot,agents,claude-md"
         )]
         targets: Vec<Target>,
+        /// Only emit rules homed in this layer (its slug: `global`, `domain-<name>`,
+        /// `project-<slug>`). A slug no rule is in is an error, not an empty emission.
+        #[arg(long)]
+        home: Option<String>,
     },
 }
 
@@ -132,6 +148,21 @@ pub enum CliError {
     /// a report, not an error).
     #[error(transparent)]
     Verify(#[from] VerifyError),
+    /// `--home` named a home layer no rule is in.
+    ///
+    /// Loud rather than empty **on purpose**. Emitting nothing would look like
+    /// success, and `verify --home` over an empty expected set would pass
+    /// trivially — a gate reporting success while checking nothing, which is the
+    /// failure class this repository exists to catch. `list --home` may print
+    /// nothing because printing nothing *is* its answer; a build or a gate has
+    /// no such reading.
+    #[error("no rule is homed in {requested} (known: {})", known.join(", "))]
+    UnknownHome {
+        /// The slug as given on the command line.
+        requested: String,
+        /// Every home slug the library does contain, sorted and deduplicated.
+        known: Vec<String>,
+    },
 }
 
 /// Parse the command line, dispatch, and turn the outcome into a process exit.
@@ -160,8 +191,9 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             rules,
             out,
             targets,
+            home,
         } => {
-            build(&rules, &out, &targets)?;
+            build(&rules, &out, &targets, home.as_deref())?;
             Ok(ExitCode::SUCCESS)
         }
         Command::List { rules, home } => {
@@ -173,7 +205,8 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             rules,
             out,
             targets,
-        } => verify(&rules, &out, &targets),
+            home,
+        } => verify(&rules, &out, &targets, home.as_deref()),
     }
 }
 
@@ -203,9 +236,36 @@ fn emit_selected(validated: &Library<Validated>, targets: &[Target]) -> Vec<Outp
     files
 }
 
+/// Restrict a validated library to one home layer, or fail loudly if that layer
+/// holds no rule. `build` and `verify` share this so they can never disagree
+/// about which rules are in scope — the same reason they share `emit_selected`.
+fn restrict_to_home(
+    validated: &Library<Validated>,
+    home: Option<&str>,
+) -> Result<Library<Validated>, CliError> {
+    let Some(slug) = home else {
+        return Ok(validated.filter(|_| true));
+    };
+    let filtered = validated.filter(|r| HomeSlug::of(r.home()).as_str() == slug);
+    if filtered.is_empty() {
+        let mut known: Vec<String> = validated
+            .rules()
+            .iter()
+            .map(|r| HomeSlug::of(r.home()).as_str().to_owned())
+            .collect();
+        known.sort();
+        known.dedup();
+        return Err(CliError::UnknownHome {
+            requested: slug.to_owned(),
+            known,
+        });
+    }
+    Ok(filtered)
+}
+
 /// `build`: load, validate, emit each unique target, and write under `out`.
-fn build(rules: &Path, out: &Path, targets: &[Target]) -> Result<(), CliError> {
-    let validated = fsio::load_rules(rules)?.validate()?;
+fn build(rules: &Path, out: &Path, targets: &[Target], home: Option<&str>) -> Result<(), CliError> {
+    let validated = restrict_to_home(&fsio::load_rules(rules)?.validate()?, home)?;
     let files = emit_selected(&validated, targets);
     let written = fsio::write_all(out, &files)?;
     println!("wrote {written} file(s) under {}", out.display());
@@ -216,8 +276,13 @@ fn build(rules: &Path, out: &Path, targets: &[Target]) -> Result<(), CliError> {
 /// what is on disk under `out`. Writes nothing. Exits `FAILURE` if any generated
 /// file drifted (missing, hand-edited, stale, or shadowed by an unversioned
 /// file), so CI fails when the committed tree is out of sync with the rules.
-fn verify(rules: &Path, out: &Path, targets: &[Target]) -> Result<ExitCode, CliError> {
-    let validated = fsio::load_rules(rules)?.validate()?;
+fn verify(
+    rules: &Path,
+    out: &Path,
+    targets: &[Target],
+    home: Option<&str>,
+) -> Result<ExitCode, CliError> {
+    let validated = restrict_to_home(&fsio::load_rules(rules)?.validate()?, home)?;
     let files = emit_selected(&validated, targets);
     let reports = fsio::verify_all(out, &files)?;
 
@@ -330,7 +395,7 @@ mod tests {
             &rule_doc("R:r", "{ kind = \"domain\", name = \"rust\" }", "Rust rule"),
         );
 
-        build(rules.path(), out.path(), &[Target::Claude]).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Claude], None).expect("build succeeds");
 
         let skill = std::fs::read_to_string(out.path().join("skills/domain-rust/SKILL.md"))
             .expect("the rust skill was written");
@@ -340,6 +405,77 @@ mod tests {
             "carries the guard header"
         );
         assert!(out.path().join("skills/global/SKILL.md").exists());
+    }
+
+    /// `--home` narrows the emission to one layer. The case this exists for:
+    /// emitting the rules layer into a user scope must carry the domain layer
+    /// and *not* the project layer, which is always-resident and would then load
+    /// in every session in every repository.
+    #[test]
+    fn build_with_home_emits_only_that_layer() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let out = tempfile::tempdir().expect("out tempdir");
+        write_rule(
+            rules.path(),
+            "r.md",
+            &rule_doc("R:r", "{ kind = \"domain\", name = \"rust\" }", "Rust rule"),
+        );
+        write_rule(
+            rules.path(),
+            "p.md",
+            &rule_doc(
+                "R:p",
+                "{ kind = \"project\", path = \"relearn\" }",
+                "Project rule",
+            ),
+        );
+
+        build(
+            rules.path(),
+            out.path(),
+            &[Target::ClaudeMd],
+            Some("domain-rust"),
+        )
+        .expect("build succeeds");
+
+        assert!(out.path().join(".claude/rules/domain-rust.md").exists());
+        assert!(
+            !out.path().join(".claude/rules/project-relearn.md").exists(),
+            "the project layer must not follow the domain layer into a user scope"
+        );
+    }
+
+    /// A home no rule is in is an error, never an empty emission — an empty
+    /// emission would make the paired `verify --home` pass over nothing.
+    #[test]
+    fn build_with_an_unknown_home_is_an_error_naming_the_known_ones() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let out = tempfile::tempdir().expect("out tempdir");
+        write_rule(
+            rules.path(),
+            "r.md",
+            &rule_doc("R:r", "{ kind = \"domain\", name = \"rust\" }", "Rust rule"),
+        );
+
+        let err = build(
+            rules.path(),
+            out.path(),
+            &[Target::ClaudeMd],
+            Some("domain-cobol"),
+        )
+        .expect_err("an unknown home must fail");
+
+        match err {
+            CliError::UnknownHome { requested, known } => {
+                assert_eq!(requested, "domain-cobol");
+                assert_eq!(known, vec!["domain-rust".to_owned()]);
+            }
+            other => panic!("expected UnknownHome, got {other:?}"),
+        }
+        assert!(
+            !out.path().join(".claude").exists(),
+            "nothing is written on the failure path"
+        );
     }
 
     #[test]
@@ -356,7 +492,7 @@ mod tests {
             ),
         );
 
-        build(rules.path(), out.path(), &[Target::Cursor]).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Cursor], None).expect("build succeeds");
 
         let mdc = std::fs::read_to_string(out.path().join(".cursor/rules/parse-wide.mdc"))
             .expect("the cursor rule was written");
@@ -411,7 +547,7 @@ mod tests {
         std::fs::write(&target, "human authored\n").expect("seed human file");
 
         assert!(matches!(
-            build(rules.path(), out.path(), &[Target::Claude]),
+            build(rules.path(), out.path(), &[Target::Claude], None),
             Err(CliError::Write(WriteError::WouldClobberUnversioned { .. }))
         ));
         assert_eq!(
@@ -431,9 +567,9 @@ mod tests {
             &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
         );
 
-        build(rules.path(), out.path(), &[Target::Agents]).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Agents], None).expect("build succeeds");
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents]).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None).expect("verify runs"),
             ExitCode::SUCCESS,
             "a freshly built tree verifies clean"
         );
@@ -446,7 +582,7 @@ mod tests {
         );
         std::fs::write(&agents, edited).expect("tamper");
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents]).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None).expect("verify runs"),
             ExitCode::FAILURE,
             "a hand-edited generated file fails verification"
         );
@@ -463,7 +599,7 @@ mod tests {
         );
         // Never built: the expected AGENTS.md is absent.
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents]).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None).expect("verify runs"),
             ExitCode::FAILURE,
             "a never-built (missing) target fails verification"
         );

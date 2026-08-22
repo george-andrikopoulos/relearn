@@ -102,6 +102,31 @@ impl Library<Validated> {
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty()
     }
+
+    /// A validated library holding only the rules `keep` accepts.
+    ///
+    /// **No re-validation, and that is a claim about the invariant, not a
+    /// shortcut.** The only cross-rule invariant is tag uniqueness; a subset of
+    /// a set with unique tags still has unique tags, so the witness carries over
+    /// and the filtered value is a `Library<Validated>` by construction. Should
+    /// a future invariant *not* survive subsetting, this method must go back
+    /// through `validate` — the compiler will not catch that, so it is stated
+    /// here beside the code it constrains.
+    ///
+    /// Used to emit one home layer on its own. Emitting the rules layer into a
+    /// **user** scope must carry the domain layer and nothing else: project
+    /// homes are always-resident, so a project layer written to a user scope
+    /// would load unscoped in every session in every repository.
+    #[must_use]
+    pub fn filter(&self, keep: impl Fn(&Rule) -> bool) -> Library<Validated> {
+        Library {
+            // allow:clone: the filtered library owns its subset, outliving this
+            // borrow; the alternative is threading a predicate through all five
+            // emitter signatures for a path taken once per invocation.
+            rules: self.rules.iter().filter(|r| keep(r)).cloned().collect(),
+            _state: PhantomData,
+        }
+    }
 }
 
 #[cfg(test)]
