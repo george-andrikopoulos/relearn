@@ -14,3 +14,4 @@ skills/**                       text eol=lf
 .claude/rules/**                text eol=lf
 AGENTS.md                       text eol=lf
 .github/copilot-instructions.md text eol=lf
+copilot-pack/**                 text eol=lf

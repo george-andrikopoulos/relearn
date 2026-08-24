@@ -1,0 +1,15 @@
+---
+description: Take a borrow in the signature unless the function needs to own (A parameter typed String or Vec<T> where the body only reads it, forcing every caller to allocate, or to surrender ownership it still needs and then clone to get it back)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Take a borrow in the signature unless the function needs to own [R:borrow-in-signatures]
+
+Take `&str` over `String`, `&[T]` over `Vec<T>`, `&Path` over `PathBuf`. A signature is a statement about what the function needs, and an owned parameter says "I will keep this" -- so when the body only reads, the signature is untrue and every caller pays for it in an allocation.
+
+Own the parameter exactly where the function stores it. There, `impl Into<String>` is the courteous form: a caller holding a `String` moves it in for nothing, and a caller holding a `&str` allocates once, knowingly. On the way out, return `&str` rather than `&String` -- the extra indirection buys the caller nothing and pins the field's representation into the public API.
+
+The cost is rarely the single allocation. It is that an owned parameter propagates: the caller clones to satisfy it, its caller clones to satisfy that, and a signature chosen without thought becomes a column of clones that each look locally necessary. R:justify-every-clone is where those clones surface; this rule is how they are never created.
+
+<!-- relearn:generated v0.1.0 sha256=9d42e93cb36c435774bcbc08ee703271f22a4df77c782d2ac2d09ac93a092a64 rules=R:borrow-in-signatures -- DO NOT EDIT; regenerate with `relearn build` -->

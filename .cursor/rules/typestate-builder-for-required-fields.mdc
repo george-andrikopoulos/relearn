@@ -1,0 +1,24 @@
+---
+description: Builders make a missing required field a compile error (A builder whose build() is always callable, so omitting a required field is caught at run time -- as an error the caller may swallow, or worse as a silent default -- when the omission was already visible at compile time)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Builders make a missing required field a compile error [R:typestate-builder-for-required-fields]
+
+Track each required field in a phantom type parameter, and implement `build()` only for the fully populated combination:
+
+```rust
+pub struct Missing;
+pub struct Present;
+pub struct ServerBuilder<HasHost, HasUser> { /* ... */ }
+impl ServerBuilder<Present, Present> { pub fn build(self) -> Server { /* ... */ } }
+```
+
+An incomplete build is then not an error value to handle but a method that does not exist. Compare the alternative: `build()` returns `Result<_, MissingField>`, every caller writes the same `?`, and the one caller who writes `unwrap_or_default()` ships a server pointing at nothing.
+
+This is R:typestate-for-protocols applied to construction rather than to sequence -- the same remedy, a different illegal thing. Optional fields stay plain setters; only what is genuinely required earns a parameter.
+
+Beyond three or four required fields the parameter list costs more than the problem. Take a required-arguments struct in `new()` instead: the same omission is still a compile error, with none of the machinery.
+
+<!-- relearn:generated v0.1.0 sha256=9c2d6025e42b2b4ca5688b3e60c269658b6ffbce9edb7572b14c204fb14f8380 rules=R:typestate-builder-for-required-fields -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -41,3 +41,12 @@ jobs:
       # than an artefact that would catch drift if someone ran it correctly.
       - name: verify (generated tree in sync with rules)
         run: cargo run --quiet -- verify
+      # `copilot-pack/` is a second emission of the copilot target, committed so
+      # the folder can be downloaded and dropped into another repository whole.
+      # It lives outside every relearn-owned path, so the bare `verify` above
+      # cannot see it — without this step a rule change would rebuild the root
+      # artefacts and leave the pack silently stale, which is the distributed
+      # copy going stale that `[R:doc-currency]` names. Flags are unavoidable
+      # here: they are what addresses the second output root.
+      - name: verify (copilot-pack in sync with rules)
+        run: cargo run --quiet -- verify --targets copilot --out copilot-pack

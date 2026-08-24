@@ -85,6 +85,7 @@ The `claude-rules` target emits **`.claude/rules/<home-slug>.md`**, one file per
 
 ## Where the rest is
 
+- `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and CI runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.
 - `FEATURES.md` — the regression ledger; every feature names the artifact that enforces it.
 - `TODO.md` — open work, including every `NOTHING YET — exposed` gap from FEATURES.md.

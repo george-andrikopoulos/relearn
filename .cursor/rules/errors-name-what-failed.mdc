@@ -1,0 +1,27 @@
+---
+description: Error enums carry the values that identify the failure (An error modelled as a string, or as a variant with no fields, so the caller cannot match on what went wrong and the diagnostic omits the identifiers -- path, address, key, elapsed time -- needed to act on it)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Error enums carry the values that identify the failure [R:errors-name-what-failed]
+
+Every distinct failure is a variant of a `thiserror` enum, and every variant carries the values that identify the instance:
+
+```rust
+#[derive(Debug, thiserror::Error)]
+pub enum ConnectError {
+    #[error("TCP connect to {addr} failed")]
+    Tcp { addr: SocketAddr, #[source] source: io::Error },
+    #[error("timed out after {elapsed:?}")]
+    Timeout { elapsed: Duration },
+}
+```
+
+Two things follow that a string cannot give. The caller can `match` -- retry a `Timeout`, surface a `Tcp` -- rather than parsing prose that changes the next time someone edits a message. And the message names the actual address, so one log line is enough to act on rather than the start of an investigation.
+
+Keep the cause in `#[source]` instead of interpolating it into the text. The chain then prints once, at the edge, without each layer restating the layer beneath it.
+
+One variant per condition a caller could plausibly treat differently. Collapsing four causes into `Other(String)` re-creates the string error inside an enum: it reads as a type and behaves as prose, and it is the shape this rule exists to catch.
+
+<!-- relearn:generated v0.1.0 sha256=5d80a770be827a0e3882d36a5405f392bb1aeecb90439b445ab40aec1b9e3676 rules=R:errors-name-what-failed -- DO NOT EDIT; regenerate with `relearn build` -->

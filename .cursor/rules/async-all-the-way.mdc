@@ -1,0 +1,17 @@
+---
+description: Async is async all the way down (A blocking call inside an async context -- block_on, a synchronous file or socket read, a std Mutex guard held across an await -- which parks a runtime worker thread and stalls every unrelated task scheduled on it)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Async is async all the way down [R:async-all-the-way]
+
+No `block_on` inside async code. An async runtime multiplexes many tasks onto few threads, so a blocking call does not delay one task -- it removes a worker from the pool for the duration and delays every task that would have run there. The victims are unrelated to the code that blocked, which is why the symptom is unexplained tail latency somewhere else entirely, and why it is close to unattributable after the fact.
+
+`block_on` is correct only at the boundary where synchronous code enters async: `main`, a test, a callback from a C library. Once inside, stay inside -- async I/O, an async-aware lock wherever a guard must survive an `await`, and `spawn_blocking` for work that genuinely blocks, such as CPU-bound compute or a synchronous third-party client.
+
+The same applies to a `std::sync::Mutex` guard held across an `await`. Nothing flags it as blocking, but it holds a lock while the task is descheduled, so the contending task blocks its own worker thread and the failure presents as a deadlock rather than as a lock.
+
+Nested `block_on` on a current-thread runtime does not degrade -- it deadlocks outright. That is the honest failure; the multi-threaded case merely hides the same mistake behind a thread count, until load removes the hiding place.
+
+<!-- relearn:generated v0.1.0 sha256=482312ecd4ebbdcdd836865c2245515b4479e4297d4b6f59b7bee5f04b1865a7 rules=R:async-all-the-way -- DO NOT EDIT; regenerate with `relearn build` -->

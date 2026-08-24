@@ -1,0 +1,17 @@
+---
+description: Verify a zero-cost claim; never assert it (Claiming an abstraction is zero-cost from its reputation -- newtype, iterator chain, generic wrapper -- without inspecting what the compiler emitted, so a real cost such as a bounds check, a heap allocation, or a missed inline ships as a claimed absence of cost)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Verify a zero-cost claim; never assert it [R:verify-the-abstraction-compiled-away]
+
+"Zero-cost" is a property of a particular abstraction, under a particular optimiser, on a particular build profile. In Rust it is usually true, which is precisely why it gets asserted instead of checked, and why the cases where it is false survive review.
+
+Where the cost is load-bearing -- a hot path, a latency budget, an allocation-free claim -- look at what was emitted. `cargo asm` for the function, `cargo bloat` for the binary, a benchmark on the profile that actually ships. A debug build proves nothing about a release binary: a newtype that is free at `opt-level = 3` need not be at `opt-level = 0`, and the two are different programs.
+
+Then run the failure-mode check R:measure-cost-per-task states in the general case -- under what configuration does this cost exactly what it was chosen not to cost? A `#[repr(transparent)]` newtype crossing an FFI boundary, an iterator chain that fails to fuse because the closure captures by reference, a generic that is never monomorphised because it went out through a trait object. Bound that configuration, or drop the claim.
+
+This is R:verify-through-production-path applied to code generation: a claim measured on a build the user never runs is evidence about that build alone. Where the cost is not load-bearing, do not make the claim at all -- an unverified performance assertion in a doc comment is read as a measured one.
+
+<!-- relearn:generated v0.1.0 sha256=57e7e941046df6c0d5f086afb6c6add0fdf9b7064ff9d6954ad010b128f92d64 rules=R:verify-the-abstraction-compiled-away -- DO NOT EDIT; regenerate with `relearn build` -->

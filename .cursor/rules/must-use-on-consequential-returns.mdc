@@ -1,0 +1,15 @@
+---
+description: Mark consequential return values #[must_use] (A function whose return value carries the outcome -- a Result, a status, a freshly minted witness -- can be called as a bare statement and its return dropped, so a failure or the whole product of the call disappears with no diagnostic)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Mark consequential return values #[must_use] [R:must-use-on-consequential-returns]
+
+Put `#[must_use]` on every function that returns a `Result`, and on every function whose return value is the point of calling it. The compiler then flags a discarded outcome at every call site, present and future, instead of leaving it to a reviewer to notice one bare statement among a hundred.
+
+Prefer the attribute on the *type* over the attribute on the function. `#[must_use] struct Receipt;` travels to every function that returns a `Receipt`, including the ones written later by someone who never read this rule; the function-level attribute has to be remembered each time. Attach it to the type whenever the type is always consequential, and fall back to the function only for the narrower case where the same type is sometimes worth discarding.
+
+Escalate the resulting warning to an error in CI. A `#[must_use]` whose violation prints a note nobody reads is a comment with extra syntax, and the guarantee it claims is held nowhere.
+
+<!-- relearn:generated v0.1.0 sha256=ebad9e644e404044cae7ab3226b6460d690aea27149ecb57ef33b59af5250c25 rules=R:must-use-on-consequential-returns -- DO NOT EDIT; regenerate with `relearn build` -->
