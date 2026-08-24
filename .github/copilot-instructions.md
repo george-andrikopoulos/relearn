@@ -61,6 +61,37 @@ at the consuming end instead. A repository can satisfy either and fail the other
 
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
 
+## Repair the artefact that made the false claim, not only the doc about it [R:repair-the-lying-artefact]
+
+When an incident traces to a false claim, find the artefact the person was actually
+reading at the moment they were misled, and repair **that** first. Usually it is not the
+document — it is something that printed during the work: a script's final "Binary:" line,
+a deploy script's success message, a generated file's header, a status endpoint, a test
+name. A document is consulted; an artefact is *emitted at you* while your attention is on
+the task. That asymmetry decides who gets believed.
+
+A doc and a script disagreeing is not a tie. People run the script. Correcting the doc and
+stopping there leaves the defect fully operational and adds a paragraph that makes it look
+handled — the worst of both, because the next occurrence now has a written warning standing
+over it as evidence that someone already dealt with this.
+
+Apply the test before closing: **could the same person be misled again in exactly the same
+way without ever opening the document I just fixed?** If yes, the fix has not landed. Ask
+also what else in the repo asserts this same fact — a README snippet, a CI summary, a
+printed usage line — because a claim usually has more than one mouth.
+
+Then push it down a layer rather than restating it: make the artefact *derive* what it
+reports instead of asserting it (resolve the path, stat the file, read the version it
+actually built), and add the mechanical check that fails any future artefact making the
+unresolved claim. Deriving beats asserting for the same reason
+`[R:prefer-by-construction]` prefers designs to guards — a derived claim cannot drift from
+what it describes, so it cannot go stale the way `[R:doc-currency]` describes.
+
+This is the reporting half of `[R:verify-through-production-path]`. That rule says to
+exercise the real channel; this one says the real channel must also tell the truth about
+what it produced — verifying through a production path that reports a path it never
+resolved proves nothing.
+
 ## Describe a practice from the artefact that defines it, never from the genre [R:source-practice-from-its-artefact]
 
 Before writing anything that *describes* how the user works -- their process, their file
@@ -178,4 +209,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=9eedeb3562492142eec0b630880d490c6597cdad9128dc228fb82752790058c1 rules=R:doc-currency,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:source-practice-from-its-artefact,R:verify-through-production-path,R:design-types-first,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:typestate-for-protocols,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=bb184b46c0c538a537b6285f90609fb4139317d7993b987de6d96207aadc0b3b rules=R:doc-currency,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:repair-the-lying-artefact,R:source-practice-from-its-artefact,R:verify-through-production-path,R:design-types-first,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:typestate-for-protocols,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

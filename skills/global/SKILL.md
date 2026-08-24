@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Rules for global. Covers: Update the doc in the same change as the thing it describes (A checked-in list or example (hygiene set, format sample, doc snippet) drifting from the reality it describes, so a reader trusts it and acts on stale guidance); Make illegal states unrepresentable (Designing types that permit contradictory or invalid states -- a bool beside an Option that can disagree, two fields that can contradict -- so the logic must defensively guard what the type should have forbidden); Measure cost-per-completed-task; never choose by price tier (Selecting a mechanism or model by its reputation or price tier rather than its measured cost to complete the task); No sentinel values: absent states are enum variants (Encoding a distinct state as a magic value of an existing type (0, -1, \"\", T::zero()) that downstream logic must remember to special-case); Never route judgment work to a weak model, and never embed a sub-tier local LLM (Wiring a meaningfully less capable model into a tool for work that needs judgment, on convenience or API-key-free grounds, so the tool is degraded wherever that model runs); Pin the line endings of text a machine executes or hashes (Leaving line endings to the checkout for a file whose bytes are load-bearing -- a script an interpreter runs, or generated content whose hash is compared -- so a clone on one platform silently produces a file that no longer works or no longer matches); Prefer by-construction impossibility over after-the-fact controls (Reaching for a runtime control (a check, a guard, a review step) to catch a mistake after it occurs when the design could have made that mistake impossible to express in the first place); Describe a practice from the artefact that defines it, never from the genre (Describing the user's own practice, system or process from domain convention or literature instead of the primary artefact that defines it, producing a fluent, plausible description of the wrong thing); Verify through the production path (Verifying a feature through a stand-in wiring (dev override, mock transport, alternate config channel) instead of the exact channel production uses)"
+description: "Rules for global. Covers: Update the doc in the same change as the thing it describes (A checked-in list or example (hygiene set, format sample, doc snippet) drifting from the reality it describes, so a reader trusts it and acts on stale guidance); Make illegal states unrepresentable (Designing types that permit contradictory or invalid states -- a bool beside an Option that can disagree, two fields that can contradict -- so the logic must defensively guard what the type should have forbidden); Measure cost-per-completed-task; never choose by price tier (Selecting a mechanism or model by its reputation or price tier rather than its measured cost to complete the task); No sentinel values: absent states are enum variants (Encoding a distinct state as a magic value of an existing type (0, -1, \"\", T::zero()) that downstream logic must remember to special-case); Never route judgment work to a weak model, and never embed a sub-tier local LLM (Wiring a meaningfully less capable model into a tool for work that needs judgment, on convenience or API-key-free grounds, so the tool is degraded wherever that model runs); Pin the line endings of text a machine executes or hashes (Leaving line endings to the checkout for a file whose bytes are load-bearing -- a script an interpreter runs, or generated content whose hash is compared -- so a clone on one platform silently produces a file that no longer works or no longer matches); Prefer by-construction impossibility over after-the-fact controls (Reaching for a runtime control (a check, a guard, a review step) to catch a mistake after it occurs when the design could have made that mistake impossible to express in the first place); Repair the artefact that made the false claim, not only the doc about it (Closing an incident by writing or correcting prose while the executable artefact that actually misled — a script's printed path, a status line, a generated header, a success message — goes on emitting the same false claim, so the defect stays fully operational behind a note that makes it look handled); Describe a practice from the artefact that defines it, never from the genre (Describing the user's own practice, system or process from domain convention or literature instead of the primary artefact that defines it, producing a fluent, plausible description of the wrong thing); Verify through the production path (Verifying a feature through a stand-in wiring (dev override, mock transport, alternate config channel) instead of the exact channel production uses)"
 ---
 
 # global rules
@@ -66,6 +66,37 @@ at the consuming end instead. A repository can satisfy either and fail the other
 
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
 
+## Repair the artefact that made the false claim, not only the doc about it [R:repair-the-lying-artefact]
+
+When an incident traces to a false claim, find the artefact the person was actually
+reading at the moment they were misled, and repair **that** first. Usually it is not the
+document — it is something that printed during the work: a script's final "Binary:" line,
+a deploy script's success message, a generated file's header, a status endpoint, a test
+name. A document is consulted; an artefact is *emitted at you* while your attention is on
+the task. That asymmetry decides who gets believed.
+
+A doc and a script disagreeing is not a tie. People run the script. Correcting the doc and
+stopping there leaves the defect fully operational and adds a paragraph that makes it look
+handled — the worst of both, because the next occurrence now has a written warning standing
+over it as evidence that someone already dealt with this.
+
+Apply the test before closing: **could the same person be misled again in exactly the same
+way without ever opening the document I just fixed?** If yes, the fix has not landed. Ask
+also what else in the repo asserts this same fact — a README snippet, a CI summary, a
+printed usage line — because a claim usually has more than one mouth.
+
+Then push it down a layer rather than restating it: make the artefact *derive* what it
+reports instead of asserting it (resolve the path, stat the file, read the version it
+actually built), and add the mechanical check that fails any future artefact making the
+unresolved claim. Deriving beats asserting for the same reason
+`[R:prefer-by-construction]` prefers designs to guards — a derived claim cannot drift from
+what it describes, so it cannot go stale the way `[R:doc-currency]` describes.
+
+This is the reporting half of `[R:verify-through-production-path]`. That rule says to
+exercise the real channel; this one says the real channel must also tell the truth about
+what it produced — verifying through a production path that reports a path it never
+resolved proves nothing.
+
 ## Describe a practice from the artefact that defines it, never from the genre [R:source-practice-from-its-artefact]
 
 Before writing anything that *describes* how the user works -- their process, their file
@@ -94,4 +125,4 @@ prevents *describing* what does not.
 
 Before declaring anything verified, run at least one check through the exact channel production uses: same env var, same startup script, same config file, same transport. A test that exercises a stand-in is evidence the stand-in works, not that the feature does. Ask: which line of production wiring did my test NOT execute? That line is where it breaks.
 
-<!-- relearn:generated v0.1.0 sha256=53a9f3516f52462a1f9aec00e8bc9600bffa59dda66fbdf8ae944f4cd2040dd5 rules=R:doc-currency,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:source-practice-from-its-artefact,R:verify-through-production-path -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=5720340030f697b0bb43e3f7a8e594eda1adeb4f034dd72a345f5e2995eb435e rules=R:doc-currency,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:repair-the-lying-artefact,R:source-practice-from-its-artefact,R:verify-through-production-path -- DO NOT EDIT; regenerate with `relearn build` -->
