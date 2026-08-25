@@ -1,0 +1,17 @@
+---
+description: The project charter is written to the recreation standard (A project charter that describes what the code is rather than what would be needed to rebuild it, so the decisions and their reasons live only in the head of whoever made them and are re-litigated or silently reversed by the next reader)
+globs: 
+alwaysApply: true
+---
+
+# The project charter is written to the recreation standard [R:claude-md-recreates-the-project]
+
+Write the project charter so that from it alone the project could be rebuilt. That is the bar, and it is testable: hand the file to someone with the toolchain and nothing else, and ask what they could not reconstruct.
+
+It holds the purpose, the core design decisions **with their reasons**, the invariants that must never break, the commands to build, run and test, and pointers to the other standing documents. The reasons are the part that decays first and matters most: a decision recorded without its why is indistinguishable from an accident, so the next reader either reverses it or preserves it superstitiously, and both are expensive.
+
+Check it explicitly on every change that touches design, as a question rather than a glance: *could this file still recreate the project?* Skipping that check is how the standard becomes a lie -- not in one edit, but in twenty, each individually defensible.
+
+The charter is the project layer and nothing else. Domain rules are referenced from it, never copied into it (R:five-files-no-more), and a claim it makes about an enforcing control is subject to R:guarantee-needs-a-reader like any other.
+
+<!-- relearn:generated v0.1.0 sha256=0d810797320ecd5dbe8c6b8b305ae04965f4e0fbbcb17a68402740404a2fbfe8 rules=R:claude-md-recreates-the-project -- DO NOT EDIT; regenerate with `relearn build` -->

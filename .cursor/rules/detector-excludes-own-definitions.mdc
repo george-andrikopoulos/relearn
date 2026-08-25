@@ -1,0 +1,17 @@
+---
+description: A detector excludes its own definitions from its scan (A check whose subject matter is text it must itself contain matching on its own source, comments, or documentation, so it is always red -- and an always-red check is muted, leaving the system looking guarded by something that no longer reports)
+globs: 
+alwaysApply: true
+---
+
+# A detector excludes its own definitions from its scan [R:detector-excludes-own-definitions]
+
+Any check whose subject matter is text it must itself contain -- a linter, a secret scanner, a policy grep, a rules sweep -- matches itself by construction. Exclude the detector's own source, comments, and docstrings from its scan, strip comments before matching, and normalise paths to placeholders so documentation *about* a pattern is never read as an instance of it.
+
+The reason is not tidiness. An always-red check gets muted, and a muted check is worse than no check, because the system still looks guarded. Alarm fatigue is negative value, not neutral: it spends the attention that a real finding will need, and it trains the reader to skip exactly the output that will one day matter.
+
+This extends past the detector's own file to anything that quotes the pattern for a legitimate reason. A correction note explaining that a bad string was removed, written with the bad string in it, becomes a permanent false positive in the very sweep it was written to satisfy -- so describe the string, do not reproduce it, and where reproduction is genuinely necessary put it somewhere the scan excludes by rule rather than by luck.
+
+Ask before shipping any scan: *does this check appear in its own corpus, and if so what does its output look like on a clean tree?* If the clean-tree output is not empty, the check does not yet work, however correct its logic.
+
+<!-- relearn:generated v0.1.0 sha256=132e8aa547b9eacd4990a6f7cdd736e47868d571ba751aec091acd6dd7f71972 rules=R:detector-excludes-own-definitions -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -1,0 +1,17 @@
+---
+description: A success check consumes a sentinel nothing else can produce (A check that runs, passes, and accepts forgeable evidence -- a date, a header, a log echo, a file's existence, a component's own unit tests -- so an inert or failed thing certifies as working and the check's greenness is what conceals it)
+globs: 
+alwaysApply: true
+---
+
+# A success check consumes a sentinel nothing else can produce [R:wired-artifact]
+
+A success check must consume a write-once sentinel that is unique to the artefact class it verifies, emitted as the final act of the success path, and producible by nothing else in the system. Pattern-matching on a date, a header, a log line, or the presence of a file is not verification -- it is a check that something happened, which is a different claim from the one being made.
+
+Ask before wiring any check: *what else in this system can produce the string my check accepts?* If the answer is anything at all, the check accepts forgery, and it will accept it silently on the day it matters -- because the failure path is the one that regenerates headers and re-emits dates.
+
+The same test applies to enforcement claimed on a component: *what produces this, what consumes it, and does the cited artefact cross that seam?* If nothing crosses it, the feature is inert and the honest ledger entry says so rather than naming the component's own tests.
+
+A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
+
+<!-- relearn:generated v0.1.0 sha256=d731adaf618623a175be2acc7e36b61adfcbd61815e803b003ca886ecc592dc5 rules=R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->

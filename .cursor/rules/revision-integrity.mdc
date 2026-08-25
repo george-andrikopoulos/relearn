@@ -1,0 +1,19 @@
+---
+description: After restructuring, verify references as a distinct pass (A restructuring edit silently invalidating references that were correct in the previous version -- antecedents, cross-references, counts, enumerations, promises -- with no error raised, and the author least able to see it because they autocomplete the missing text from memory of the draft they deleted)
+globs: 
+alwaysApply: true
+---
+
+# After restructuring, verify references as a distinct pass [R:revision-integrity]
+
+Editing a structured artefact silently breaks references that the previous version made true. The edit raises no error, and rereading does not catch it: the author restores the deleted context from memory and reads a coherent passage that is not on the page.
+
+So run referential integrity as a **distinct pass**, after the restructuring and not during it. Every pronoun and comparative -- *this*, *neither*, *the former*, *the more important* -- must resolve within the current text. Every cross-reference must point where it claims. Every announced count must match what follows. Every term must be defined before it is used.
+
+Two methods defeat author blindness where rereading cannot. Give the passage to a fresh reader instructed to report **comprehension failures only**, not content or style -- they have no deleted draft to autocomplete from. Or translate it into another language: if it cannot be rendered without adding words, the words are missing in the original.
+
+Prefer structure that cannot carry the defect. A heading that states a count goes stale on the next addition, so write the heading without the count rather than remembering to update it -- R:prefer-by-construction applied to prose.
+
+This is the prose sibling of R:wired-artifact: a locally correct change with a silent non-local effect. Ask, every time: *what did this edit quietly leave pointing at nothing?*
+
+<!-- relearn:generated v0.1.0 sha256=ccb636fc755a44d4be94e1cf62137d0d0b8e94eb77f234b04546b6197985ac11 rules=R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -1,0 +1,19 @@
+---
+description: A stated guarantee names what enforces it, or is deleted (A safety claim written in prose -- a header comment, a docstring, a promise in a readme, a ledger line -- with nothing in the system reading the state it asserts, so the sentence stops people looking at the very thing it fails to protect)
+globs: 
+alwaysApply: true
+---
+
+# A stated guarantee names what enforces it, or is deleted [R:guarantee-needs-a-reader]
+
+Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
+
+A claim of completeness must also state what the check actually consumed. Not "verified", but "verified by grepping `model:` across N agent files" -- so the gap between the scope of the check and the scope of the claim is visible on the face of the entry rather than reconstructable only by rerunning it. Most false completeness claims are not lies; they are a narrow check reported in wide language.
+
+**Error paths are where these hide.** A message asserting a state must be produced by *checking that state*, not by which branch printed it. The failure path is the one nobody exercises, so a confident sentence with nothing behind it survives there longest, and it is read at exactly the moment the reader is least able to question it. Ask of every error message: *did anything read the world before this printed?*
+
+Where a mechanical reader exists, use it and leave the prose to what it cannot see: an unread binding is already a hard error under a compiler run with warnings denied. What no linter can see is a true-looking sentence with nothing behind it, and that is what this rule is for.
+
+The test: *what would have to be true for this sentence to be false, and what reads that?* R:wired-artifact is the neighbouring failure -- there a check exists and accepts forgeable evidence; here there is no check at all.
+
+<!-- relearn:generated v0.1.0 sha256=22ba4134bfb7a9ac2ffd186d18674ce564e926c34bf5bbb775689f3c59c06536 rules=R:guarantee-needs-a-reader -- DO NOT EDIT; regenerate with `relearn build` -->

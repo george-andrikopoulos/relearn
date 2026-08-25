@@ -52,7 +52,7 @@ Binding for this repository. A change is not complete until all five pass, in or
 
 State the five results briefly at the end of any task. If a request conflicts with the discipline ("just patch it quickly"), do the patch, then say which checks were skipped and what exposure that creates — never silently drop it, never block the user with ceremony.
 
-*This is the project-layer application of the author's `project-discipline` skill. It is written here, not merely referenced, because this repository will be published: an external contributor has no access to that skill, and a control that applies only when a skill happens to load is not a control.*
+*This is the project-layer application of `[R:definition-of-done-every-change]`, whose general form is in `rules/` and reaches every emitted layer as of 2026-08-25. It stays written out here rather than reduced to a pointer because the five checks above are **specialised** to this repository — check 2 names `FEATURES.md` and its enforcing artifacts, check 4 names `ARCHITECTURE.md`'s decisions log — and a charter that recreates the project has to state what a contributor must actually do. The original justification for writing it here (that an external contributor cannot load the author's `project-discipline` skill) has partly expired: the generic rule is now public in this repository too. What has not expired is the specialisation. If the two ever disagree, `rules/` is the source and this section is the derived text — see TODO.md, where the residual duplication is carried as George's call rather than resolved unilaterally.*
 
 ## Design discipline: Type-Driven, not test-first
 
@@ -67,15 +67,9 @@ Unit testing is **not** removed — it is demoted to the layer where it is the r
 
 ## Standing rules referenced by this repo
 
-These come from the author's rule library and are cited by tag elsewhere in these files. Defined here so no reference dangles for a reader without that library; they are scheduled for migration into `rules/` in Phase A, at which point this section points there instead.
+Rules cited by tag elsewhere in these files **now live in `rules/`** and are compiled out to every emitted layer. This section used to restate six of them in prose, "scheduled for migration into `rules/` in Phase A, at which point this section points there instead." That migration completed 2026-08-25 and this is the pointer it promised: run `relearn list` for the corpus, or read `rules/<tag>.md` for any single rule with its full provenance.
 
-- **`[R:wired-artifact]`** — a success check must consume a write-once sentinel unique to the verified artifact class, emitted as the final act of the success path and producible by nothing else. Pattern-matching on dates, headers, or file presence is not verification. Ask: *what other process can produce the string my check accepts?*
-- **`[R:generate-guards-unversioned]`** — a script that regenerates a directory by delete-and-rebuild must refuse, or attic with provenance, when untracked content is present. Never silent `rm`.
-- **`[R:pin-eol-for-executable-text]`** — pin end-of-lines for any executable text layer (`.gitattributes`, `text eol=lf`). A platform line-ending default silently breaks the shell layer on fresh clone, with no error. Fix structurally, not with a check.
-- **`[R:revision-integrity]`** — after restructuring any document, verify references as a distinct pass: pronouns and comparatives resolve in the *current* text, cross-references point where they claim, announced counts match, terms are defined before use. Ask: *what did this edit quietly leave pointing at nothing?*
-- **`[R:parse-wide-then-range-check]`** — parse into a type wide enough to *represent* the out-of-range value, then range-check to mint the narrow newtype. The perimeter must be able to see the illegal value in order to name it illegal.
-- **`[R:prefer-by-construction]`** — design the mistake out at the level where it is made, rather than adding a runtime control that absorbs it. A guard that never fails visibly is indistinguishable from a guard that is not needed. Ask: *is this guard protecting against something, or hiding it?*
-- **`[R:pin-eol-for-executable-text]`** — pin end-of-lines for any text layer whose bytes are compared (`.gitattributes`, `text eol=lf`). A platform line-ending default silently breaks the comparison on a fresh clone, with no error and on one OS only.
+Keeping the prose copies would have made this file a second home for six rules that have one — the P2 violation this tool exists to prevent, in the charter of the tool that prevents it. The last two to migrate were `[R:wired-artifact]` and `[R:revision-integrity]`; the corpus had been citing both for weeks without defining either.
 
 ## The generated project layer
 

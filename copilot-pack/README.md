@@ -10,7 +10,7 @@ repository, done.
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        32 rules, 336 lines — the instruction file
+    └── copilot-instructions.md        44 rules, 477 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -18,9 +18,29 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 10 | Language-agnostic engineering discipline — verification, provenance, doc currency, cost reasoning |
+| `global` | 22 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
 | `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
 | `project-*` | 4 | Rules belonging to the `relearn` and `stochos-lab` repositories specifically |
+
+### The repository discipline
+
+The four standing documents and the checks that keep them true — the subject of
+*Aiming the Stochastic Machine*, and the discipline this repository is itself built on.
+
+The documents: `five-files-no-more` (the set, and resisting a sixth),
+`claude-md-recreates-the-project` (the charter's recreation standard),
+`decisions-log-records-rejected-alternatives` (the architecture log — the why *and* what
+was refused), `features-ledger-names-its-artefact` (the regression ledger with teeth),
+`definition-of-done-every-change` (the five checks that run on every fix).
+
+The controls that keep enforcement honest — these are the ones that fail quietly:
+`wired-artifact` (a success check must consume evidence nothing else can forge),
+`guarantee-needs-a-reader` (a prose safety claim names what enforces it, or goes),
+`reconcile-wiring-at-start` (a correctly-wired control can go dark and say nothing),
+`no-stale-push-over-fresh` (a mirror script must know which side is authoritative),
+`detector-excludes-own-definitions` (a self-matching check is always red, so it gets
+muted), `revision-integrity` (restructuring silently breaks references the author cannot
+see), `case-collision` (two names differing only by case are one file on NTFS).
 
 ### The Rust set
 
@@ -33,7 +53,7 @@ All 18 Rust rules are included. Types and boundaries: `design-types-first`,
 `borrow-in-signatures`, `async-all-the-way`, `verify-the-abstraction-compiled-away`.
 Testing: `xplat-fixtures`.
 
-Together with the two global rules on illegal states and sentinel values, this is the
+Together with the global rules on illegal states and sentinel values, this is the
 whole discipline: the type system carries the guarantee, property tests carry the
 behavioural laws types cannot encode, and unit tests are regression pins.
 
@@ -67,7 +87,7 @@ go" is not something it can infer. Paste this:
 > exist. Do not modify, reformat, reflow, summarise, or re-order its contents — it is a
 > generated artifact and must be copied byte for byte, including the HTML comment on the
 > final line. Do not create any other instruction files, and do not add an `AGENTS.md`.
-> When you are done, report the file's path and its line count, which should be 336.
+> When you are done, report the file's path and its line count, which should be 477.
 
 ## Confirming it loaded
 
@@ -90,13 +110,15 @@ conflict, and the edit itself is invisible to the rule library — it will be si
 reverted the next time anyone rebuilds. Change the rule in `rules/<tag>.md`, rebuild,
 re-copy.
 
-**Two rules describe an enforcement that does not exist outside this project.**
-`R:no-unwrap-in-production` and `R:no-anyhow-in-libraries` are marked *graduated* and
-each says its guarantee has moved to a write-time hook, so "the instruction layer no
-longer has to" hold it. Those hooks live in the rule author's own agent configuration.
-In any other environment there is no hook, and the note reads as a reason to relax an
-instruction that is in fact the only thing enforcing the rule. Treat both as active
-instructions unless you have installed equivalent tooling.
+**Some rules describe an enforcement that does not exist outside this project.**
+`R:no-unwrap-in-production`, `R:no-anyhow-in-libraries` and `R:case-collision` are marked
+*graduated*, and each says its guarantee has moved to a write-time hook, so the
+instruction layer no longer has to hold it. Those hooks live in the rule author's own
+agent configuration. In any other environment there is no hook, and the note reads as a
+reason to relax an instruction that is in fact the only thing enforcing the rule. Treat
+every graduated rule as fully active unless you have installed equivalent tooling — grep
+the file for `Also enforced by` to find them, rather than trusting this paragraph to have
+kept count.
 
 **Four rules are about other repositories.** `R:generate-guards-unversioned`,
 `R:order-by-explicit-rank`, `R:no-secrets-in-config-repo` and
