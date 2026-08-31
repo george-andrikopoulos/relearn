@@ -10,7 +10,7 @@ repository, done.
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        44 rules, 477 lines — the instruction file
+    └── copilot-instructions.md        45 rules, 505 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -18,7 +18,7 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 22 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
+| `global` | 23 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
 | `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
 | `project-*` | 4 | Rules belonging to the `relearn` and `stochos-lab` repositories specifically |
 
@@ -41,6 +41,11 @@ The controls that keep enforcement honest — these are the ones that fail quiet
 `detector-excludes-own-definitions` (a self-matching check is always red, so it gets
 muted), `revision-integrity` (restructuring silently breaks references the author cannot
 see), `case-collision` (two names differing only by case are one file on NTFS).
+
+And one about whose call a cost is: `no-silent-spend` — a trade of the user's time
+against their money against thoroughness is theirs to make, put as a one-line costed
+fork at the moment it arises. It is symmetrical: quietly spending more to be thorough
+is exactly as wrong as quietly spending less to be quick.
 
 ### The Rust set
 

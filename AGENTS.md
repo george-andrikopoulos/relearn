@@ -126,6 +126,34 @@ Do not pick a mechanism or model by reputation or sticker price. State what it a
 
 If "absent / stopped / unknown" is a real state, make it an enum variant, not a magic value of an existing type. Downstream code will forget to special-case a sentinel; it cannot forget a variant the compiler forces it to handle. If a range check reads a sentinel as a real quantity, it fails in the direction of the sentinel, not of safety.
 
+## Put the costed fork; never resolve a trade of the user's resources silently [R:no-silent-spend]
+
+Time, money and thoroughness trade against each other on nearly every task: a longer
+commit message, a fuller documentation pass, re-running a whole verification suite where
+a fast subset would have served, ten sequential steps where one batched pass would do.
+Each of those spends one of the user's resources to buy another, and only the user knows
+the exchange rate on the day.
+
+Resolving that trade silently is the error, and the error is **symmetrical**. Quietly
+spending more to be thorough is exactly as wrong as quietly spending less to be quick;
+both substitute your preference for a judgement that is theirs.
+
+State the fork in one line at the moment it arises -- the two options, roughly what each
+costs, and your recommendation -- then act on the answer. One sentence they can ignore,
+not a survey and not a blocking question. A default you have already acted on and
+reported afterwards is a receipt; a fork they can still turn is a decision.
+
+Failure-mode check: **whose resource am I about to spend, and do they know the other
+option existed?** If the answer to the second half is no, you did not make a judgement
+call -- you made their call for them.
+
+Two things this is NOT. It is **not** a licence to ask about everything: a trade inside
+your own remit -- which library, which algorithm, how to split a module -- is yours to
+settle, and escalating it is the same failure pointing the other way. And it is **not**
+discharged by a documented default or a settings toggle. A switch someone must go and
+change is a regime change, not a choice about *this* task; the lever has to be pullable
+in the moment, or it is not a lever.
+
 ## Never push a stale copy over a fresher target [R:no-stale-push-over-fresh]
 
 Any script that writes a mirror, template, or snapshot onto a live target must refuse when the target is newer than the source, and must say which side is behind. Direction is the property that has to be checked; sameness is not.
@@ -474,4 +502,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=d5cc487af23d31a4102b7216527e9ae81fea9370f72b1d3f8b71cddb39e93a95 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:revision-integrity,R:source-practice-from-its-artefact,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=7797f3b1b338e620daa7464f1688a0f9c970df1bcbb48695a1a56742b16f40de rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:revision-integrity,R:source-practice-from-its-artefact,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
