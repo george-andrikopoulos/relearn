@@ -275,6 +275,39 @@ This is the reading half of the sibling rule on building: search the existing ar
 before constructing something new. That one prevents rebuilding what exists; this one
 prevents *describing* what does not.
 
+## A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
+
+Read a check's own verdict, never a status that merely travelled beside it.
+
+A gate can be entirely correct and still certify a failure, because the verdict is lost
+between the check and the decision. `gate | tail` exits with the status of `tail`. An
+`&&` placed after such a pipeline tests the filter rather than the gate, so the action it
+was meant to guard runs regardless. And a filter narrow enough to be readable will crop
+the verdict out of the very output it was meant to summarise: the header carrying the
+word FAILED scrolls away, and what remains is a few detail lines that read like ordinary
+progress.
+
+Nothing is forged here and nothing is unenforced -- the check ran, it was right, and its
+answer never arrived. That is what separates this from its two neighbours:
+`R:guarantee-needs-a-reader` fires when no check exists, `R:wired-artifact` when one
+exists and accepts the wrong evidence, and this one when a correct check's answer does
+not survive the trip to the reader.
+
+The same failure runs in the other direction for commands that change things. A
+substitution whose pattern matches nothing, an in-place edit against an absent string, a
+rename with no candidates: every one of them exits zero. An exit code reports that the
+program ran, not that the work happened.
+
+So: run a gate unfiltered and let its own status stand. Where the output must be
+filtered, make the pipeline report the gate -- enable pipefail, or read the first stage's
+status explicitly -- and never place a filter between a gate and an `&&`. After a command
+whose purpose is to change a file, verify the change by reading the file back, not the
+status the command returned.
+
+Failure-mode check: **what does this exit code actually measure?** If the answer names
+the last stage of a pipeline, or names "the program ran" rather than "the work was done",
+there is no evidence yet.
+
 ## Verify through the production path [R:verify-through-production-path]
 
 Before declaring anything verified, run at least one check through the exact channel production uses: same env var, same startup script, same config file, same transport. A test that exercises a stand-in is evidence the stand-in works, not that the feature does. Ask: which line of production wiring did my test NOT execute? That line is where it breaks.
@@ -502,4 +535,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=7797f3b1b338e620daa7464f1688a0f9c970df1bcbb48695a1a56742b16f40de rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:revision-integrity,R:source-practice-from-its-artefact,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=2b1ecb0b07ad0e03148cdce9daa001c6d622e7889643164342972365006c50e4 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

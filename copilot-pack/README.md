@@ -10,7 +10,7 @@ repository, done.
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        45 rules, 505 lines — the instruction file
+    └── copilot-instructions.md        46 rules, 538 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -18,7 +18,7 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 23 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
+| `global` | 24 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
 | `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
 | `project-*` | 4 | Rules belonging to the `relearn` and `stochos-lab` repositories specifically |
 
@@ -36,6 +36,8 @@ was refused), `features-ledger-names-its-artefact` (the regression ledger with t
 The controls that keep enforcement honest — these are the ones that fail quietly:
 `wired-artifact` (a success check must consume evidence nothing else can forge),
 `guarantee-needs-a-reader` (a prose safety claim names what enforces it, or goes),
+`verdict-survives-the-channel` (the check was right and its answer was lost on the way
+to the reader — a pipeline reports its last stage, a filter crops the verdict),
 `reconcile-wiring-at-start` (a correctly-wired control can go dark and say nothing),
 `no-stale-push-over-fresh` (a mirror script must know which side is authoritative),
 `detector-excludes-own-definitions` (a self-matching check is always red, so it gets
