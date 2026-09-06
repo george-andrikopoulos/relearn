@@ -104,6 +104,8 @@ Do not duplicate domain rules into the project layer. Reference them. A rule sta
 
 ## A stated guarantee names what enforces it, or is deleted [R:guarantee-needs-a-reader]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-05.
+
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
 
 A claim of completeness must also state what the check actually consumed. Not "verified", but "verified by grepping `model:` across N agent files" -- so the gap between the scope of the check and the scope of the claim is visible on the face of the entry rather than reconstructable only by rerunning it. Most false completeness claims are not lies; they are a narrow check reported in wide language.
@@ -375,6 +377,8 @@ there is no evidence yet.
 
 ## Verify through the production path [R:verify-through-production-path]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-04.
+
 Before declaring anything verified, run at least one check through the exact channel production uses: same env var, same startup script, same config file, same transport. A test that exercises a stand-in is evidence the stand-in works, not that the feature does. Ask: which line of production wiring did my test NOT execute? That line is where it breaks.
 
 ## A success check consumes a sentinel nothing else can produce [R:wired-artifact]
@@ -584,6 +588,93 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
+## A role belongs to an edge endpoint, never to the thing at the end of it [R:role-is-an-edge-property]
+
+> Also enforced by test:the_repository_derives_no_queue_role_from_a_spin_mode (documents) + test:spin_mode_does_not_change_a_single_queue_end_letter (renderers).
+
+> Has recurred 2 time(s) since it was written; most recently 2026-08-30.
+
+Read a role from the DIRECTION of an edge, never from a property of a service.
+
+A service that writes into a queue is that queue's producer; one that reads from it is a
+consumer. Any service is routinely both at once -- a mid-chain hop consumes from its
+inbound queue and produces into its outbound one -- so a role assigned to a whole service
+is only ever correct for a pure source or a pure sink, and the diagram is wrong
+everywhere else.
+
+Spin mode says how a service WAITS, not what it does with a queue. What it legitimately
+says is how often an endpoint pays a socket crossing: a cost, not an identity. That is
+`SpinCost` and `HandoffSeverity` in `shared/src/model/handoff.rs`, and neither type can
+express a role, so neither can drift back into asserting one. Making the wrong statement
+unrepresentable is what ended this, after prose had failed three times.
+
+The recurrences are the lesson, not the original error. A derivation removed from the
+code lives on in the doc comments, and removed from the doc comments lives on in the
+domain-knowledge section -- each fix landing where the last reader complained rather than
+everywhere the claim is made. When a correction is to a *concept*, grep the whole
+repository for the claim before calling it fixed, and pin it with a test that reads the
+concept rather than the surface: `spin_mode_does_not_change_a_single_queue_end_letter`
+would have failed on day one.
+
+## Seed data reaches only the installations that did not exist yet [R:seeded-data-needs-a-migration]
+
+> Also enforced by test:the_catalogue_has_not_grown_without_a_migration_to_carry_it.
+
+Adding a row to the built-in catalogue under `shared/src/model/ipc/catalog/` is **not**
+a code change on its own. It needs a new version function in `server/src/db/migrations.rs`
+that calls `seed_builtin_library`, and a bump of `SCHEMA_VERSION`, in the same change.
+Do not merely update the count -- add the version first.
+
+The reason it is easy to miss is that every test agrees with you. `test_db()` builds its
+schema by running `migrate()` from v0, so a test database is always a *fresh install* and
+the upgrade path has no test unless one is written deliberately. Pin the upgrade, not
+just the outcome: `v9_carries_the_chronicle_event_loop_row_into_an_existing_database` is
+the shape -- open a database at the previous version, migrate it, and assert the row
+arrived.
+
+Seed on a version bump, never on every open. Seeding on open would resurrect every row a
+user deleted, on every restart, and deletion would stop meaning anything -- which is why
+`ipc_library_deleted` exists and why the seeder's insert carries `WHERE NOT EXISTS`
+against it. A migration must respect a deletion; `restore-builtins` is the route that
+exists to undo one, and it clears the tombstones first.
+
+Failure-mode check: **which databases does this change actually reach?** If the answer is
+"the ones created after it ships", the migration is missing and the suite will not tell
+you.
+
+`SEEDED_CATALOGUE_ROWS` fails the moment the row count moves without a version to carry
+it, so the omission cannot ship quietly. That check exists because the prose version of
+this rule did not hold.
+
+## A character the UI draws must have a glyph in the faces the app actually loads [R:verify-the-glyph-exists]
+
+> Also enforced by test:client/src/app/font_tests.rs + gate:verify.sh emoji_ban.
+
+Ask the font stack, not the document. A character that renders in an editor, a terminal
+or a markdown preview proves nothing about the four faces egui loads at runtime, and the
+failure is silent -- an empty box, not an error.
+
+Prose cannot hold this, and this repository has the proof: the rule existed, was read,
+and prescribed a codepoint that produced the exact defect it forbade. When the
+instruction itself is the defect, re-reading it does not help, which is the argument for
+pushing a rule down a layer rather than restating it more firmly.
+
+Two controls now hold it, and they cover different halves:
+
+* `client/src/app/font_tests.rs` asks the REAL `FontDefinitions::default()` -- the very
+  stack the app builds -- whether each non-ASCII character the UI draws has a glyph, in
+  the proportional and monospace families both. This is the positive half: what the table
+  in CLAUDE.md claims is now asserted against the thing it claims about.
+* `scripts/verify.sh` `emoji_ban()` blocks two whole codepoint blocks outright in
+  non-comment lines under `client/src` -- astral emoji (U+1F000-U+1FAFF) and fullwidth
+  forms (U+FF00-U+FFEF). The BLOCK is banned rather than the individual codepoint,
+  because every member of it is equally uncovered and banning one at a time is how the
+  second one gets in.
+
+Failure-mode check, before any non-ASCII character reaches a widget: **which of the four
+loaded faces has this glyph, and what asserted that?** If the answer is that it looked
+fine where it was typed, nothing has been verified.
+
 ## A generator never overwrites content it did not generate [R:generate-guards-unversioned]
 
 A generator that writes into a directory shared with hand-authored files must never overwrite a file it did not itself generate. Stamp every generated file with a marker the generator can recognise on the next run, refuse to overwrite any target lacking it, and make the check all-or-nothing: abort the whole write before touching disk if any target is unversioned, rather than leave a half-generated tree. A dropped rule is a lost correction; a clobbered human file is a lost correction the tool itself destroyed.
@@ -600,4 +691,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=12efc556e5fcb444b385b0a9706ddb2f3cca56d8ce1ead422c2ce6f615749e3c rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=caa9a05e62a389c11004cf27eab0f79f7086d93f0c6a0bd1b2f1ee53c9fb7e11 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

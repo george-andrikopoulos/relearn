@@ -1,0 +1,36 @@
+---
+description: A character the UI draws must have a glyph in the faces the app actually loads (Choosing a character for a user interface from how it renders in the document where it was written, rather than from the font stack the application loads at runtime -- so it draws as an empty box. The instruction file that prescribes the substitute is itself unverified, and is believed because it is written down)
+globs: 
+alwaysApply: true
+---
+
+# A character the UI draws must have a glyph in the faces the app actually loads [R:verify-the-glyph-exists]
+
+> Also enforced by test:client/src/app/font_tests.rs + gate:verify.sh emoji_ban.
+
+Ask the font stack, not the document. A character that renders in an editor, a terminal
+or a markdown preview proves nothing about the four faces egui loads at runtime, and the
+failure is silent -- an empty box, not an error.
+
+Prose cannot hold this, and this repository has the proof: the rule existed, was read,
+and prescribed a codepoint that produced the exact defect it forbade. When the
+instruction itself is the defect, re-reading it does not help, which is the argument for
+pushing a rule down a layer rather than restating it more firmly.
+
+Two controls now hold it, and they cover different halves:
+
+* `client/src/app/font_tests.rs` asks the REAL `FontDefinitions::default()` -- the very
+  stack the app builds -- whether each non-ASCII character the UI draws has a glyph, in
+  the proportional and monospace families both. This is the positive half: what the table
+  in CLAUDE.md claims is now asserted against the thing it claims about.
+* `scripts/verify.sh` `emoji_ban()` blocks two whole codepoint blocks outright in
+  non-comment lines under `client/src` -- astral emoji (U+1F000-U+1FAFF) and fullwidth
+  forms (U+FF00-U+FFEF). The BLOCK is banned rather than the individual codepoint,
+  because every member of it is equally uncovered and banning one at a time is how the
+  second one gets in.
+
+Failure-mode check, before any non-ASCII character reaches a widget: **which of the four
+loaded faces has this glyph, and what asserted that?** If the answer is that it looked
+fine where it was typed, nothing has been verified.
+
+<!-- relearn:generated v0.1.0 sha256=e74a39306e3b25542fdd145ddef8a0475a9709a484519f25866ec5617feb6032 rules=R:verify-the-glyph-exists -- DO NOT EDIT; regenerate with `relearn build` -->

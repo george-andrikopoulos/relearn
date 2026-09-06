@@ -7,6 +7,10 @@ created = "2026-08-16"
 origin = "mined"
 status = { kind = "active" }
 incident = "Four instances in two days across three languages, one cause. A bash `destructive` parameter bound and never read, while the file header promised 'every deletion is confirmed even under --yes'. A db.rs comment justifying a nil-UUID sentinel with 'validation flags dangling references' when no such check existed. A ledger entry reading 'Inventory confirmed: no agent remains on a cost-chosen cheaper tier' when the sweep had consumed agent model: fields and never read rules prose -- leaving a price-tier recommendation live in every session for four weeks. And a restore chain that put its verifier inside the && , so a verifier failure fired the || branch and announced 'REFUSED -- settings.json untouched' *after* the file had already been replaced, one hour after this rule was installed. Ported into this library 2026-08-25."
+
+[[recurrence]]
+date = "2026-09-05"
+incident = "Design-Architecture-Tool M33. An employer-owned product name was found in the working tree and in 77 of the repository's 106 commit trees. M17-A6 had recorded an all-clear for exactly that question six weeks earlier -- a one-time sweep plus a sentence saying it was clean -- and the sentence was believed for six weeks precisely because it was written down, which is what stopped anyone looking again. Nothing in the system read the state the claim asserted. The sweep did not produce a control and the sentence was not one; the control is `the_repository_contains_no_banned_name`, which reads a committed digest list on every push and arrived only after the incident."
 +++
 
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.

@@ -232,6 +232,43 @@ its own tree, and the quotation travelled without it.
       above for four Rust rules, and `lint` is structurally unable to see it. Not
       resolved here: gutting George's always-loaded layer is his call, not a tidy-up.
 
+## Phase H — the design-architecture-tool home (2026-09-06)
+
+The corpus's third project home, and the first mined from a repository that had already
+written every one of these incidents down in its own `CLAUDE.md` and gone on to violate
+them anyway. Nothing was authored to fill the home; each rule points at prose that
+existed and failed. Corpus 48 -> 51.
+
+- [x] `[R:role-is-an-edge-property]` — producer/consumer derived from spin mode.
+      **The corpus's first rule to carry two recurrences**, and the first time the
+      Phase F machinery changed an outcome rather than reporting one: the graduation was
+      drafted against the renderer test that was already in place, and `lint` raised
+      `recurrence after graduation` — correctly, because that test reads a renderer and
+      the 2026-08-30 recurrence was a sentence in a markdown file. The control was built
+      (`shared/src/doc_claims_tests.rs`, 11 tests, probed both ways) and the graduation
+      re-dated to the day it became true.
+- [x] `[R:seeded-data-needs-a-migration]` — seed data reaches only fresh installs, and
+      the suite agrees with you because a test database is always a fresh install.
+- [x] `[R:verify-the-glyph-exists]` — a codepoint chosen from the document it was typed
+      in rather than from the four faces the app loads. The instruction file prescribing
+      the substitute was itself the defect.
+- [x] Two of that repository's incidents recorded as **recurrences of global rules**
+      instead of new project rules — M34's per-connection `PRAGMA foreign_keys` against
+      `[R:verify-through-production-path]`, M33's six-week-old all-clear against
+      `[R:guarantee-needs-a-reader]`. Both now report as unheld recurrences, which is
+      the true state: the instances are held, the classes are not.
+- [x] Emitted into that repository as `.claude/rules/project-design-architecture-tool.md`
+      and pulled in by its `CLAUDE.md`.
+
+### Open
+
+- [ ] **The emitted layer in that repository is verified only from here.** Its footer
+      carries a body `sha256`, so a hand-edit is detectable — by `relearn verify`, which
+      needs this binary and this rules directory. A clone of that repository has neither,
+      so its own gate cannot check the file it loads every session. Its FEATURES.md
+      records the row as configuration-dependent and its TODO.md carries the buildable
+      alternative: a check on that side that recomputes the footer hash itself.
+
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.
 - [ ] First-time-right capture on AI-assisted work

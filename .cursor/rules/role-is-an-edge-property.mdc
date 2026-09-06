@@ -1,0 +1,35 @@
+---
+description: A role belongs to an edge endpoint, never to the thing at the end of it (Deriving a relationship role from an attribute of one participant -- producer or consumer from how a service waits -- so every renderer asserts a mechanism the design does not contain. It is sound only for a pure source or a pure sink, and it survives a correction in whatever document was not part of the fix)
+globs: 
+alwaysApply: true
+---
+
+# A role belongs to an edge endpoint, never to the thing at the end of it [R:role-is-an-edge-property]
+
+> Also enforced by test:the_repository_derives_no_queue_role_from_a_spin_mode (documents) + test:spin_mode_does_not_change_a_single_queue_end_letter (renderers).
+
+> Has recurred 2 time(s) since it was written; most recently 2026-08-30.
+
+Read a role from the DIRECTION of an edge, never from a property of a service.
+
+A service that writes into a queue is that queue's producer; one that reads from it is a
+consumer. Any service is routinely both at once -- a mid-chain hop consumes from its
+inbound queue and produces into its outbound one -- so a role assigned to a whole service
+is only ever correct for a pure source or a pure sink, and the diagram is wrong
+everywhere else.
+
+Spin mode says how a service WAITS, not what it does with a queue. What it legitimately
+says is how often an endpoint pays a socket crossing: a cost, not an identity. That is
+`SpinCost` and `HandoffSeverity` in `shared/src/model/handoff.rs`, and neither type can
+express a role, so neither can drift back into asserting one. Making the wrong statement
+unrepresentable is what ended this, after prose had failed three times.
+
+The recurrences are the lesson, not the original error. A derivation removed from the
+code lives on in the doc comments, and removed from the doc comments lives on in the
+domain-knowledge section -- each fix landing where the last reader complained rather than
+everywhere the claim is made. When a correction is to a *concept*, grep the whole
+repository for the claim before calling it fixed, and pin it with a test that reads the
+concept rather than the surface: `spin_mode_does_not_change_a_single_queue_end_letter`
+would have failed on day one.
+
+<!-- relearn:generated v0.1.0 sha256=a06115cf0cd685c14ffa290926374b3dc53d124605b9a2f59791e481b7191b4f rules=R:role-is-an-edge-property -- DO NOT EDIT; regenerate with `relearn build` -->
