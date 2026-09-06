@@ -80,6 +80,7 @@ The `claude-rules` target emits **`.claude/rules/<home-slug>.md`**, one file per
 ## Where the rest is
 
 - `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and CI runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
+- `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; CI verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.
 - `FEATURES.md` — the regression ledger; every feature names the artifact that enforces it.
 - `TODO.md` — open work, including every `NOTHING YET — exposed` gap from FEATURES.md.

@@ -1,9 +1,13 @@
 //! `emit::claude` — one Claude skill **per home layer** (decision 2026-08-13),
 //! not one per rule. Each home produces `skills/<home-slug>/SKILL.md` with YAML
-//! front-matter (`name`, `description`); the description aggregates the home's
-//! rule titles and error classes so the skill's trigger coverage matches the
-//! rules it carries. Per-home keeps the always-resident skill metadata bounded
-//! (P6), rather than growing it `O(rules)`.
+//! front-matter (`name`, `description`); the description is a *trigger* — a lead
+//! sentence saying when the skill applies, then as many of the home's rule
+//! **titles** as fit [`DESCRIPTION_MAX_CHARS`], with the remainder counted. It
+//! is bounded by construction ([`SkillDescription`]) because `description` is
+//! the only string Claude reads when deciding whether to load the skill, and an
+//! over-long one is rejected at install time. Per-home keeps the
+//! always-resident skill metadata bounded (P6), rather than growing it
+//! `O(rules)`.
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
@@ -56,15 +60,117 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
     files
 }
 
+/// The most characters Claude's skill front-matter accepts in `description`.
+///
+/// The cap is the target's, so it lives with the target's emitter. It is a hard
+/// limit, not a style preference: an over-long description is rejected when the
+/// skill is installed, and `description` is the only string the model reads when
+/// deciding whether to load the skill, so it is the trigger and nothing else.
+pub const DESCRIPTION_MAX_CHARS: usize = 1024;
+
+/// A Claude skill `description`, **within [`DESCRIPTION_MAX_CHARS`] by
+/// construction**.
+///
+/// The private field and the fallible-free constructor are the point: the only
+/// way to obtain one is [`SkillDescription::build`], which truncates, so an
+/// over-long description is not a bug to catch but a value that cannot be made.
+///
+/// **Why this type exists** (2026-09-06). The description was assembled inline
+/// as `"Rules for {label}. Covers: {title} ({error_class}); ..."` over every
+/// rule in the home. At 46 rules that produced **6924** characters for `global`
+/// and **4322** for `domain-rust` — nearly seven times the cap. Both skills were
+/// therefore uninstallable, and had they installed, the field that decides
+/// whether the skill loads was an unreadable wall of error-class prose. Nothing
+/// caught it because nothing measured it: the emitter's own tests build
+/// two-rule libraries, where the inline format is comfortably short and stays
+/// short forever. `[R:prefer-by-construction]`
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SkillDescription(String);
+
+impl SkillDescription {
+    /// Build a description from a lead sentence and the home's rule titles,
+    /// keeping as many titles as fit and naming the count of those dropped.
+    ///
+    /// **Titles, not error classes.** The error class states the *failure* in a
+    /// subordinate clause written for a reviewer ("Encoding a distinct state as
+    /// a magic value of an existing type ... that downstream logic must
+    /// remember to special-case"); the title states the *practice* in a few
+    /// words ("No sentinel values: absent states are enum variants"). A matcher
+    /// reads the description looking for the subject at hand, so the title is
+    /// the useful token and the error class is ballast — it is also what made
+    /// the field seven times too long.
+    ///
+    /// Truncation is deterministic (titles arrive in the caller's tag order), so
+    /// re-emitting an unchanged library reproduces the same bytes.
+    fn build(lead: &str, titles: &[&str]) -> Self {
+        const JOIN: &str = "; ";
+        let mut out = format!("{lead} Covers: ");
+        let mut kept = 0usize;
+        for title in titles {
+            // Reserve room for the "+N more" tail before committing a title, so
+            // the tail can always be appended afterwards without overflowing.
+            let separator = if kept == 0 { "" } else { JOIN };
+            let tail = Self::more_tail(titles.len() - kept - 1);
+            let projected =
+                out.chars().count() + separator.chars().count() + title.chars().count() + tail;
+            if projected > DESCRIPTION_MAX_CHARS {
+                break;
+            }
+            out.push_str(separator);
+            out.push_str(title);
+            kept += 1;
+        }
+        let dropped = titles.len() - kept;
+        if dropped > 0 {
+            out.push_str(&format!("{JOIN}+{dropped} more"));
+        }
+        debug_assert!(out.chars().count() <= DESCRIPTION_MAX_CHARS);
+        SkillDescription(out)
+    }
+
+    /// The character cost of the `"; +N more"` tail for `n` dropped titles.
+    fn more_tail(n: usize) -> usize {
+        if n == 0 {
+            0
+        } else {
+            format!("; +{n} more").chars().count()
+        }
+    }
+
+    /// The description text.
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// The lead sentence for a home — *when* the skill applies, which is what a
+/// matcher needs first. Derived from [`Home`], so the emitter still reads
+/// nothing the rule does not carry (the same derivation `LoadSemantics` makes
+/// for Cursor's globs).
+fn description_lead(home: &Home) -> String {
+    match home {
+        Home::Global => {
+            "Engineering discipline that applies to every project and language.".to_owned()
+        }
+        Home::Domain { name } => {
+            format!("Engineering discipline for working in {}.", name.as_str())
+        }
+        Home::Project { path } => {
+            format!(
+                "Engineering discipline for the {} repository.",
+                path.as_str()
+            )
+        }
+    }
+}
+
 /// Render one skill file: YAML front-matter then a markdown section per rule.
 fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
     let label = home_label(home);
-    let covers = rules
-        .iter()
-        .map(|r| format!("{} ({})", r.title().as_str(), r.error_class().as_str()))
-        .collect::<Vec<_>>()
-        .join("; ");
-    let description = format!("Rules for {label}. Covers: {covers}");
+    let titles: Vec<&str> = rules.iter().map(|r| r.title().as_str()).collect();
+    let description = SkillDescription::build(&description_lead(home), &titles)
+        .as_str()
+        .to_owned();
 
     let mut out = String::new();
     out.push_str("---\n");
@@ -104,6 +210,57 @@ fn home_label(home: &Home) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    // The bound is the whole point of SkillDescription, so it is pinned at the
+    // three places it can break: comfortably under, exactly at, and far over.
+    #[test]
+    fn a_short_description_keeps_every_title_and_names_no_remainder() {
+        let d = SkillDescription::build("Lead.", &["First title", "Second title"]);
+        assert_eq!(d.as_str(), "Lead. Covers: First title; Second title");
+        assert!(!d.as_str().contains("more"));
+    }
+
+    #[test]
+    fn an_over_long_list_is_truncated_within_the_cap_and_counts_the_remainder() {
+        // 200 titles of ~30 chars each is ~6000 characters of raw material,
+        // the scale the real corpus reached.
+        let owned: Vec<String> = (0..200)
+            .map(|i| format!("A rule title number {i:03}"))
+            .collect();
+        let titles: Vec<&str> = owned.iter().map(String::as_str).collect();
+        let d = SkillDescription::build("Lead.", &titles);
+        let chars = d.as_str().chars().count();
+        assert!(
+            chars <= DESCRIPTION_MAX_CHARS,
+            "{chars} chars exceeds the cap"
+        );
+        assert!(
+            d.as_str().contains(" more"),
+            "the dropped count must be named: {}",
+            d.as_str()
+        );
+        assert!(
+            d.as_str()
+                .starts_with("Lead. Covers: A rule title number 000")
+        );
+    }
+
+    // A title so long that not even the first one fits must still produce a
+    // description within the cap rather than overflowing on the first push.
+    #[test]
+    fn a_single_oversized_title_does_not_overflow_the_cap() {
+        let huge = "x".repeat(DESCRIPTION_MAX_CHARS * 2);
+        let d = SkillDescription::build("Lead.", &[huge.as_str(), "second"]);
+        assert!(d.as_str().chars().count() <= DESCRIPTION_MAX_CHARS);
+        assert!(d.as_str().contains("+2 more"), "{}", d.as_str());
+    }
+
+    #[test]
+    fn the_lead_sentence_says_when_the_skill_applies() {
+        assert!(description_lead(&Home::global()).contains("every project"));
+        let rust = Home::domain("rust").expect("non-empty domain");
+        assert!(description_lead(&rust).contains("rust"));
+    }
     use super::*;
     use crate::library::Library;
     use crate::rule::{Body, Date, ErrorClass, Home, Incident, RuleTag, Status, Title};
@@ -200,9 +357,40 @@ mod tests {
             .iter()
             .find(|f| f.path().as_str() == "skills/domain-rust/SKILL.md")
             .expect("the rust skill is present");
-        let c = rust.contents();
-        assert!(c.contains("Rust one (rc1)"));
-        assert!(c.contains("Rust two (rc2)"));
+        let description = description_of(rust.contents());
+        assert!(description.contains("Rust one"), "{description}");
+        assert!(description.contains("Rust two"), "{description}");
+        // Error classes are deliberately absent: they are reviewer-facing prose
+        // about the *failure*, they say nothing a matcher can trigger on, and
+        // including them is what pushed the real corpus past the cap.
+        assert!(!description.contains("rc1"), "{description}");
+        assert!(!description.contains("rc2"), "{description}");
+    }
+
+    /// The description's first sentence says *when* the skill applies, before
+    /// any rule title — a matcher reads the opening words first.
+    #[test]
+    fn description_leads_with_when_the_skill_applies() {
+        let files = emit(&mixed_library());
+        let rust = files
+            .iter()
+            .find(|f| f.path().as_str() == "skills/domain-rust/SKILL.md")
+            .expect("the rust skill is present");
+        assert!(
+            description_of(rust.contents()).starts_with("Engineering discipline for working in "),
+            "{}",
+            description_of(rust.contents())
+        );
+    }
+
+    /// The `description:` value from a rendered skill, unquoted.
+    fn description_of(contents: &str) -> String {
+        contents
+            .lines()
+            .find_map(|l| l.strip_prefix("description: "))
+            .expect("a rendered skill has a description")
+            .trim_matches('"')
+            .to_owned()
     }
 
     #[test]
@@ -217,7 +405,9 @@ mod tests {
         let files = emit(&lib);
         let c = files[0].contents();
         assert!(
-            c.contains("description: \"Rules for global. Covers: Title: with colon (err)\""),
+            c.contains(
+                "description: \"Engineering discipline that applies to every project and language. Covers: Title: with colon\""
+            ),
             "the description value is double-quoted, so an inner colon is safe: {c}"
         );
     }

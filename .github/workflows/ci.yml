@@ -63,3 +63,12 @@ jobs:
       # wrong. The bare default remains `--deny warning` for local use.
       - name: lint (rule library; errors fail, warnings reported)
         run: cargo run --quiet -- lint --deny error
+      # `claude-pack/` is a second emission of the claude (Skills) target,
+      # committed so the folder can be downloaded and installed into another
+      # Claude Code project or uploaded to claude.ai whole. Like `copilot-pack/`
+      # it lives outside every relearn-owned path, so the bare `verify` above
+      # cannot see it, and without this step a rule change would rebuild the root
+      # artefacts and leave the distributed copy silently stale
+      # (`[R:doc-currency]`). Flags are unavoidable: they name the second root.
+      - name: verify (claude-pack in sync with rules)
+        run: cargo run --quiet -- verify --targets claude --out claude-pack

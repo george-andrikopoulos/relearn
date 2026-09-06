@@ -71,3 +71,38 @@ fn every_committed_rule_parses() {
         );
     }
 }
+
+/// Claude's skill front-matter caps `description`. An over-long one is not a
+/// cosmetic problem: the skill is rejected on upload to claude.ai, and
+/// `description` is the string the model reads to decide whether to load the
+/// skill at all, so a 7000-character inventory is both invalid and useless as a
+/// matcher.
+///
+/// Asserted over the **real** corpus rather than a generated one, because the
+/// bound only binds at the size this library actually reaches: a property test
+/// over two-rule libraries would pass forever while `skills/global/SKILL.md`
+/// shipped seven times the cap, which is exactly what happened until
+/// 2026-09-06.
+#[test]
+fn every_emitted_skill_description_fits_the_frontmatter_cap() {
+    let lib = relearn::fsio::load_rules(&corpus_dir())
+        .expect("the corpus loads")
+        .validate()
+        .expect("the corpus validates");
+    let files = relearn::emit::claude::emit(&lib);
+    assert!(!files.is_empty(), "the corpus must emit at least one skill");
+    for file in &files {
+        let description = file
+            .contents()
+            .lines()
+            .find_map(|l| l.strip_prefix("description: "))
+            .unwrap_or_else(|| panic!("{} has no description", file.path().as_str()));
+        let chars = description.chars().count();
+        assert!(
+            chars <= relearn::emit::claude::DESCRIPTION_MAX_CHARS,
+            "{} has a {chars}-character description, over the {}-character cap",
+            file.path().as_str(),
+            relearn::emit::claude::DESCRIPTION_MAX_CHARS
+        );
+    }
+}
