@@ -50,3 +50,16 @@ jobs:
       # here: they are what addresses the second output root.
       - name: verify (copilot-pack in sync with rules)
         run: cargo run --quiet -- verify --targets copilot --out copilot-pack
+      # The advisory linter. Deliberately `--deny error`, not bare: `lint`'s own
+      # module doc says findings are "reported, never acted on — input to a human
+      # cut-list decision", and `UnheldRecurrence` is the first finding that is
+      # legitimately long-lived, because clearing it means promoting a rule to a
+      # stronger control, which may be work in another repository entirely.
+      # Blocking on it would leave `main` permanently red, and an always-red
+      # check is a muted check (`[R:xplat-fixtures]`). Every finding is still
+      # printed in the log at any threshold — this makes warnings non-fatal, it
+      # never hides them. An `Error` finding (two rules colliding on one output
+      # file) still fails the build, because that one does make the emitted tree
+      # wrong. The bare default remains `--deny warning` for local use.
+      - name: lint (rule library; errors fail, warnings reported)
+        run: cargo run --quiet -- lint --deny error

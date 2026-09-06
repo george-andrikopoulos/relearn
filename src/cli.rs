@@ -86,6 +86,10 @@ enum Command {
         /// Directory of `*.md` rule files.
         #[arg(long, default_value = "rules")]
         rules: PathBuf,
+        /// Lowest severity that makes the run fail. Findings below it are still
+        /// printed — they are made non-fatal, never hidden.
+        #[arg(long, value_enum, default_value_t = DenyLevel::Warning)]
+        deny: DenyLevel,
     },
     /// Verify that the generated files under `--out` match what `build` would
     /// write from the current rules. Reads only, writes nothing; exits non-zero
@@ -128,6 +132,42 @@ enum Target {
     Agents,
     /// A project-layer `CLAUDE.md` (project-home rules only).
     ClaudeRules,
+}
+
+/// The lowest [`lint::Severity`] that makes `relearn lint` exit non-zero.
+///
+/// A CLI-local enum rather than a `ValueEnum` derive on `lint::Severity`: the
+/// domain type must not learn about `clap`, and the CLI's vocabulary is free to
+/// differ from the domain's (there is deliberately no `--deny info`, because
+/// `Info` findings are advisory by definition and a level nobody should select
+/// is a level that should not exist).
+///
+/// **Why this flag exists** (2026-09-06). Every finding until now was a
+/// structural defect fixable by editing the library, so "any finding fails the
+/// run" was the whole policy. `UnheldRecurrence` is the first that is
+/// legitimately long-lived: it says a rule needs promoting to a stronger
+/// control, and building that control may be work in another repository
+/// entirely. Blocking CI on it produces a permanently-red gate, and an
+/// always-red check is a muted check (`[R:xplat-fixtures]`). The default is
+/// unchanged, so no existing invocation became permissive by accident.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum DenyLevel {
+    /// Fail on any `Warning` or `Error` finding. The default, and the
+    /// behaviour of every `relearn lint` invocation before this flag existed.
+    Warning,
+    /// Fail only on `Error` — a finding that makes the *emitted tree* wrong.
+    /// Warnings are printed and do not fail the run.
+    Error,
+}
+
+impl DenyLevel {
+    /// The domain severity this level denies from.
+    fn threshold(self) -> lint::Severity {
+        match self {
+            DenyLevel::Warning => lint::Severity::Warning,
+            DenyLevel::Error => lint::Severity::Error,
+        }
+    }
 }
 
 /// Anything the CLI can fail with. Each variant is transparent over the typed
@@ -200,7 +240,7 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             list(&rules, home.as_deref())?;
             Ok(ExitCode::SUCCESS)
         }
-        Command::Lint { rules } => lint_rules(&rules),
+        Command::Lint { rules, deny } => lint_rules(&rules, deny),
         Command::Verify {
             rules,
             out,
@@ -323,23 +363,34 @@ fn list(rules: &Path, home: Option<&str>) -> Result<(), CliError> {
 /// `lint`: load, validate, and report advisory findings. Writes nothing; exits
 /// non-zero if any finding is reported so CI can catch a regression, but never
 /// treats a finding as an error (findings are input to a human decision).
-fn lint_rules(rules: &Path) -> Result<ExitCode, CliError> {
+fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
     let validated = fsio::load_rules(rules)?.validate()?;
     let findings = lint::lint(&validated);
     if findings.is_empty() {
         println!("ok: no lint findings");
         return Ok(ExitCode::SUCCESS);
     }
+    // Every finding is printed, whatever the threshold. `--deny` decides what
+    // is *fatal*, never what is visible: a finding suppressed from the output
+    // would be a check whose verdict never reaches the reader, which is the
+    // failure `[R:verdict-survives-the-channel]` names.
     for finding in &findings {
         println!("{}: {finding}", finding.severity().label());
     }
-    // Info-level findings inform but do not fail the run; Warning and Error do,
-    // so CI catches actionable regressions without tripping on advisory notes.
+    // Findings below the threshold inform but do not fail the run. The default
+    // threshold is `Warning`, so the out-of-the-box behaviour is unchanged.
     let actionable = findings
         .iter()
-        .filter(|f| f.severity() >= lint::Severity::Warning)
+        .filter(|f| f.severity() >= deny.threshold())
         .count();
-    println!("{} finding(s), {actionable} actionable", findings.len());
+    // The threshold is named in the summary so a reader of a green log can see
+    // *why* a printed warning did not fail the run, rather than having to know
+    // the flag's default to interpret the outcome.
+    println!(
+        "{} finding(s), {actionable} fatal at --deny {}",
+        findings.len(),
+        deny.threshold().label()
+    );
     if actionable > 0 {
         Ok(ExitCode::FAILURE)
     } else {

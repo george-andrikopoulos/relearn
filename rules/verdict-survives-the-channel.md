@@ -6,6 +6,10 @@ home = { kind = "global" }
 created = "2026-09-03"
 status = { kind = "active" }
 incident = "Design-Architecture-Tool, 2026-09-02/03: roughly fifty runs of the project's single verification gate in one session, and not one of them unfiltered -- every invocation was `sh scripts/verify.sh 2>&1 | tail -N` or piped into grep. One run printed '[verify] BLOCKED -- failing gates:' followed by five named gates and came back reported as '[exited with code 0]', because the pipeline's status was tail's; `tail -3` had also cropped the BLOCKED header off the top, leaving three gate names that read like ordinary progress. Twice the shape was `verify.sh 2>&1 | tail -3 && git add -A`, where the && tests the filter, so staging proceeded whatever the gate had said. The same session carried the mirror image: a perl substitution whose \\Q...\\E inside a single-quoted shell argument searched for literal backslashes, matched nothing, exited zero and reported success -- twice, costing two changelog entries. The pushed tree was never at risk, because the pre-push hook execs the gate unfiltered; the damage was work continuing on a tree the gate had already rejected."
+
+[[recurrence]]
+date = "2026-09-06"
+incident = "The rule was deployed in halves. The hook enforced the pipeline half and fired twice that day, while the ledger recorded the home as satisfied -- but the prose half, the edit that exits zero having matched nothing, had no loaded home and so reached nothing. The class then ran four more times in one session: multi-line perl patterns missing on a CRLF tree, a sed insert un-gating a #[cfg(test)] module twice, and two shell chains aborting on an empty grep so a documentation edit never landed. Every one was found later by a compiler or a gate, never at the point of the edit. A rule deployed in halves is enforced in halves, and the ledger will still say it is covered."
 +++
 
 Read a check's own verdict, never a status that merely travelled beside it.

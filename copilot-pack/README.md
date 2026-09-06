@@ -10,7 +10,7 @@ repository, done.
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        46 rules, 538 lines — the instruction file
+    └── copilot-instructions.md        46 rules, 540 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
