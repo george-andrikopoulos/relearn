@@ -6,6 +6,8 @@ alwaysApply: true
 
 # A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
 
+> Also enforced by hook:gate-verdict-intact (pipeline half) + hook:multiline-pattern-eol (edit half).
+
 > Has recurred 1 time(s) since it was written; most recently 2026-09-06.
 
 Read a check's own verdict, never a status that merely travelled beside it.
@@ -39,4 +41,4 @@ Failure-mode check: **what does this exit code actually measure?** If the answer
 the last stage of a pipeline, or names "the program ran" rather than "the work was done",
 there is no evidence yet.
 
-<!-- relearn:generated v0.1.0 sha256=72fb7e0b457eb12caf57632854821e1eba12f12360582ae94fdf3b56b77062de rules=R:verdict-survives-the-channel -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=25b640ecacf26f5a91fa518f0205ef88ad3057dd1f3f848402e13cb5a13b6266 rules=R:verdict-survives-the-channel -- DO NOT EDIT; regenerate with `relearn build` -->

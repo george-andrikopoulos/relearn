@@ -226,6 +226,42 @@ What: rules that nothing exercises (candidates for the attic cut-list).
 
 ---
 
+## Repository hygiene
+
+### A private name cannot be published in a quotation
+
+What: this repository stores other repositories' incidents **verbatim** — a rule's
+`incident` field, and TODO.md's narration of the same material — and it is public. A
+name that is private in the source repository is therefore one quotation away from being
+published, and the source's own detector cannot help, because a detector scans its own
+tree. `scripts/no-banned-names.sh` walks this tree and reports **location and count**,
+never the term, and exits **2 — not 0 — when it has no list**, so a disarmed gate is
+distinguishable from a clean one.
+
+**Enforced by:** `.githooks/pre-push` → `scripts/no-banned-names.sh`, invoked by
+`git push` once a clone has run `git config core.hooksPath .githooks`. Probed in all four
+directions on 2026-09-06 before being trusted: clean tree → 0; a probe list banning a
+word this repository is full of → 1, with counts and paths and a `<file name> in <dir>/`
+line where the match was the filename itself; no list → 2; a list with a salt and no
+terms → 2.
+
+**CONFIGURATION-DEPENDENT, and recorded as such rather than claimed as a CI gate.** The
+term list is **not** committed here and cannot be. In the source repository (private) a
+committed list of salted digests is correct and means a fresh clone can never arrive
+disarmed. This repository is public, and one protected name normalises to four
+characters — about 1.7 million candidates against a published salt — so committing the
+list would disclose what it detects, which is `[R:detector-excludes-own-definitions]`
+pointing the other way. The list lives at `$BANNED_TERMS_FILE`, or
+`~/.claude/usage/banned-terms.sha256`. Consequently CI **cannot** run this gate and is
+not wired to it: a fork has no list, and failing every fork for a reason that is none of
+its business is worse than the gap. The residual exposure is that the gate is armed only
+where a maintainer installed the hook, and TODO.md carries it.
+
+**The rule it holds:** `[R:names-travel-with-the-quote]`, mined from this repository on
+2026-09-06 — an employer-owned product name found in `rules/repair-the-lying-artefact.md`
+and twice in `TODO.md`, present in all 52 commit trees and in TODO.md since the first
+commit. Redacted in the same change; the history rewrite is carried in TODO.md.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.

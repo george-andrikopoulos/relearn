@@ -1,0 +1,34 @@
+---
+description: Report the hit, never the match (A search for something whose whole problem is that it exists -- a secret, a credential, a banned name, someone's personal data -- printing the thing it found, in any field of its output: the matched text, a context line, an error message, or a path whose last component IS the name)
+globs: 
+alwaysApply: true
+---
+
+# Report the hit, never the match [R:report-the-hit-not-the-match]
+
+> Also enforced by hook:banned-name-in-output.
+
+When what you are searching for is a thing whose whole problem is that it exists, your
+search output is another copy of it. Report **location, count and length**; never the
+matched text, and never a field that can contain it.
+
+Run the check before the output leaves your hands: *for every field I am about to print
+-- path, parent directory, filename, context line, error message, commit summary -- can
+the thing I am hiding be inside it?* If you cannot answer for one of them, drop that
+field. A path whose last component IS the name defeats a redaction that prints the
+parent, and `find | xargs` prints the path whole.
+
+**This binds ad-hoc work exactly as it binds a committed detector, and that is the half
+that fails.** A one-off shell pipeline, a `grep -o`, a loop written to answer one
+question, and the sentence you type afterwards are all publication surfaces -- and so is
+the transcript. A carefully built scanner in the same repository does not cover you; it
+covers its own output.
+
+Sibling, deliberately not merged: `[R:detector-excludes-own-definitions]` is the
+FALSE-POSITIVE half of self-reference -- a check that matches its own text is always red,
+gets muted, and leaves the system looking guarded. This is the DISCLOSURE half. Same
+shape, opposite failure, different fixes: strip comments there, never emit the match
+here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
+printing it, but writing it down somewhere with a wider audience.
+
+<!-- relearn:generated v0.1.0 sha256=7df61568a4711768c5062f0b053ee6449fb279ca3a3e128a7be2d638b629a53f rules=R:report-the-hit-not-the-match -- DO NOT EDIT; regenerate with `relearn build` -->

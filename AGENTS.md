@@ -122,6 +122,40 @@ Before writing logic, design the types so invalid states cannot be constructed: 
 
 Do not pick a mechanism or model by reputation or sticker price. State what it actually costs to complete the task -- tokens consumed times price, including retries -- and choose on that measured cost. After choosing, run one failure-mode check: under what configuration does this cause the exact harm it was chosen to prevent? Then bound that configuration.
 
+## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
+
+Before an incident, a log line, a trace or a path leaves the repository that holds it,
+scan the destination with the source's own detector -- not the destination's.
+
+A detector for private identifiers is scoped to a tree. It is a list of names somebody
+enumerated, matched against the files of one repository, and it is correct exactly there.
+Every quotation moves content across that boundary and none of it moves the check: the
+paper, the public rule corpus, the issue comment and the conference slide each inherit
+the source's *names* and none of its *gates*. The source stays green, because nothing
+about it changed.
+
+The trap is that writing the incident down is the discipline working. A rule with no
+provenance cannot be audited, so the incident narrative is mandatory -- and a narrative
+is verbatim by nature, because the specifics are what make it interpretable. The very
+field that makes a correction durable is the one that carries the name out.
+
+So the check belongs at the boundary the content crosses, which is the publication, not
+the repository. Where the destination is public, the term list usually cannot be
+committed alongside it: a salted digest of a short name is a few million candidates and
+publishing the list discloses what it detects. Keep the matcher in the public artefact
+and the list outside it, and make the absence of the list an ERROR rather than a pass, or
+the gate arrives disarmed and reports the same green as a clean tree
+`[R:guarantee-needs-a-reader]`.
+
+Failure-mode check, before anything private is quoted anywhere: **which repository's
+detector covers the file I am about to write into?** If the answer is the repository the
+quotation came FROM, nothing covers the destination.
+
+This is the sibling of `[R:report-the-hit-not-the-match]`, which governs the moment a
+search prints what it found. That one is about output; this one is about content coming
+to rest in a second artefact, where it is committed, pushed, indexed and mirrored. Same
+identifier, different surface, and the fixes do not substitute for one another.
+
 ## No sentinel values: absent states are enum variants [R:no-sentinel-values]
 
 If "absent / stopped / unknown" is a real state, make it an enum variant, not a magic value of an existing type. Downstream code will forget to special-case a sentinel; it cannot forget a variant the compiler forces it to handle. If a range check reads a sentinel as a real quantity, it fails in the direction of the sentinel, not of safety.
@@ -239,6 +273,33 @@ exercise the real channel; this one says the real channel must also tell the tru
 what it produced — verifying through a production path that reports a path it never
 resolved proves nothing.
 
+## Report the hit, never the match [R:report-the-hit-not-the-match]
+
+> Also enforced by hook:banned-name-in-output.
+
+When what you are searching for is a thing whose whole problem is that it exists, your
+search output is another copy of it. Report **location, count and length**; never the
+matched text, and never a field that can contain it.
+
+Run the check before the output leaves your hands: *for every field I am about to print
+-- path, parent directory, filename, context line, error message, commit summary -- can
+the thing I am hiding be inside it?* If you cannot answer for one of them, drop that
+field. A path whose last component IS the name defeats a redaction that prints the
+parent, and `find | xargs` prints the path whole.
+
+**This binds ad-hoc work exactly as it binds a committed detector, and that is the half
+that fails.** A one-off shell pipeline, a `grep -o`, a loop written to answer one
+question, and the sentence you type afterwards are all publication surfaces -- and so is
+the transcript. A carefully built scanner in the same repository does not cover you; it
+covers its own output.
+
+Sibling, deliberately not merged: `[R:detector-excludes-own-definitions]` is the
+FALSE-POSITIVE half of self-reference -- a check that matches its own text is always red,
+gets muted, and leaves the system looking guarded. This is the DISCLOSURE half. Same
+shape, opposite failure, different fixes: strip comments there, never emit the match
+here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
+printing it, but writing it down somewhere with a wider audience.
+
 ## After restructuring, verify references as a distinct pass [R:revision-integrity]
 
 Editing a structured artefact silently breaks references that the previous version made true. The edit raises no error, and rereading does not catch it: the author restores the deleted context from memory and reads a coherent passage that is not on the page.
@@ -276,6 +337,8 @@ before constructing something new. That one prevents rebuilding what exists; thi
 prevents *describing* what does not.
 
 ## A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
+
+> Also enforced by hook:gate-verdict-intact (pipeline half) + hook:multiline-pattern-eol (edit half).
 
 > Has recurred 1 time(s) since it was written; most recently 2026-09-06.
 
@@ -537,4 +600,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=3899df35c2f7806fe78f460581e7ad36c115d2ffb15c6abedf1a900d6b957202 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=12efc556e5fcb444b385b0a9706ddb2f3cca56d8ce1ead422c2ce6f615749e3c rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

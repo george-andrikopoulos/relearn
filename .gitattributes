@@ -24,3 +24,9 @@ claude-pack/**                  text eol=lf
 # exactly as the emitted tree would have hashed as `HandEdited`. Same rule, one
 # layer earlier. `[R:pin-eol-for-executable-text]`
 rules/**                        text eol=lf
+
+# Executable text: a CRLF checkout makes `#!/usr/bin/env bash` unrunnable, so
+# makes the interpreter unfindable, so the pre-push gate would arrive disabled
+# and fail OPEN. Pin the bytes at rest. `[R:pin-eol-for-executable-text]`
+scripts/**   text eol=lf
+.githooks/** text eol=lf

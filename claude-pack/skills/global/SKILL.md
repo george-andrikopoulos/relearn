@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: Check for a case-differing sibling before creating a file; The project charter is written to the recreation standard; The decisions log records the why and what was rejected, append-only; The definition of done runs on every change, and skips are declared; A detector excludes its own definitions from its scan; Update the doc in the same change as the thing it describes; Every feature-ledger entry names the artefact that enforces it, or declares itself exposed; A project carries five standing documents, and resists a sixth; A stated guarantee names what enforces it, or is deleted; Make illegal states unrepresentable; Measure cost-per-completed-task; never choose by price tier; No sentinel values: absent states are enum variants; Put the costed fork; never resolve a trade of the user's resources silently; Never push a stale copy over a fresher target; +10 more"
+description: "Engineering discipline that applies to every project and language. Covers: Check for a case-differing sibling before creating a file; The project charter is written to the recreation standard; The decisions log records the why and what was rejected, append-only; The definition of done runs on every change, and skips are declared; A detector excludes its own definitions from its scan; Update the doc in the same change as the thing it describes; Every feature-ledger entry names the artefact that enforces it, or declares itself exposed; A project carries five standing documents, and resists a sixth; A stated guarantee names what enforces it, or is deleted; Make illegal states unrepresentable; Measure cost-per-completed-task; never choose by price tier; Quoting an incident carries its names past the gate that was holding them; No sentinel values: absent states are enum variants; Put the costed fork; never resolve a trade of the user's resources silently; Never push a stale copy over a fresher target; +11 more"
 ---
 
 # global rules
@@ -127,6 +127,40 @@ Before writing logic, design the types so invalid states cannot be constructed: 
 
 Do not pick a mechanism or model by reputation or sticker price. State what it actually costs to complete the task -- tokens consumed times price, including retries -- and choose on that measured cost. After choosing, run one failure-mode check: under what configuration does this cause the exact harm it was chosen to prevent? Then bound that configuration.
 
+## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
+
+Before an incident, a log line, a trace or a path leaves the repository that holds it,
+scan the destination with the source's own detector -- not the destination's.
+
+A detector for private identifiers is scoped to a tree. It is a list of names somebody
+enumerated, matched against the files of one repository, and it is correct exactly there.
+Every quotation moves content across that boundary and none of it moves the check: the
+paper, the public rule corpus, the issue comment and the conference slide each inherit
+the source's *names* and none of its *gates*. The source stays green, because nothing
+about it changed.
+
+The trap is that writing the incident down is the discipline working. A rule with no
+provenance cannot be audited, so the incident narrative is mandatory -- and a narrative
+is verbatim by nature, because the specifics are what make it interpretable. The very
+field that makes a correction durable is the one that carries the name out.
+
+So the check belongs at the boundary the content crosses, which is the publication, not
+the repository. Where the destination is public, the term list usually cannot be
+committed alongside it: a salted digest of a short name is a few million candidates and
+publishing the list discloses what it detects. Keep the matcher in the public artefact
+and the list outside it, and make the absence of the list an ERROR rather than a pass, or
+the gate arrives disarmed and reports the same green as a clean tree
+`[R:guarantee-needs-a-reader]`.
+
+Failure-mode check, before anything private is quoted anywhere: **which repository's
+detector covers the file I am about to write into?** If the answer is the repository the
+quotation came FROM, nothing covers the destination.
+
+This is the sibling of `[R:report-the-hit-not-the-match]`, which governs the moment a
+search prints what it found. That one is about output; this one is about content coming
+to rest in a second artefact, where it is committed, pushed, indexed and mirrored. Same
+identifier, different surface, and the fixes do not substitute for one another.
+
 ## No sentinel values: absent states are enum variants [R:no-sentinel-values]
 
 If "absent / stopped / unknown" is a real state, make it an enum variant, not a magic value of an existing type. Downstream code will forget to special-case a sentinel; it cannot forget a variant the compiler forces it to handle. If a range check reads a sentinel as a real quantity, it fails in the direction of the sentinel, not of safety.
@@ -244,6 +278,33 @@ exercise the real channel; this one says the real channel must also tell the tru
 what it produced — verifying through a production path that reports a path it never
 resolved proves nothing.
 
+## Report the hit, never the match [R:report-the-hit-not-the-match]
+
+> Also enforced by hook:banned-name-in-output.
+
+When what you are searching for is a thing whose whole problem is that it exists, your
+search output is another copy of it. Report **location, count and length**; never the
+matched text, and never a field that can contain it.
+
+Run the check before the output leaves your hands: *for every field I am about to print
+-- path, parent directory, filename, context line, error message, commit summary -- can
+the thing I am hiding be inside it?* If you cannot answer for one of them, drop that
+field. A path whose last component IS the name defeats a redaction that prints the
+parent, and `find | xargs` prints the path whole.
+
+**This binds ad-hoc work exactly as it binds a committed detector, and that is the half
+that fails.** A one-off shell pipeline, a `grep -o`, a loop written to answer one
+question, and the sentence you type afterwards are all publication surfaces -- and so is
+the transcript. A carefully built scanner in the same repository does not cover you; it
+covers its own output.
+
+Sibling, deliberately not merged: `[R:detector-excludes-own-definitions]` is the
+FALSE-POSITIVE half of self-reference -- a check that matches its own text is always red,
+gets muted, and leaves the system looking guarded. This is the DISCLOSURE half. Same
+shape, opposite failure, different fixes: strip comments there, never emit the match
+here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
+printing it, but writing it down somewhere with a wider audience.
+
 ## After restructuring, verify references as a distinct pass [R:revision-integrity]
 
 Editing a structured artefact silently breaks references that the previous version made true. The edit raises no error, and rereading does not catch it: the author restores the deleted context from memory and reads a coherent passage that is not on the page.
@@ -281,6 +342,8 @@ before constructing something new. That one prevents rebuilding what exists; thi
 prevents *describing* what does not.
 
 ## A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
+
+> Also enforced by hook:gate-verdict-intact (pipeline half) + hook:multiline-pattern-eol (edit half).
 
 > Has recurred 1 time(s) since it was written; most recently 2026-09-06.
 
@@ -329,4 +392,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=d6875875ea25f9129f27aac8d93bf612ec7b0daac2acad2cff1ced500fe4ce4d rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=067c4f460ab02ecd1d4fa640eb15561df34b826886c40a5c45681bbc43ac5d20 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# pre-push — refuse to publish a private name.
+#
+# This repository is public and quotes private working sessions verbatim: a
+# rule's `incident` field, and TODO.md's narration of the same material. The
+# push is the boundary where a name stops being private, so the check belongs
+# here rather than in `cargo test`, where it would fail every fork that has no
+# term list to check against `[R:names-travel-with-the-quote]`.
+#
+# Install once, per clone:
+#
+#     git config core.hooksPath .githooks
+#
+# The gate is therefore CONFIGURATION-DEPENDENT and FEATURES.md records it as
+# such. `scripts/no-banned-names.sh` exits 2 — not 0 — when it has no list, so
+# a maintainer who has installed the hook cannot be told "clean" by a gate that
+# was never armed.
+#
+# Refuses to pass if the script is missing, on the same reasoning.
+
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CHECK="$ROOT/scripts/no-banned-names.sh"
+
+if [ ! -f "$CHECK" ]; then
+    echo "[pre-push] BLOCKED: $CHECK is missing." >&2
+    echo "[pre-push] The gate cannot run, so the push is refused." >&2
+    exit 1
+fi
+
+bash "$CHECK"
+status=$?
+
+case "$status" in
+    0) exit 0 ;;
+    1)
+        echo "[pre-push] BLOCKED: a banned name is in the tree." >&2
+        echo "[pre-push] Redact it, then push. Do NOT print the term to fix it." >&2
+        exit 1
+        ;;
+    *)
+        echo "[pre-push] BLOCKED: the banned-name gate is disarmed (exit $status)." >&2
+        echo "[pre-push] A disarmed gate is not a pass. Install the term list, or" >&2
+        echo "[pre-push] set BANNED_TERMS_FILE, and push again." >&2
+        exit 1
+        ;;
+esac

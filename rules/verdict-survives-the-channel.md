@@ -5,7 +5,7 @@ error_class = "A correct check's verdict lost between the check and the decision
 home = { kind = "global" }
 created = "2026-09-03"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "graduated", to = "hook:gate-verdict-intact (pipeline half) + hook:multiline-pattern-eol (edit half)", date = "2026-09-06" }
 incident = "Design-Architecture-Tool, 2026-09-02/03: roughly fifty runs of the project's single verification gate in one session, and not one of them unfiltered -- every invocation was `sh scripts/verify.sh 2>&1 | tail -N` or piped into grep. One run printed '[verify] BLOCKED -- failing gates:' followed by five named gates and came back reported as '[exited with code 0]', because the pipeline's status was tail's; `tail -3` had also cropped the BLOCKED header off the top, leaving three gate names that read like ordinary progress. Twice the shape was `verify.sh 2>&1 | tail -3 && git add -A`, where the && tests the filter, so staging proceeded whatever the gate had said. The same session carried the mirror image: a perl substitution whose \\Q...\\E inside a single-quoted shell argument searched for literal backslashes, matched nothing, exited zero and reported success -- twice, costing two changelog entries. The pushed tree was never at risk, because the pre-push hook execs the gate unfiltered; the damage was work continuing on a tree the gate had already rejected."
 
 [[recurrence]]

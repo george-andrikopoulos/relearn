@@ -77,6 +77,20 @@ The `claude-rules` target emits **`.claude/rules/<home-slug>.md`**, one file per
 
 @.claude/rules/project-relearn.md
 
+## This repository is a publication surface
+
+A rule's `incident` field is a **verbatim quotation from a private working session**, and `TODO.md` narrates the same material. Provenance is mandatory here for good reasons, and a narrative is specific by nature — which means the field that makes a correction durable is also the one that carries private identifiers out of the repository they came from. That repository's own detector cannot help: a gate scans its own tree, stays green, and the quotation travels without it. `[R:names-travel-with-the-quote]`
+
+Install the gate once per clone:
+
+```bash
+git config core.hooksPath .githooks     # pre-push -> scripts/no-banned-names.sh
+```
+
+It reports **location and count, never the term**, and exits **2 rather than 0 when it has no list** — a disarmed gate is not a pass. The term list is deliberately **not committed**: this repository is public and one protected name normalises to four characters, so publishing the salt would publish the name. It lives at `$BANNED_TERMS_FILE`, or `~/.claude/usage/banned-terms.sha256`. CI therefore cannot run this gate and is not wired to it; FEATURES.md records it as configuration-dependent rather than claiming a CI gate it does not have.
+
+Before writing an incident, ask: **which repository's detector covers the file I am about to write into?** If the answer is the repository the quotation came *from*, nothing covers the destination.
+
 ## Where the rest is
 
 - `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and CI runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
