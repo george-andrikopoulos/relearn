@@ -4,6 +4,7 @@ title = "A stated guarantee names what enforces it, or is deleted"
 error_class = "A safety claim written in prose -- a header comment, a docstring, a promise in a readme, a ledger line -- with nothing in the system reading the state it asserts, so the sentence stops people looking at the very thing it fails to protect"
 home = { kind = "global" }
 created = "2026-08-16"
+origin = "mined"
 status = { kind = "active" }
 incident = "Four instances in two days across three languages, one cause. A bash `destructive` parameter bound and never read, while the file header promised 'every deletion is confirmed even under --yes'. A db.rs comment justifying a nil-UUID sentinel with 'validation flags dangling references' when no such check existed. A ledger entry reading 'Inventory confirmed: no agent remains on a cost-chosen cheaper tier' when the sweep had consumed agent model: fields and never read rules prose -- leaving a price-tier recommendation live in every session for four weeks. And a restore chain that put its verifier inside the && , so a verifier failure fired the || branch and announced 'REFUSED -- settings.json untouched' *after* the file had already been replaced, one hour after this rule was installed. Ported into this library 2026-08-25."
 +++

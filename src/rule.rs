@@ -21,6 +21,7 @@
 mod date;
 mod def;
 mod home;
+mod origin;
 mod parse;
 mod serialize;
 mod status;
@@ -30,6 +31,7 @@ mod text;
 pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};
 pub use home::{DomainName, Home, ProjectPath};
+pub use origin::{Origin, UnknownOrigin};
 pub use parse::{ParseError, parse_document};
 pub use serialize::to_document;
 pub use status::{Destination, Emittability, Reason, Status};

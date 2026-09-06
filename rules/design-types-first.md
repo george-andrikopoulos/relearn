@@ -4,6 +4,7 @@ title = "Design by writing the types first, before any logic"
 error_class = "Starting a design with function bodies or with a failing test, so the type-level specification is back-filled to fit code that already exists rather than constraining it"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-22"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-22 from the standing rust-typedd discipline (~/.claude/skills/rust-typedd/SKILL.md, 'Standing override' and 'Design by writing types first', revised 2026-07-22), which is deliberate policy rather than a reaction to one failure. Named in this repository's own CLAUDE.md as the design discipline it is built under."
 +++

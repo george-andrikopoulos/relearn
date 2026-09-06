@@ -3,7 +3,7 @@
 //! part already proved its own invariant) and the constructor cannot be called
 //! with its arguments in the wrong order — a swap is a compile error.
 
-use super::{Body, Date, ErrorClass, Home, Incident, RuleTag, Status, Title};
+use super::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title};
 
 /// One later occurrence of the error class a rule already covers — evidence
 /// that the rule was written down and the error happened anyway.
@@ -49,6 +49,7 @@ pub struct Rule {
     error_class: ErrorClass,
     home: Home,
     created: Date,
+    origin: Origin,
     status: Status,
     incident: Incident,
     body: Body,
@@ -58,7 +59,7 @@ pub struct Rule {
 impl Rule {
     /// Assemble a rule from its validated parts.
     ///
-    /// Nine arguments, deliberately: these are the rule's essential fields and
+    /// Ten arguments, deliberately: these are the rule's essential fields and
     /// construction requires all of them (there is no incomplete-`Rule` state
     /// to guard against). Every parameter is a distinct newtype, so an
     /// argument-order mistake is a compile error rather than a runtime bug — the
@@ -80,6 +81,7 @@ impl Rule {
         error_class: ErrorClass,
         home: Home,
         created: Date,
+        origin: Origin,
         status: Status,
         incident: Incident,
         body: Body,
@@ -91,6 +93,7 @@ impl Rule {
             error_class,
             home,
             created,
+            origin,
             status,
             incident,
             body,
@@ -126,6 +129,23 @@ impl Rule {
     #[must_use]
     pub fn created(&self) -> Date {
         self.created
+    }
+
+    /// Where the rule came from: a real failure, or existing practice written
+    /// down. The counter-metric to recurrence — see [`Origin`].
+    #[must_use]
+    pub fn origin(&self) -> Origin {
+        self.origin
+    }
+
+    /// Whether this rule is inert evidence: authored rather than mined, and
+    /// never seen to fire. The null result says these are the rules that change
+    /// nothing — you cannot author your way to a delta — so a library that
+    /// looks healthy because it is full of them is the failure a bare
+    /// recurrence count would hide.
+    #[must_use]
+    pub fn is_inert(&self) -> bool {
+        !self.origin.is_mined() && !self.has_recurred()
     }
 
     /// The rule's lifecycle status.
@@ -185,6 +205,7 @@ mod tests {
             ErrorClass::parse("an error class").expect("non-empty error class"),
             Home::global(),
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             Status::active(),
             Incident::parse("the triggering incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),

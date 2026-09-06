@@ -4,6 +4,7 @@ title = "Parse wide, then range-check"
 error_class = "Range-validating by parsing straight into the target narrow type, so the out-of-range case is unreachable for the very value it exists to name"
 home = { kind = "domain", name = "rust" }
 created = "2026-07-22"
+origin = "mined"
 status = { kind = "active" }
 incident = "Grouping task 01 (2026-07-22): 5/5 raw samples and 4/5 with skills loaded parsed into u16, so 70000 returned NotANumber; the declared OutOfRange variant was reachable only for 0. One sample documented the bug in its own rustdoc."
 +++

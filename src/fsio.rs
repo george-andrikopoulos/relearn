@@ -517,6 +517,7 @@ mod tests {
              error_class = \"e\"\n\
              home = {{ kind = \"global\" }}\n\
              created = \"2026-01-01\"\n\
+             origin = \"mined\"\n\
              status = {{ kind = \"active\" }}\n\
              incident = \"i\"\n\
              +++\n\n\

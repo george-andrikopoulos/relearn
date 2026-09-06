@@ -4,6 +4,7 @@ title = "A success check consumes a sentinel nothing else can produce"
 error_class = "A check that runs, passes, and accepts forgeable evidence -- a date, a header, a log echo, a file's existence, a component's own unit tests -- so an inert or failed thing certifies as working and the check's greenness is what conceals it"
 home = { kind = "global" }
 created = "2026-07-20"
+origin = "mined"
 status = { kind = "active" }
 incident = "Ferridis, 2026-07-20: BackpressureSignal and StreamChunk shipped in v0.4 with five unit tests and sat unwired for two months. The type-level tests made an inert feature look enforced, and the first behaviour-contract draft cited them as the enforcing artefact -- a type's own tests prove the type works, never that anything produces or consumes it. Strengthened 2026-07-21 after a second, sharper instance: a quarterly-review wrapper grepped for a bare date to decide success, matched the header its own miner had just regenerated, and cleared the REVIEW-DUE flag on a run that had failed. Ported into this library 2026-08-25; this repository's charter had listed it as scheduled for migration since Phase A and cited it in prose, so the corpus was citing a rule it did not define."
 +++

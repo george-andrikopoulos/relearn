@@ -4,6 +4,7 @@ title = "The decisions log records the why and what was rejected, append-only"
 error_class = "Architecture recorded as structure without provenance, so a decision cannot be distinguished from an accident and the alternatives already considered and rejected are re-proposed, re-argued, and sometimes adopted"
 home = { kind = "global" }
 created = "2026-08-25"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-25 from ~/.claude/skills/project-discipline/SKILL.md, the artefact that defines the practice. Surfaced in the 2026-08-25 audit of the emitted Copilot pack, which carried no rule about the repository discipline at all. The log format itself is load-bearing in this repository: the 2026-08-22 claude-rules collision entry is what lets a reader see that three specific alternatives -- a different constant, making Unversioned non-fatal, dropping the target from the default set -- were priced and refused, rather than never considered."
 +++

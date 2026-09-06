@@ -4,6 +4,7 @@ title = "Every clone() carries its reason, or the design is wrong"
 error_class = "clone() reached for to silence the borrow checker, so an ownership problem is paid for in an allocation and a second copy of state that can drift from the original, instead of being designed out"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from the General Coding Rules of ~/.claude/CLAUDE.md, which state it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 +++

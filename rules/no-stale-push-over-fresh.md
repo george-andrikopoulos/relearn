@@ -4,6 +4,7 @@ title = "Never push a stale copy over a fresher target"
 error_class = "A script that writes a mirror, template, or snapshot onto a live target without establishing which side is authoritative, so an older copy silently replaces newer real content -- and a diff prompt does not prevent it, because a diff shows what differs and never which side is behind"
 home = { kind = "global" }
 created = "2026-08-16"
+origin = "mined"
 status = { kind = "active" }
 incident = "claude-workflow, 2026-08-16: `sync-to-system.sh --apply --yes` would have replaced a July global configuration with a May fork, and with it four of the enforcement hooks themselves -- ten files, no prompt, no indication that the source was the older side. The direction was never established anywhere in the script; it simply wrote. Ported into this library 2026-08-25."
 +++

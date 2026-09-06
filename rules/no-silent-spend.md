@@ -4,6 +4,7 @@ title = "Put the costed fork; never resolve a trade of the user's resources sile
 error_class = "Deciding on the user's behalf how much of their time, money or attention a task is worth -- in either direction -- and reporting the decision afterwards instead of offering it beforehand"
 home = { kind = "global" }
 created = "2026-08-31"
+origin = "mined"
 status = { kind = "active" }
 incident = "Nine tagged releases of one project in a single session (2026-08-31). Every resource trade was resolved unilaterally and always in the same direction, toward thoroughness: roughly ten compile failures repaired one at a time after the build had already enumerated them, a five-file documentation set walked once per release, forty-line commit messages, the full verification gate re-run where the fast path would have served. None of the work was wrong; all of it was the user's money spent without the user. His own diagnosis became the rule: 'it is visible, but at the same time I dont have the option to choose a higher cost or not based on whats worth it. Remember me and you are a compound not a mixture.' A compound reaches the decision jointly; a mixture hands over a finished one and calls it transparency."
 +++

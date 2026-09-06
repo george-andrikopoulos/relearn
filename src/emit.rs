@@ -310,7 +310,7 @@ pub(crate) fn emittable(library: &Library<Validated>) -> Vec<&Rule> {
 #[must_use]
 pub(crate) fn graduation_note(rule: &Rule) -> Option<String> {
     match rule.status() {
-        Status::Graduated { to } => Some(format!("> Also enforced by {}.\n\n", to.as_str())),
+        Status::Graduated { to, .. } => Some(format!("> Also enforced by {}.\n\n", to.as_str())),
         Status::Active | Status::Attic { .. } => None,
     }
 }
@@ -339,7 +339,9 @@ pub(crate) fn recurrence_note(rule: &Rule) -> Option<String> {
 mod tests {
     use super::*;
     use crate::library::Library;
-    use crate::rule::{Body, Date, ErrorClass, Home, Incident, Recurrence, RuleTag, Status, Title};
+    use crate::rule::{
+        Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, RuleTag, Status, Title,
+    };
 
     fn rule_with_recurrences(tag: &str, status: Status, recurrences: Vec<Recurrence>) -> Rule {
         Rule::new(
@@ -348,6 +350,7 @@ mod tests {
             ErrorClass::parse("an error class").expect("non-empty error class"),
             Home::global(),
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
@@ -369,6 +372,7 @@ mod tests {
             ErrorClass::parse("an error class").expect("non-empty error class"),
             Home::global(),
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
@@ -383,7 +387,8 @@ mod tests {
             rule_with_status("R:active", Status::active()),
             rule_with_status(
                 "R:grad",
-                Status::graduated("hook:x").expect("non-empty destination"),
+                Status::graduated("hook:x", Date::parse("2026-07-21").expect("valid date"))
+                    .expect("non-empty destination"),
             ),
             rule_with_status(
                 "R:attic",
@@ -414,7 +419,11 @@ mod tests {
         assert_eq!(
             graduation_note(&rule_with_status(
                 "R:g",
-                Status::graduated("hook:no-unwrap-in-src").expect("non-empty destination"),
+                Status::graduated(
+                    "hook:no-unwrap-in-src",
+                    Date::parse("2026-07-21").expect("valid date")
+                )
+                .expect("non-empty destination"),
             )),
             Some("> Also enforced by hook:no-unwrap-in-src.\n\n".to_owned())
         );
@@ -468,7 +477,8 @@ mod tests {
     fn graduation_and_recurrence_notes_are_independent() {
         let r = rule_with_recurrences(
             "R:both",
-            Status::graduated("hook:x").expect("non-empty destination"),
+            Status::graduated("hook:x", Date::parse("2026-07-21").expect("valid date"))
+                .expect("non-empty destination"),
             vec![recurrence("2026-08-24")],
         );
         assert!(graduation_note(&r).is_some());

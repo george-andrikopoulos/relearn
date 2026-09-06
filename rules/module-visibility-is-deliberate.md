@@ -4,6 +4,7 @@ title = "Modules are the encapsulation boundary; pub is a deliberate export"
 error_class = "Items marked pub by reflex, so a crate's internal structure becomes its public API and every later change to it is a breaking change nobody chose to make"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from the General Coding Rules of ~/.claude/CLAUDE.md, which state it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 +++

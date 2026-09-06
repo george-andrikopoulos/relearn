@@ -4,6 +4,7 @@ title = "Describe a practice from the artefact that defines it, never from the g
 error_class = "Describing the user's own practice, system or process from domain convention or literature instead of the primary artefact that defines it, producing a fluent, plausible description of the wrong thing"
 home = { kind = "global" }
 created = "2026-08-20"
+origin = "mined"
 status = { kind = "active" }
 incident = "Paper 3 draft (2026-08-20): drafted a 5,400-word paper on George's project-file discipline with its entire spine built on the AGENTS.md agent-instruction-file convention. He does not use it -- 'I am not using agents, I am using Architecture, Features, Todo, Claude md etc with controls to keep the workload focused.' The authoritative sources were both available and unread: project-discipline/SKILL.md was listed in the available skills and specifies the five files and the definition of done exactly, and relearn/CLAUDE.md was on disk. Three clarifying questions were asked -- framing, evidence, venue -- and none about the subject. The rewrite was a new paper, not an edit."
 +++

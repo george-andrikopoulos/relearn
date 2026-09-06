@@ -4,6 +4,7 @@ title = "The definition of done runs on every change, and skips are declared"
 error_class = "A change called complete when the code works, leaving the enforcing test, the regression pass, the contract, the charter and the open-work list to a later pass that never comes -- so the standing documents drift one defensible omission at a time"
 home = { kind = "global" }
 created = "2026-08-25"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-25 from ~/.claude/skills/project-discipline/SKILL.md, the artefact that defines the practice. It recurs in this repository's own history rather than being hypothetical: on 2026-08-24 the change that landed R:repair-the-lying-artefact updated the open-work list and skipped the behaviour contract -- check 3 -- leaving two false counts in the ledger, which the next change had to find and repair. The discipline caught it one change late, which is the argument for the pass being mechanical rather than remembered."
 +++

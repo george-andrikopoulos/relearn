@@ -4,6 +4,7 @@ title = "The project charter is written to the recreation standard"
 error_class = "A project charter that describes what the code is rather than what would be needed to rebuild it, so the decisions and their reasons live only in the head of whoever made them and are re-litigated or silently reversed by the next reader"
 home = { kind = "global" }
 created = "2026-08-25"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-25 from ~/.claude/skills/project-discipline/SKILL.md, the artefact that defines the practice. Surfaced in the same 2026-08-25 audit that found the repository discipline absent from the emitted rule library while the type discipline was fully present. This repository's own CLAUDE.md opens by stating the standard -- *from this file alone, this project could be rebuilt* -- and check 4 of its definition of done exists to keep that sentence true, but no rule in the library said so, so the standard travelled to no assistant that does not load the project-discipline skill."
 +++

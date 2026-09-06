@@ -263,7 +263,7 @@ mod tests {
     }
     use super::*;
     use crate::library::Library;
-    use crate::rule::{Body, Date, ErrorClass, Home, Incident, RuleTag, Status, Title};
+    use crate::rule::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title};
 
     fn rule(tag: &str, home: Home, title: &str, error_class: &str, body: &str) -> Rule {
         Rule::new(
@@ -272,6 +272,7 @@ mod tests {
             ErrorClass::parse(error_class).expect("non-empty error class"),
             home,
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             Status::active(),
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
@@ -425,6 +426,7 @@ mod tests {
             ErrorClass::parse("ec").expect("non-empty error class"),
             home,
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
@@ -458,7 +460,11 @@ mod tests {
         let lib = validated(vec![rule_with_status(
             "R:grad",
             Home::domain("rust").expect("non-empty domain"),
-            Status::graduated("hook:no-unwrap-in-src").expect("non-empty destination"),
+            Status::graduated(
+                "hook:no-unwrap-in-src",
+                Date::parse("2026-07-21").expect("valid date"),
+            )
+            .expect("non-empty destination"),
             "Never unwrap in production.",
         )]);
         let files = emit(&lib);

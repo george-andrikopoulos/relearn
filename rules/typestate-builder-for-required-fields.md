@@ -4,6 +4,7 @@ title = "Builders make a missing required field a compile error"
 error_class = "A builder whose build() is always callable, so omitting a required field is caught at run time -- as an error the caller may swallow, or worse as a silent default -- when the omission was already visible at compile time"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 4 of ~/.claude/CLAUDE.md, which states it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 +++

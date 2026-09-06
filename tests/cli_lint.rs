@@ -25,6 +25,7 @@ title = "A demo rule"
 error_class = "a demo error class"
 home = {{ kind = "global" }}
 created = "2026-08-16"
+origin = "mined"
 status = {{ kind = "active" }}
 incident = "The triggering incident."
 {recurrence}+++

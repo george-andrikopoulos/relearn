@@ -4,6 +4,7 @@ title = "Struct fields are private; construction goes through a constructor"
 error_class = "A public field on a domain type, so a value can be built or mutated into a state the type's own constructor would have rejected, and the invariant the type advertises is unenforceable"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 6 and the General Coding Rules of ~/.claude/CLAUDE.md, which state it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 +++

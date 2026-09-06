@@ -4,6 +4,7 @@ title = "Seal a trait whose set of implementors is closed"
 error_class = "A public trait modelling a closed family of types can be implemented outside the crate, so a set that was exhaustive by design silently gains members and every match, invariant, or optimisation assuming it was fixed becomes wrong with no compile error"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 8 of ~/.claude/CLAUDE.md, which states it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 +++

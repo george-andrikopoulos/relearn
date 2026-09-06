@@ -4,6 +4,7 @@ title = "Newtype liberally: distinct concepts get distinct types"
 error_class = "Passing a bare primitive across a function boundary, so two values the domain treats as different are interchangeable to the compiler and can be swapped silently"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-22"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-22 from the standing rust-typedd discipline (~/.claude/skills/rust-typedd/SKILL.md, Core practices, revised 2026-07-22) and Pattern 1 of ~/.claude/CLAUDE.md, both of which state it in prose with the Miles/Kilometers example. Ported because the Rust discipline had two homes -- that skill and this corpus -- with four rules already stated in both, which is the one-home-per-rule violation this tool exists to prevent."
 +++

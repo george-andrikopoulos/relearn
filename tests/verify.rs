@@ -8,7 +8,7 @@ use std::fs;
 use relearn::emit;
 use relearn::fsio::{self, VerifyStatus};
 use relearn::library::{Library, Validated};
-use relearn::rule::{Body, Date, ErrorClass, Home, Incident, Rule, RuleTag, Status, Title};
+use relearn::rule::{Body, Date, ErrorClass, Home, Incident, Origin, Rule, RuleTag, Status, Title};
 
 fn rule(tag: &str, body: &str) -> Rule {
     Rule::new(
@@ -17,6 +17,7 @@ fn rule(tag: &str, body: &str) -> Rule {
         ErrorClass::parse("ec").expect("non-empty error class"),
         Home::global(),
         Date::parse("2026-08-13").expect("valid date"),
+        Origin::Mined,
         Status::active(),
         Incident::parse("an incident").expect("non-empty incident"),
         Body::parse(body).expect("non-empty body"),

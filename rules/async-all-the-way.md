@@ -4,6 +4,7 @@ title = "Async is async all the way down"
 error_class = "A blocking call inside an async context -- block_on, a synchronous file or socket read, a std Mutex guard held across an await -- which parks a runtime worker thread and stalls every unrelated task scheduled on it"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from the General Coding Rules of ~/.claude/CLAUDE.md, which state it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 +++

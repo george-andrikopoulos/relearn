@@ -366,8 +366,16 @@ fn list(rules: &Path, home: Option<&str>) -> Result<(), CliError> {
 fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
     let validated = fsio::load_rules(rules)?.validate()?;
     let findings = lint::lint(&validated);
+    let t = lint::tally(&validated);
+    let summary = format!(
+        "{} rule(s): {} recurred, {} inert (codified and never fired)",
+        t.total(),
+        t.recurred(),
+        t.inert()
+    );
     if findings.is_empty() {
         println!("ok: no lint findings");
+        println!("{summary}");
         return Ok(ExitCode::SUCCESS);
     }
     // Every finding is printed, whatever the threshold. `--deny` decides what
@@ -383,6 +391,9 @@ fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
         .iter()
         .filter(|f| f.severity() >= deny.threshold())
         .count();
+    // The two-number summary: the recurrence count alone is gameable through
+    // under-reporting, so it is never shown without its counter (P5).
+    println!("{summary}");
     // The threshold is named in the summary so a reader of a green log can see
     // *why* a printed warning did not fail the run, rather than having to know
     // the flag's default to interpret the outcome.
@@ -420,6 +431,7 @@ mod tests {
              error_class = \"e\"\n\
              home = {home_toml}\n\
              created = \"2026-01-01\"\n\
+             origin = \"mined\"\n\
              status = {{ kind = \"active\" }}\n\
              incident = \"i\"\n\
              +++\n\n\

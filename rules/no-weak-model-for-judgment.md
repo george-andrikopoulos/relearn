@@ -4,6 +4,7 @@ title = "Never route judgment work to a weak model, and never embed a sub-tier l
 error_class = "Wiring a meaningfully less capable model into a tool for work that needs judgment, on convenience or API-key-free grounds, so the tool is degraded wherever that model runs"
 home = { kind = "global" }
 created = "2026-08-22"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated: folded into ~/.claude/skills/rust-typedd/SKILL.md on 2026-07-22 from a standalone memory (the skill's own revision note records the fold and the removal of the atticked copy), then ported here 2026-08-22. Distinct from R:measure-cost-per-task, which it cites: that rule governs how to choose between capable models by measured cost, whereas this one is a capability floor that holds even when the cheaper option is genuinely cheaper per task."
 +++

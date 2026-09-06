@@ -4,6 +4,7 @@ title = "A test fixture must work on every OS the repository runs on"
 error_class = "Writing a test fixture or verifier that passes only on the authoring OS -- a hardcoded target path, a shell-script stub, a raw-vs-canonical path assertion, or an unstripped CR in another tool's output -- so a green run certifies one platform while claiming to certify the repository"
 home = { kind = "domain", name = "rust" }
 created = "2026-07-20"
+origin = "mined"
 status = { kind = "active" }
 incident = "Ferridis (2026-07-20): three tests green on Linux and broken on Windows -- a hardcoded `target/release/mcp_consumer` path that spawned a stale Linux ELF (os error 193), a bash stub for `claude-cli` on a machine with no bash, and an `AllowedCwd` assertion comparing a raw path against a canonicalized one, which on Windows returns the extended-length `\\\\?\\C:\\...` form. Recurred at the tooling layer 2026-08-16: `verify-wiring.sh` reported the same hook wiring as both 'declared but NOT live' and 'live-only' -- a self-contradicting permanent FAIL -- because Windows jq terminates lines with CRLF and command substitution strips the trailing newline but leaves the final line's CR."
 +++

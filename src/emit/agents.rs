@@ -77,7 +77,7 @@ fn render(rules: &[&Rule]) -> String {
 mod tests {
     use super::*;
     use crate::library::Library;
-    use crate::rule::{Body, Date, ErrorClass, Home, Incident, RuleTag, Status, Title};
+    use crate::rule::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title};
 
     fn rule(tag: &str, home: Home, title: &str, error_class: &str, body: &str) -> Rule {
         Rule::new(
@@ -86,6 +86,7 @@ mod tests {
             ErrorClass::parse(error_class).expect("non-empty error class"),
             home,
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             Status::active(),
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),

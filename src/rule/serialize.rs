@@ -25,6 +25,7 @@ pub fn to_document(rule: &Rule) -> String {
     out.push_str(&kv("error_class", rule.error_class().as_str()));
     out.push_str(&home_line(rule.home()));
     out.push_str(&kv("created", &rule.created().to_string()));
+    out.push_str(&kv("origin", rule.origin().as_str()));
     out.push_str(&status_line(rule.status()));
     out.push_str(&kv("incident", rule.incident().as_str()));
     // Emitted **only** when there is at least one, and last, because a TOML
@@ -67,9 +68,10 @@ fn home_line(home: &Home) -> String {
 fn status_line(status: &Status) -> String {
     match status {
         Status::Active => "status = { kind = \"active\" }\n".to_owned(),
-        Status::Graduated { to } => format!(
-            "status = {{ kind = \"graduated\", to = {} }}\n",
-            toml_basic_string(to.as_str())
+        Status::Graduated { to, date } => format!(
+            "status = {{ kind = \"graduated\", to = {}, date = {} }}\n",
+            toml_basic_string(to.as_str()),
+            toml_basic_string(&date.to_string())
         ),
         Status::Attic { reason, date } => format!(
             "status = {{ kind = \"attic\", reason = {}, date = {} }}\n",
@@ -103,7 +105,7 @@ fn toml_basic_string(s: &str) -> String {
 mod tests {
     use super::to_document;
     use crate::rule::{
-        Body, Date, ErrorClass, Home, Incident, Recurrence, Rule, RuleTag, Status, Title,
+        Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, Status, Title,
         parse_document,
     };
 
@@ -114,6 +116,7 @@ mod tests {
             ErrorClass::parse("an error class").expect("non-empty error class"),
             Home::global(),
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             Status::active(),
             Incident::parse("the triggering incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
@@ -135,6 +138,7 @@ mod tests {
             ErrorClass::parse(error_class).expect("non-empty error class"),
             home,
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
@@ -171,7 +175,11 @@ mod tests {
         let g = rule_with(
             "superseded by a hook",
             Home::global(),
-            Status::graduated("hook:no-narrow-parse").expect("non-empty destination"),
+            Status::graduated(
+                "hook:no-narrow-parse",
+                Date::parse("2026-07-21").expect("valid date"),
+            )
+            .expect("non-empty destination"),
             "Body.",
         );
         assert_eq!(parse_document(&to_document(&g)), Ok(g));

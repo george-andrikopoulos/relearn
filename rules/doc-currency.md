@@ -4,6 +4,7 @@ title = "Update the doc in the same change as the thing it describes"
 error_class = "A checked-in list or example (hygiene set, format sample, doc snippet) drifting from the reality it describes, so a reader trusts it and acts on stale guidance"
 home = { kind = "global" }
 created = "2026-07-16"
+origin = "mined"
 status = { kind = "active" }
 incident = "project-discipline (2026-07-16): the default-hygiene list still named a stale .zed/tasks.json entry after the workflow had moved on, and Claude scaffolded mesh-watchdog from that stale list. Fix: replaced it with the actually-observed hygiene set (README/FEATURES/ARCHITECTURE). Retagged on 2026-08-16: the tag it previously carried had been independently assigned on 2026-08-11 to a different rule (verify internal references after restructuring), and the tag-uniqueness invariant made the collision a hard build failure."
 +++

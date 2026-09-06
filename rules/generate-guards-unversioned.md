@@ -4,6 +4,7 @@ title = "A generator never overwrites content it did not generate"
 error_class = "A code or artifact generator overwriting a target file it did not create, destroying hand-authored content that was never generated output"
 home = { kind = "project", path = "relearn" }
 created = "2026-08-13"
+origin = "mined"
 status = { kind = "active" }
 incident = "relearn (2026-08-13): emitters write into a target directory that can also hold hand-authored files. Without a guard, a rebuild would clobber a human's file that happens to sit at a generated path. The write side marks every emitted file with a generated-by header and refuses, in a pre-flight pass, to overwrite any existing target lacking that marker -- aborting the whole run rather than leaving a half-generated tree. `relearn verify` is the read-only complement that detects drift after the fact."
 +++

@@ -11,7 +11,7 @@ use proptest::prelude::*;
 use relearn::emit;
 use relearn::library::{Library, Validated};
 use relearn::rule::{
-    Body, Date, ErrorClass, Home, Incident, Recurrence, Rule, RuleTag, Status, Title,
+    Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, Status, Title,
     parse_document, to_document,
 };
 
@@ -47,7 +47,8 @@ fn arb_home() -> impl Strategy<Value = Home> {
 fn arb_status() -> impl Strategy<Value = Status> {
     prop_oneof![
         Just(Status::active()),
-        arb_text().prop_map(|t| Status::graduated(t).expect("non-empty destination")),
+        (arb_text(), arb_date())
+            .prop_map(|(t, d)| Status::graduated(t, d).expect("non-empty destination")),
         (arb_text(), arb_date()).prop_map(|(r, d)| Status::attic(r, d).expect("non-empty reason")),
     ]
 }
@@ -84,6 +85,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
                     ErrorClass::parse(error_class).expect("non-empty error class"),
                     home,
                     created,
+                    Origin::Mined,
                     status,
                     Incident::parse(incident).expect("non-empty incident"),
                     Body::parse(body).expect("non-empty body"),
@@ -113,6 +115,7 @@ fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
                     ErrorClass::parse("error class").expect("non-empty error class"),
                     home,
                     Date::parse("2026-08-13").expect("valid date"),
+                    Origin::Mined,
                     status,
                     Incident::parse("incident").expect("non-empty incident"),
                     Body::parse("body").expect("non-empty body"),
@@ -153,6 +156,7 @@ fn arb_library_recurring() -> impl Strategy<Value = Library<Validated>> {
                 ErrorClass::parse("error class").expect("non-empty error class"),
                 home,
                 Date::parse("2026-08-13").expect("valid date"),
+                Origin::Mined,
                 status,
                 Incident::parse("incident").expect("non-empty incident"),
                 Body::parse("body").expect("non-empty body"),
@@ -200,6 +204,7 @@ fn arb_library() -> impl Strategy<Value = Library<Validated>> {
                 ErrorClass::parse("error class").expect("non-empty error class"),
                 home,
                 Date::parse("2026-08-13").expect("valid date"),
+                Origin::Mined,
                 Status::active(),
                 Incident::parse("incident").expect("non-empty incident"),
                 Body::parse("body").expect("non-empty body"),

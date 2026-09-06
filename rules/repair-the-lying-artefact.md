@@ -4,6 +4,7 @@ title = "Repair the artefact that made the false claim, not only the doc about i
 error_class = "Closing an incident by writing or correcting prose while the executable artefact that actually misled — a script's printed path, a status line, a generated header, a success message — goes on emitting the same false claim, so the defect stays fully operational behind a note that makes it look handled"
 home = { kind = "global" }
 created = "2026-08-24"
+origin = "mined"
 status = { kind = "active" }
 incident = "Design-Architecture-Tool, twice from one cause. 2026-08-16: a release build was smoke-tested against ./target/release/dat-server.exe and reported an old version, a 404 on / and a 404 on the wasm bundle -- read as three regressions in the fresh build, all in fact properties of an April binary the build had not touched (this machine sets CARGO_TARGET_DIR globally, so cargo writes elsewhere). The fix was a CLAUDE.md paragraph naming the incident and printing the resolve-it-properly command. 2026-08-24: the same thing, with a five-month-old pre-rename [redacted]-designer.exe -- missing tag fixes and tofu buttons read as 'my fixes were not applied'. Nobody had been misled by reading CLAUDE.md: they were misled by build.sh, which ended every run printing `Binary: $ROOT/target/release/dat-designer`, a path it hardcoded and never resolved, and which the 2026-08-16 fix left untouched."
 +++

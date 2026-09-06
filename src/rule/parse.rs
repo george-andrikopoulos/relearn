@@ -13,8 +13,8 @@
 use serde::Deserialize;
 
 use super::{
-    Body, Date, DateError, EmptyText, ErrorClass, Home, Incident, Recurrence, Rule, RuleTag,
-    RuleTagError, Status, Title,
+    Body, Date, DateError, EmptyText, ErrorClass, Home, Incident, Origin, Recurrence, Rule,
+    RuleTag, RuleTagError, Status, Title, UnknownOrigin,
 };
 
 /// Why a rule document failed to parse.
@@ -49,6 +49,9 @@ pub enum ParseError {
     /// The `status` table carried an unrecognised `kind`.
     #[error("`status` has unknown kind `{0}` (expected active | graduated | attic)")]
     UnknownStatusKind(String),
+    /// The `origin` field held a value that is not a known origin.
+    #[error("field `origin`: {0}")]
+    Origin(#[from] UnknownOrigin),
     /// A tagged table was missing a field its kind requires.
     #[error("`{context}` requires field `{field}`")]
     MissingField {
@@ -67,6 +70,7 @@ struct RawRule {
     error_class: String,
     home: RawHome,
     created: String,
+    origin: String,
     status: RawStatus,
     incident: String,
     /// Later occurrences of the same error class, as `[[recurrence]]` tables.
@@ -149,6 +153,7 @@ impl RawRule {
             field: "created",
             source,
         })?;
+        let origin = Origin::parse(&self.origin)?;
         let status = self.status.into_status()?;
         let body = Body::parse(body)?;
         // Collected with `?`, not filtered: a malformed recurrence stops the
@@ -165,6 +170,7 @@ impl RawRule {
             error_class,
             home,
             created,
+            origin,
             status,
             incident,
             body,
@@ -216,7 +222,15 @@ impl RawStatus {
                     context: "status graduated",
                     field: "to",
                 })?;
-                Ok(Status::graduated(to)?)
+                let date_str = self.date.ok_or(ParseError::MissingField {
+                    context: "status graduated",
+                    field: "date",
+                })?;
+                let date = Date::parse(&date_str).map_err(|source| ParseError::Date {
+                    field: "status.date",
+                    source,
+                })?;
+                Ok(Status::graduated(to, date)?)
             }
             "attic" => {
                 let reason = self.reason.ok_or(ParseError::MissingField {
@@ -248,6 +262,7 @@ title = "Parse wide, then range-check"
 error_class = "narrowing at parse makes OutOfRange unreachable"
 home = { kind = "domain", name = "rust" }
 created = "2026-07-23"
+origin = "mined"
 status = { kind = "active" }
 incident = "grouping task 01"
 +++
@@ -263,6 +278,7 @@ Parse into a type wide enough to represent the out-of-range value.
             ("error_class", "\"e\""),
             ("home", "{ kind = \"global\" }"),
             ("created", "\"2026-01-01\""),
+            ("origin", "\"mined\""),
             ("status", "{ kind = \"active\" }"),
             ("incident", "\"i\""),
         ];

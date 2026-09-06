@@ -106,3 +106,25 @@ fn every_emitted_skill_description_fits_the_frontmatter_cap() {
         );
     }
 }
+
+/// Every committed rule declares its origin. `origin` is provenance, and this
+/// project's charter makes provenance mandatory: a defaulted origin would
+/// classify unlabelled rules silently, which is precisely the under-reporting
+/// the counter-metric exists to detect. A metric computed from guesses is worse
+/// than no metric, because it looks like a measurement.
+#[test]
+fn every_committed_rule_declares_an_origin() {
+    for path in corpus_files() {
+        let doc = fs::read_to_string(&path).expect("a readable rule file");
+        let rule = parse_document(&doc).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        // Reading it is the assertion: the field is mandatory, so a rule that
+        // reached this point has one. Pinned so a future `#[serde(default)]`
+        // added for convenience fails here rather than quietly filling it in.
+        let _ = rule.origin();
+        assert!(
+            doc.contains("origin = "),
+            "{} parsed without an explicit `origin` line — the field has been defaulted",
+            path.display()
+        );
+    }
+}

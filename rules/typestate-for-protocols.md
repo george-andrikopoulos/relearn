@@ -4,6 +4,7 @@ title = "Typestate for protocols: out-of-order calls should not compile"
 error_class = "Encoding a protocol's stage as runtime data on one type, so a method invalid in the current stage still exists and must be rejected at runtime"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-22"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-22 from the standing rust-typedd discipline (~/.claude/skills/rust-typedd/SKILL.md, Core practices, revised 2026-07-22) and Pattern 3 of ~/.claude/CLAUDE.md, which carries the DbusConnection<Disconnected|Connected|Authenticated> worked example. Ported as part of consolidating the Rust discipline into one home."
 +++

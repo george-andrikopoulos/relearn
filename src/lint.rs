@@ -85,6 +85,24 @@ pub enum Finding {
         /// The retired rule's status kind (`graduated` or `atticked`).
         status: &'static str,
     },
+    /// A **graduated** rule recurred *after* it graduated. The named stronger
+    /// control was claimed to hold this and demonstrably did not.
+    ///
+    /// The sharpest finding the library can produce, and the only recurrence
+    /// finding that is an `Error`: the emitted instruction layer is telling
+    /// every reader *"Also enforced by {to}"*, which the recurrence proves
+    /// false. That is a lying artefact in a live artefact
+    /// (`[R:repair-the-lying-artefact]`), not a rule merely wanting promotion.
+    RecurrenceAfterGraduation {
+        /// The rule whose graduation did not hold.
+        tag: RuleTag,
+        /// The control it was said to have graduated to.
+        to: String,
+        /// When it graduated.
+        graduated: Date,
+        /// The most recent recurrence *after* that date.
+        recurred: Date,
+    },
     /// An `Active` rule — one held by prose alone — has recurred since it was
     /// written. The prose is demonstrably not holding it, so it wants a
     /// stronger control and a `Status::Graduated` recording which.
@@ -103,7 +121,10 @@ impl Finding {
     #[must_use]
     pub fn severity(&self) -> Severity {
         match self {
-            Finding::HomeSlugCollision { .. } => Severity::Error,
+            Finding::HomeSlugCollision { .. }
+            // An `Error` because the *emitted tree* is wrong: it carries a
+            // "> Also enforced by ..." line that this finding proves false.
+            | Finding::RecurrenceAfterGraduation { .. } => Severity::Error,
             // `Warning`, not `Error`. `Error` here means the *emitted tree*
             // would be wrong — two rules colliding on one output file. An
             // unheld recurrence is a fault in the **library**: the emission is
@@ -142,6 +163,16 @@ impl fmt::Display for Finding {
                 from.as_str(),
                 to.as_str()
             ),
+            Finding::RecurrenceAfterGraduation {
+                tag,
+                to,
+                graduated,
+                recurred,
+            } => write!(
+                f,
+                "recurrence after graduation: {} graduated to {to} on {graduated}, and the error class recurred on {recurred} — after the stronger control was in place. Every emitted layer is telling readers it is \"Also enforced by {to}\", which this disproves: repair the control or withdraw the claim",
+                tag.as_str()
+            ),
             // States what the finding *means*, not what it found. The count is
             // evidence; the actionable fact is that prose is the only thing
             // holding this rule and prose has already been shown to fail.
@@ -170,6 +201,8 @@ pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
     findings.extend(home_slug_collisions(library));
     findings.extend(reference_checks(library));
     findings.extend(unheld_recurrences(library));
+    findings.extend(recurrence_after_graduation(library));
+    findings.extend(recurrence_after_graduation(library));
     // Most-severe first; a stable sort keeps each check's own deterministic
     // order within a severity.
     findings.sort_by_key(|finding| std::cmp::Reverse(finding.severity()));
@@ -275,6 +308,85 @@ fn unheld_recurrences(library: &Library<Validated>) -> Vec<Finding> {
             })
         })
         .collect()
+}
+
+/// Graduated rules whose error class recurred **after** the graduation date.
+///
+/// The date is what makes this answerable at all, and it is the whole reason
+/// `Status::Graduated` carries one. A recurrence *before* the graduation is not
+/// a finding — it is very often the incident that prompted the graduation, and
+/// flagging it would punish exactly the response the library wants. Only a
+/// recurrence strictly after the date says the stronger control did not hold.
+fn recurrence_after_graduation(library: &Library<Validated>) -> Vec<Finding> {
+    library
+        .rules()
+        .iter()
+        .filter_map(|rule| {
+            let Status::Graduated { to, date } = rule.status() else {
+                return None;
+            };
+            let recurred = rule
+                .recurrences()
+                .iter()
+                .map(crate::rule::Recurrence::date)
+                .filter(|d| d > date)
+                .max()?;
+            Some(Finding::RecurrenceAfterGraduation {
+                tag: rule.tag().clone(), // allow:clone: the finding owns its tag, outliving the &Library borrow
+                to: to.as_str().to_owned(),
+                graduated: *date,
+                recurred,
+            })
+        })
+        .collect()
+}
+
+/// The two numbers that make the recurrence count honest, and the reason
+/// [`crate::rule::Origin`] exists.
+///
+/// P5: every metric carries a counter-metric. *Recurred* is the metric — and it
+/// is gameable through under-reporting, because only someone willing to write
+/// down that their own rule failed ever increments it. *Inert* is the counter:
+/// rules that were authored rather than mined from a real failure **and** have
+/// never been seen to fire. The null result says those are the ones that change
+/// nothing, so a library that looks healthy because it is full of them is
+/// exactly what a bare recurrence count would hide. Read together or not at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Tally {
+    total: usize,
+    recurred: usize,
+    inert: usize,
+}
+
+impl Tally {
+    /// Every rule in the library.
+    #[must_use]
+    pub fn total(self) -> usize {
+        self.total
+    }
+
+    /// Rules with at least one recorded recurrence — the metric.
+    #[must_use]
+    pub fn recurred(self) -> usize {
+        self.recurred
+    }
+
+    /// Rules codified rather than mined, that have never recurred — the counter.
+    #[must_use]
+    pub fn inert(self) -> usize {
+        self.inert
+    }
+}
+
+/// Count the library's recurred and inert fractions.
+#[must_use]
+pub fn tally(library: &Library<Validated>) -> Tally {
+    let rules = library.rules();
+    Tally {
+        total: rules.len(),
+        recurred: rules.iter().filter(|r| r.has_recurred()).count(),
+        inert: rules.iter().filter(|r| r.is_inert()).count(),
+    }
 }
 
 /// A stable label for a status kind, for diagnostics.

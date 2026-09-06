@@ -4,6 +4,7 @@ title = "Reconcile declared against active wiring on a schedule the guard cannot
 error_class = "A control that is correctly declared but no longer active -- commented out, moved, un-executable, overwritten -- going dark without announcing it, so the system runs unguarded for as long as the interval between whatever happens to notice"
 home = { kind = "global" }
 created = "2026-08-16"
+origin = "mined"
 status = { kind = "active" }
 incident = "2026-08-16: all nine PreToolUse hooks went unwired when settings.json was rewritten by an unidentified writer. Nothing announced it. It surfaced about eighty minutes later, and only because an unrelated audit happened to run the deploy verifier -- edits that should have been blocked went through in the interval. The file was tracked, which is why the entry condition had to be declared-not-equal-to-active rather than 'the wiring is unversioned': scoped to unversioned files, this rule would have excluded the very case that produced it. Ported into this library 2026-08-25."
 +++

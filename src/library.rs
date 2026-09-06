@@ -132,7 +132,7 @@ impl Library<Validated> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rule::{Body, Date, ErrorClass, Home, Incident, RuleTag, Status, Title};
+    use crate::rule::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title};
 
     fn rule_with_tag(tag: &str) -> Rule {
         Rule::new(
@@ -141,6 +141,7 @@ mod tests {
             ErrorClass::parse("an error class").expect("non-empty"),
             Home::global(),
             Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
             Status::active(),
             Incident::parse("an incident").expect("non-empty"),
             Body::parse("Do the thing.").expect("non-empty"),

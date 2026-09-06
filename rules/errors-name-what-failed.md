@@ -4,6 +4,7 @@ title = "Error enums carry the values that identify the failure"
 error_class = "An error modelled as a string, or as a variant with no fields, so the caller cannot match on what went wrong and the diagnostic omits the identifiers -- path, address, key, elapsed time -- needed to act on it"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 7 of ~/.claude/CLAUDE.md, which states it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. Its sibling, the ban on anyhow in library return types, is named here in prose rather than cited by tag on purpose: that rule has graduated to a hook, and a citation of a retired rule is a lint finding."
 +++

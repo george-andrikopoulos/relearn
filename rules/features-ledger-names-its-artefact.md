@@ -4,6 +4,7 @@ title = "Every feature-ledger entry names the artefact that enforces it, or decl
 error_class = "A feature recorded in the behaviour contract with no enforcing type, property or test named, so a documented wish is indistinguishable from a documented guarantee and the ledger certifies coverage it does not have"
 home = { kind = "global" }
 created = "2026-08-25"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-25 from ~/.claude/skills/project-discipline/SKILL.md, the artefact that defines the practice, and specified in *Aiming the Stochastic Machine* (Zenodo, doi:10.5281/zenodo.22083202), whose section 9 names the format's sharpest limit -- the column records enforcement, not invocation. The anchoring failure is real and dated: a security IP allowlist shipped in ha-mcp v0.7.0 (2026-07-16) passing every smoke gate through a dev override while the production wiring produced non-JSON, so the headline security feature would have shipped silently disabled, failing open. Surfaced for porting on 2026-08-25, when the emitted Copilot pack was found to carry no rule about the repository discipline at all."
 +++

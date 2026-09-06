@@ -4,6 +4,7 @@ title = "After restructuring, verify references as a distinct pass"
 error_class = "A restructuring edit silently invalidating references that were correct in the previous version -- antecedents, cross-references, counts, enumerations, promises -- with no error raised, and the author least able to see it because they autocomplete the missing text from memory of the draft they deleted"
 home = { kind = "global" }
 created = "2026-08-11"
+origin = "mined"
 status = { kind = "active" }
 incident = "*Tuning the Stochastic Machine* v0.3, 2026-08-11: the clause 'an instruction in context neither applies nor errors' had lost its setup -- 'a sysctl either applies or errors' -- in an earlier restructure, so the contrast pointed at nothing. Detected by translating the paragraph into Greek, which could not be rendered without adding the missing words. A fresh-reader sweep then found fifteen more: a cross-reference to a section that belonged to the next one, 'seven principles, each forced by an axiom' where only four were, 'three incidents' containing four, and 'the driver' with no driver introduced. Ported into this library 2026-08-25; this repository's charter had listed it as scheduled for migration since Phase A and cited it in prose, so the corpus was citing a rule it did not define."
 +++

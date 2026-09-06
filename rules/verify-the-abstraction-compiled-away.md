@@ -4,6 +4,7 @@ title = "Verify a zero-cost claim; never assert it"
 error_class = "Claiming an abstraction is zero-cost from its reputation -- newtype, iterator chain, generic wrapper -- without inspecting what the compiler emitted, so a real cost such as a bounds check, a heap allocation, or a missed inline ships as a claimed absence of cost"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
+origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 9 of ~/.claude/CLAUDE.md, which states the verification step in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library. Sharpened in the porting: the library already asserted zero cost inside R:newtype-liberally while carrying no rule that such a claim must be checked, which is exactly the shape of an unverified guarantee travelling as a fact."
 +++

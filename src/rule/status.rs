@@ -67,10 +67,18 @@ pub enum Emittability {
 pub enum Status {
     /// Live and enforced.
     Active,
-    /// Superseded by a stronger control at `to` (e.g. a hook).
+    /// Superseded by a stronger control at `to` (e.g. a hook), on `date`.
+    ///
+    /// The date is not decoration. Without it nothing can ask the question that
+    /// matters about a graduated rule -- *did it recur since it graduated?* -- and
+    /// that recurrence is the sharpest finding the library can produce: the named
+    /// stronger control was claimed to hold this and demonstrably did not, which
+    /// is a lying artefact rather than a rule merely wanting promotion.
     Graduated {
         /// Where the guarantee moved to.
         to: Destination,
+        /// When it moved there.
+        date: Date,
     },
     /// Retired to the attic, with why and when — never deleted.
     Attic {
@@ -88,10 +96,12 @@ impl Status {
         Status::Active
     }
 
-    /// Graduated to `to`; the destination must be non-empty.
-    pub fn graduated(to: impl Into<String>) -> Result<Self, EmptyText> {
+    /// Graduated to `to` on `date`; the destination must be non-empty and the
+    /// date is an already-validated [`Date`].
+    pub fn graduated(to: impl Into<String>, date: Date) -> Result<Self, EmptyText> {
         Ok(Status::Graduated {
             to: Destination::parse(to)?,
+            date,
         })
     }
 
@@ -128,8 +138,14 @@ mod tests {
 
     #[test]
     fn graduated_requires_destination() {
-        assert!(Status::graduated("hook:no-narrow-parse").is_ok());
-        assert!(Status::graduated("").is_err());
+        assert!(
+            Status::graduated(
+                "hook:no-narrow-parse",
+                Date::parse("2026-07-21").expect("valid date")
+            )
+            .is_ok()
+        );
+        assert!(Status::graduated("", Date::parse("2026-07-21").expect("valid date")).is_err());
     }
 
     #[test]
@@ -145,9 +161,12 @@ mod tests {
         let date = Date::parse("2026-09-01").expect("valid date");
         assert_eq!(Status::active().emittability(), Emittability::Emit);
         assert_eq!(
-            Status::graduated("hook:no-unwrap-in-src")
-                .expect("non-empty destination")
-                .emittability(),
+            Status::graduated(
+                "hook:no-unwrap-in-src",
+                Date::parse("2026-07-21").expect("valid date")
+            )
+            .expect("non-empty destination")
+            .emittability(),
             Emittability::Emit,
         );
         assert_eq!(
