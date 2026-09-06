@@ -22,7 +22,7 @@ use std::fmt;
 
 use crate::emit::HomeSlug;
 use crate::library::{Library, Validated};
-use crate::rule::{Home, Rule, RuleTag, Status};
+use crate::rule::{Date, Home, Rule, RuleTag, Status};
 
 /// How much a finding matters. Ordered so `Error > Warning > Info`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -85,6 +85,17 @@ pub enum Finding {
         /// The retired rule's status kind (`graduated` or `atticked`).
         status: &'static str,
     },
+    /// An `Active` rule — one held by prose alone — has recurred since it was
+    /// written. The prose is demonstrably not holding it, so it wants a
+    /// stronger control and a `Status::Graduated` recording which.
+    UnheldRecurrence {
+        /// The rule that keeps firing.
+        tag: RuleTag,
+        /// How many recurrences it records.
+        times: usize,
+        /// The date of the most recent one.
+        latest: Date,
+    },
 }
 
 impl Finding {
@@ -93,9 +104,13 @@ impl Finding {
     pub fn severity(&self) -> Severity {
         match self {
             Finding::HomeSlugCollision { .. } => Severity::Error,
-            Finding::OverlappingScope { .. } | Finding::DanglingReference { .. } => {
-                Severity::Warning
-            }
+            // `Warning`, not `Error`. `Error` here means the *emitted tree*
+            // would be wrong — two rules colliding on one output file. An
+            // unheld recurrence is a fault in the **library**: the emission is
+            // correct, and a build that emits correctly should not fail.
+            Finding::OverlappingScope { .. }
+            | Finding::DanglingReference { .. }
+            | Finding::UnheldRecurrence { .. } => Severity::Warning,
             Finding::RetiredReference { .. } => Severity::Info,
         }
     }
@@ -127,6 +142,14 @@ impl fmt::Display for Finding {
                 from.as_str(),
                 to.as_str()
             ),
+            // States what the finding *means*, not what it found. The count is
+            // evidence; the actionable fact is that prose is the only thing
+            // holding this rule and prose has already been shown to fail.
+            Finding::UnheldRecurrence { tag, times, latest } => write!(
+                f,
+                "unheld recurrence: {} is `active`, so prose is the only thing holding it — and it has fired {times} more time(s) since it was written, most recently {latest}. Promote it to a control that can hold it (a type, a property test, a gate check) and record that with `status = {{ kind = \"graduated\", to = \"...\" }}`",
+                tag.as_str()
+            ),
         }
     }
 }
@@ -146,6 +169,7 @@ pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
     findings.extend(overlapping_scope(library));
     findings.extend(home_slug_collisions(library));
     findings.extend(reference_checks(library));
+    findings.extend(unheld_recurrences(library));
     // Most-severe first; a stable sort keeps each check's own deterministic
     // order within a severity.
     findings.sort_by_key(|finding| std::cmp::Reverse(finding.severity()));
@@ -226,6 +250,31 @@ fn reference_checks(library: &Library<Validated>) -> Vec<Finding> {
         }
     }
     findings
+}
+
+/// Rules that are still `Active` — held by prose alone — and have recurred
+/// since they were written.
+///
+/// **No count threshold.** The first recurrence already proves the prose failed;
+/// two is not more actionable than one, and any cut-off would be a magic number
+/// this codebase does not use. A *graduated* rule with recurrences is
+/// deliberately not flagged here: that is the sharper finding — a named stronger
+/// control that demonstrably did not hold — and it needs a graduation date this
+/// `Status` does not carry, so it is a separate change with its own argument.
+fn unheld_recurrences(library: &Library<Validated>) -> Vec<Finding> {
+    library
+        .rules()
+        .iter()
+        .filter(|rule| matches!(rule.status(), Status::Active))
+        .filter_map(|rule| {
+            let latest = rule.latest_recurrence()?;
+            Some(Finding::UnheldRecurrence {
+                tag: rule.tag().clone(), // allow:clone: the finding owns its tag, outliving the &Library borrow
+                times: rule.recurrences().len(),
+                latest,
+            })
+        })
+        .collect()
 }
 
 /// A stable label for a status kind, for diagnostics.

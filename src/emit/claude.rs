@@ -9,7 +9,10 @@
 
 use std::collections::BTreeMap;
 
-use super::{HomeSlug, OutputFile, RelativePath, emittable, graduation_note, yaml_double_quote};
+use super::{
+    HomeSlug, OutputFile, RelativePath, emittable, graduation_note, recurrence_note,
+    yaml_double_quote,
+};
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule};
 
@@ -81,6 +84,9 @@ fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
         if let Some(note) = graduation_note(r) {
             out.push_str(&note);
         }
+        if let Some(note) = recurrence_note(r) {
+            out.push_str(&note);
+        }
         out.push_str(r.body().as_str());
         out.push('\n');
     }
@@ -112,6 +118,7 @@ mod tests {
             Status::active(),
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
+            Vec::new(),
         )
     }
 
@@ -231,6 +238,7 @@ mod tests {
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
+            Vec::new(),
         )
     }
 

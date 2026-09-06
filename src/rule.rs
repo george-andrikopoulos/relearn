@@ -28,7 +28,7 @@ mod tag;
 mod text;
 
 pub use date::{Date, DateError};
-pub use def::Rule;
+pub use def::{Recurrence, Rule};
 pub use home::{DomainName, Home, ProjectPath};
 pub use parse::{ParseError, parse_document};
 pub use serialize::to_document;

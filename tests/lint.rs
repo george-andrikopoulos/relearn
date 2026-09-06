@@ -4,7 +4,9 @@
 
 use relearn::library::{Library, Validated};
 use relearn::lint::{Finding, Severity, lint};
-use relearn::rule::{Body, Date, ErrorClass, Home, Incident, Rule, RuleTag, Status, Title};
+use relearn::rule::{
+    Body, Date, ErrorClass, Home, Incident, Recurrence, Rule, RuleTag, Status, Title,
+};
 
 fn rule(tag: &str, home: Home, error_class: &str, body: &str) -> Rule {
     Rule::new(
@@ -16,6 +18,7 @@ fn rule(tag: &str, home: Home, error_class: &str, body: &str) -> Rule {
         Status::active(),
         Incident::parse("an incident").expect("non-empty incident"),
         Body::parse(body).expect("non-empty body"),
+        Vec::new(),
     )
 }
 
@@ -40,6 +43,7 @@ fn atticked(tag: &str) -> Rule {
         .expect("non-empty reason"),
         Incident::parse("an incident").expect("non-empty incident"),
         Body::parse("Body.").expect("non-empty body"),
+        Vec::new(),
     )
 }
 
@@ -219,6 +223,7 @@ fn a_tag_cited_twice_in_the_body_yields_one_finding() {
         Status::active(),
         Incident::parse("first seen alongside no tags at all").expect("non-empty incident"),
         Body::parse("This builds on R:ghost, and again on R:ghost.").expect("non-empty body"),
+        Vec::new(),
     )]);
     let dangling: Vec<_> = lint(&lib)
         .into_iter()
@@ -311,6 +316,7 @@ fn rule_with_incident(tag: &str, incident: &str, body: &str) -> Rule {
         Status::active(),
         Incident::parse(incident).expect("non-empty incident"),
         Body::parse(body).expect("non-empty body"),
+        Vec::new(),
     )
 }
 
@@ -346,5 +352,115 @@ fn a_tag_cited_in_the_body_is_still_flagged() {
             Finding::DanglingReference { to, .. } if to.as_str() == "R:ghost"
         )),
         "a dangling citation in the BODY must still be reported: {findings:?}"
+    );
+}
+
+/// A rule with the given status carrying the given recurrence dates.
+fn recurred(tag: &str, status: Status, dates: &[&str]) -> Rule {
+    Rule::new(
+        RuleTag::parse(tag).expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse("some class").expect("non-empty error class"),
+        Home::global(),
+        Date::parse("2026-08-13").expect("valid date"),
+        status,
+        Incident::parse("the triggering incident").expect("non-empty incident"),
+        Body::parse("Body.").expect("non-empty body"),
+        dates
+            .iter()
+            .map(|d| {
+                Recurrence::new(
+                    Date::parse(d).expect("valid date"),
+                    Incident::parse("it happened again").expect("non-empty incident"),
+                )
+            })
+            .collect(),
+    )
+}
+
+#[test]
+fn an_active_rule_that_has_recurred_is_flagged() {
+    let lib = validated(vec![recurred(
+        "R:bitten",
+        Status::active(),
+        &["2026-08-24"],
+    )]);
+    let findings = lint(&lib);
+    assert!(
+        findings.iter().any(|f| matches!(
+            f,
+            Finding::UnheldRecurrence { tag, times, .. }
+                if tag.as_str() == "R:bitten" && *times == 1
+        )),
+        "an active rule that has fired again must be reported: {findings:?}"
+    );
+}
+
+/// The first recurrence is the whole finding — there is no count threshold to
+/// cross, because one recurrence already proves the prose failed.
+#[test]
+fn one_recurrence_is_enough_and_the_latest_date_is_the_maximum() {
+    let lib = validated(vec![recurred(
+        "R:bitten",
+        Status::active(),
+        &["2026-08-30", "2026-08-16"],
+    )]);
+    let findings = lint(&lib);
+    let latest = findings
+        .iter()
+        .find_map(|f| match f {
+            Finding::UnheldRecurrence { times, latest, .. } => Some((*times, *latest)),
+            _ => None,
+        })
+        .expect("the finding is raised");
+    assert_eq!(latest.0, 2);
+    assert_eq!(latest.1.to_string(), "2026-08-30");
+}
+
+#[test]
+fn an_unheld_recurrence_is_a_warning_not_an_error() {
+    // Deliberately not `Error`: `Error` means the emitted tree would be wrong.
+    // This is a fault in the library, and a build that emits correctly must not
+    // fail on it.
+    let lib = validated(vec![recurred(
+        "R:bitten",
+        Status::active(),
+        &["2026-08-24"],
+    )]);
+    let finding = lint(&lib)
+        .into_iter()
+        .find(|f| matches!(f, Finding::UnheldRecurrence { .. }))
+        .expect("the finding is raised");
+    assert_eq!(finding.severity(), Severity::Warning);
+}
+
+#[test]
+fn a_rule_that_has_never_recurred_is_not_flagged() {
+    let lib = validated(vec![recurred("R:quiet", Status::active(), &[])]);
+    assert!(
+        !lint(&lib)
+            .iter()
+            .any(|f| matches!(f, Finding::UnheldRecurrence { .. })),
+        "a rule with no recurrences must not be flagged"
+    );
+}
+
+/// A **graduated** rule that has recurred is deliberately NOT this finding. It
+/// is the sharper one — a named stronger control that demonstrably did not hold
+/// — and it needs a graduation date `Status::Graduated` does not carry. Flagging
+/// it here as an ordinary `UnheldRecurrence` would say the wrong thing (the rule
+/// is not held by prose alone) and would pre-empt the finding it deserves.
+#[test]
+fn a_graduated_rule_that_has_recurred_is_not_this_finding() {
+    let lib = validated(vec![recurred(
+        "R:grad",
+        Status::graduated("hook:x").expect("non-empty destination"),
+        &["2026-08-24"],
+    )]);
+    assert!(
+        !lint(&lib)
+            .iter()
+            .any(|f| matches!(f, Finding::UnheldRecurrence { .. })),
+        "a graduated rule is not held by prose alone; this finding does not apply to it"
     );
 }

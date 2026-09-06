@@ -45,7 +45,7 @@
 use std::collections::BTreeMap;
 
 use super::{
-    HomeSlug, LoadSemantics, OutputFile, RelativePath, emittable, graduation_note,
+    HomeSlug, LoadSemantics, OutputFile, RelativePath, emittable, graduation_note, recurrence_note,
     yaml_double_quote,
 };
 use crate::library::{Library, Validated};
@@ -149,6 +149,9 @@ fn render_layer(home: &Home, rules: &[&Rule]) -> String {
         if let Some(note) = graduation_note(r) {
             out.push_str(&note);
         }
+        if let Some(note) = recurrence_note(r) {
+            out.push_str(&note);
+        }
         out.push_str(&format!("{}\n", r.body().as_str()));
     }
     out
@@ -182,6 +185,7 @@ mod tests {
             Status::active(),
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
+            Vec::new(),
         )
     }
 

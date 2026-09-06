@@ -27,6 +27,16 @@ pub fn to_document(rule: &Rule) -> String {
     out.push_str(&kv("created", &rule.created().to_string()));
     out.push_str(&status_line(rule.status()));
     out.push_str(&kv("incident", rule.incident().as_str()));
+    // Emitted **only** when there is at least one, and last, because a TOML
+    // array of tables captures every key that follows it. A rule that has not
+    // recurred therefore renders exactly as it did before the field existed,
+    // which is what makes the format change need no migration — asserted over
+    // the real corpus by `tests/corpus.rs`.
+    for recurrence in rule.recurrences() {
+        out.push_str("\n[[recurrence]]\n");
+        out.push_str(&kv("date", &recurrence.date().to_string()));
+        out.push_str(&kv("incident", recurrence.incident().as_str()));
+    }
     out.push_str("+++\n\n");
     out.push_str(rule.body().as_str());
     out.push('\n');
@@ -93,8 +103,30 @@ fn toml_basic_string(s: &str) -> String {
 mod tests {
     use super::to_document;
     use crate::rule::{
-        Body, Date, ErrorClass, Home, Incident, Rule, RuleTag, Status, Title, parse_document,
+        Body, Date, ErrorClass, Home, Incident, Recurrence, Rule, RuleTag, Status, Title,
+        parse_document,
     };
+
+    fn rule_with_recurrences(recurrences: Vec<Recurrence>) -> Rule {
+        Rule::new(
+            RuleTag::parse("R:x").expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-08-13").expect("valid date"),
+            Status::active(),
+            Incident::parse("the triggering incident").expect("non-empty incident"),
+            Body::parse("Do the thing.").expect("non-empty body"),
+            recurrences,
+        )
+    }
+
+    fn recurrence(date: &str, incident: &str) -> Recurrence {
+        Recurrence::new(
+            Date::parse(date).expect("valid date"),
+            Incident::parse(incident).expect("non-empty incident"),
+        )
+    }
 
     fn rule_with(error_class: &str, home: Home, status: Status, body: &str) -> Rule {
         Rule::new(
@@ -106,6 +138,7 @@ mod tests {
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
+            Vec::new(),
         )
     }
 
@@ -154,6 +187,45 @@ mod tests {
             "Body.",
         );
         assert_eq!(parse_document(&to_document(&a)), Ok(a));
+    }
+
+    // The assertion that makes "no rule file needs editing" true at the unit
+    // level; `tests/corpus.rs` makes it true over the real forty-six.
+    #[test]
+    fn a_rule_with_no_recurrences_renders_no_recurrence_table() {
+        let doc = to_document(&rule_with_recurrences(Vec::new()));
+        assert!(
+            !doc.contains("[[recurrence]]"),
+            "an unrecurred rule must render exactly as it did before the field existed:\n{doc}"
+        );
+    }
+
+    #[test]
+    fn round_trips_recurrences() {
+        let r = rule_with_recurrences(vec![
+            recurrence("2026-08-24", "Fired again; the script was never repaired."),
+            recurrence("2026-08-30", "And again, with a \"quoted\" phrase."),
+        ]);
+        assert_eq!(parse_document(&to_document(&r)), Ok(r));
+    }
+
+    // The tables must come **after** every scalar key: a TOML array of tables
+    // captures everything that follows it, so a `[[recurrence]]` emitted before
+    // `incident` would swallow `incident` into the table and change the rule.
+    #[test]
+    fn recurrence_tables_are_emitted_after_the_scalar_fields() {
+        let doc = to_document(&rule_with_recurrences(vec![recurrence(
+            "2026-08-24",
+            "again",
+        )]));
+        let table_at = doc.find("[[recurrence]]").expect("the table is emitted");
+        let incident_at = doc
+            .find("incident = ")
+            .expect("the incident key is emitted");
+        assert!(
+            incident_at < table_at,
+            "the scalar keys must precede the array of tables:\n{doc}"
+        );
     }
 
     #[test]

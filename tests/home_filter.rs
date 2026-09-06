@@ -22,6 +22,7 @@ fn rule(tag: &str, home: Home) -> Rule {
         Status::active(),
         Incident::parse("an incident").expect("non-empty incident"),
         Body::parse("The body.").expect("non-empty body"),
+        Vec::new(),
     )
 }
 

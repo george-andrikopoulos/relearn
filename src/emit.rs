@@ -315,11 +315,52 @@ pub(crate) fn graduation_note(rule: &Rule) -> Option<String> {
     }
 }
 
+/// The one-line annotation a rule that has **recurred** carries in every emitted
+/// format: a markdown blockquote counting the later occurrences and dating the
+/// most recent one. `None` for a rule with no recurrences, so an unrecurred rule
+/// emits exactly what it emitted before the field existed.
+///
+/// Same category, same place, same reason as [`graduation_note`]. An assistant
+/// reading the corpus should weight a rule that has bitten three times above one
+/// written once and never seen again; without this the two are indistinguishable
+/// in the instruction layer, which is where the weighting actually happens.
+/// Returns the note plus its trailing blank line, so a caller splices it in with
+/// one `push_str`.
+#[must_use]
+pub(crate) fn recurrence_note(rule: &Rule) -> Option<String> {
+    let latest = rule.latest_recurrence()?;
+    Some(format!(
+        "> Has recurred {} time(s) since it was written; most recently {latest}.\n\n",
+        rule.recurrences().len()
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::library::Library;
-    use crate::rule::{Body, Date, ErrorClass, Home, Incident, RuleTag, Status, Title};
+    use crate::rule::{Body, Date, ErrorClass, Home, Incident, Recurrence, RuleTag, Status, Title};
+
+    fn rule_with_recurrences(tag: &str, status: Status, recurrences: Vec<Recurrence>) -> Rule {
+        Rule::new(
+            RuleTag::parse(tag).expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-08-13").expect("valid date"),
+            status,
+            Incident::parse("an incident").expect("non-empty incident"),
+            Body::parse("Do the thing.").expect("non-empty body"),
+            recurrences,
+        )
+    }
+
+    fn recurrence(date: &str) -> Recurrence {
+        Recurrence::new(
+            Date::parse(date).expect("valid date"),
+            Incident::parse("it happened again").expect("non-empty incident"),
+        )
+    }
 
     fn rule_with_status(tag: &str, status: Status) -> Rule {
         Rule::new(
@@ -331,6 +372,7 @@ mod tests {
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
+            Vec::new(),
         )
     }
 
@@ -376,6 +418,61 @@ mod tests {
             )),
             Some("> Also enforced by hook:no-unwrap-in-src.\n\n".to_owned())
         );
+    }
+
+    #[test]
+    fn recurrence_note_only_annotates_rules_that_have_recurred() {
+        assert_eq!(
+            recurrence_note(&rule_with_status("R:quiet", Status::active())),
+            None
+        );
+        assert_eq!(
+            recurrence_note(&rule_with_recurrences(
+                "R:bitten",
+                Status::active(),
+                vec![recurrence("2026-08-24")],
+            )),
+            Some(
+                "> Has recurred 1 time(s) since it was written; most recently 2026-08-24.\n\n"
+                    .to_owned()
+            )
+        );
+    }
+
+    // The note dates the *latest* recurrence, whichever order the file lists
+    // them in — a rule read out of the corpus must not claim it last bit in
+    // August because August happened to be written last.
+    #[test]
+    fn recurrence_note_counts_all_and_dates_the_most_recent() {
+        assert_eq!(
+            recurrence_note(&rule_with_recurrences(
+                "R:thrice",
+                Status::active(),
+                vec![
+                    recurrence("2026-08-30"),
+                    recurrence("2026-08-16"),
+                    recurrence("2026-08-24"),
+                ],
+            )),
+            Some(
+                "> Has recurred 3 time(s) since it was written; most recently 2026-08-30.\n\n"
+                    .to_owned()
+            )
+        );
+    }
+
+    // A graduated rule that has *also* recurred carries both notes: the
+    // stronger control that now holds it, and the record that it bit before.
+    // They are independent facts and neither suppresses the other.
+    #[test]
+    fn graduation_and_recurrence_notes_are_independent() {
+        let r = rule_with_recurrences(
+            "R:both",
+            Status::graduated("hook:x").expect("non-empty destination"),
+            vec![recurrence("2026-08-24")],
+        );
+        assert!(graduation_note(&r).is_some());
+        assert!(recurrence_note(&r).is_some());
     }
 
     #[test]

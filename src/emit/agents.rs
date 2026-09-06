@@ -10,7 +10,9 @@
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
-use super::{HomeSlug, OutputFile, RelativePath, emittable, graduation_note, home_rank};
+use super::{
+    HomeSlug, OutputFile, RelativePath, emittable, graduation_note, home_rank, recurrence_note,
+};
 use crate::library::{Library, Validated};
 use crate::rule::{Rule, RuleTag};
 
@@ -63,6 +65,9 @@ fn render(rules: &[&Rule]) -> String {
         if let Some(note) = graduation_note(r) {
             out.push_str(&note);
         }
+        if let Some(note) = recurrence_note(r) {
+            out.push_str(&note);
+        }
         out.push_str(&format!("{}\n", r.body().as_str()));
     }
     out
@@ -84,6 +89,7 @@ mod tests {
             Status::active(),
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
+            Vec::new(),
         )
     }
 

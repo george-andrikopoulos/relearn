@@ -11,8 +11,8 @@ use proptest::prelude::*;
 use relearn::emit;
 use relearn::library::{Library, Validated};
 use relearn::rule::{
-    Body, Date, ErrorClass, Home, Incident, Rule, RuleTag, Status, Title, parse_document,
-    to_document,
+    Body, Date, ErrorClass, Home, Incident, Recurrence, Rule, RuleTag, Status, Title,
+    parse_document, to_document,
 };
 
 /// Non-empty, edge-trimmed text (parsing trims, so generated values must have no
@@ -52,6 +52,18 @@ fn arb_status() -> impl Strategy<Value = Status> {
     ]
 }
 
+/// Zero to three recurrences, dates and text both generated. Zero is included
+/// deliberately: the unrecurred rule is the overwhelmingly common shape and the
+/// one whose rendering must not change.
+fn arb_recurrences() -> impl Strategy<Value = Vec<Recurrence>> {
+    proptest::collection::vec(
+        (arb_date(), arb_text()).prop_map(|(date, incident)| {
+            Recurrence::new(date, Incident::parse(incident).expect("non-empty incident"))
+        }),
+        0..3,
+    )
+}
+
 /// A fully-arbitrary rule with the given tag body.
 fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
     (
@@ -62,9 +74,10 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
         arb_status(),
         arb_text(),
         arb_text(),
+        arb_recurrences(),
     )
         .prop_map(
-            move |(title, error_class, home, created, status, incident, body)| {
+            move |(title, error_class, home, created, status, incident, body, recurrences)| {
                 Rule::new(
                     RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
                     Title::parse(title).expect("non-empty title"),
@@ -74,6 +87,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
                     status,
                     Incident::parse(incident).expect("non-empty incident"),
                     Body::parse(body).expect("non-empty body"),
+                    recurrences,
                 )
             },
         )
@@ -102,12 +116,64 @@ fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
                     status,
                     Incident::parse("incident").expect("non-empty incident"),
                     Body::parse("body").expect("non-empty body"),
+                    Vec::new(),
                 ));
             }
             Library::from_rules(rules)
                 .validate()
                 .expect("distinct tags validate")
         })
+}
+
+/// A validated library of up to five rules with distinct tags, varied homes and
+/// statuses, and **varied recurrence histories** — some rules bitten, some not.
+/// Distinct from the libraries above because the recurrence annotation is only
+/// exercised when a library carries both kinds.
+fn arb_library_recurring() -> impl Strategy<Value = Library<Validated>> {
+    proptest::collection::vec(
+        (
+            arb_tag_body(),
+            arb_home(),
+            arb_text(),
+            arb_status(),
+            arb_recurrences(),
+        ),
+        0..5,
+    )
+    .prop_map(|items| {
+        let mut seen = BTreeSet::new();
+        let mut rules = Vec::new();
+        for (tag_body, home, text, status, recurrences) in items {
+            if !seen.insert(tag_body.clone()) {
+                continue; // keep tags distinct so validation succeeds
+            }
+            rules.push(Rule::new(
+                RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
+                Title::parse(text).expect("non-empty title"),
+                ErrorClass::parse("error class").expect("non-empty error class"),
+                home,
+                Date::parse("2026-08-13").expect("valid date"),
+                status,
+                Incident::parse("incident").expect("non-empty incident"),
+                Body::parse("body").expect("non-empty body"),
+                recurrences,
+            ));
+        }
+        Library::from_rules(rules)
+            .validate()
+            .expect("distinct tags validate")
+    })
+}
+
+/// The note a rule's recurrence history should produce, rebuilt independently of
+/// `emit` so the property is checked against the *specification* rather than
+/// against the implementation restating itself.
+fn expected_recurrence_note(rule: &Rule) -> Option<String> {
+    let latest = rule.recurrences().iter().map(Recurrence::date).max()?;
+    Some(format!(
+        "> Has recurred {} time(s) since it was written; most recently {latest}.",
+        rule.recurrences().len()
+    ))
 }
 
 /// The tags of every atticked rule in a library.
@@ -137,6 +203,7 @@ fn arb_library() -> impl Strategy<Value = Library<Validated>> {
                 Status::active(),
                 Incident::parse("incident").expect("non-empty incident"),
                 Body::parse("body").expect("non-empty body"),
+                Vec::new(),
             ));
         }
         Library::from_rules(rules)
@@ -220,6 +287,58 @@ proptest! {
                     file.path().as_str(),
                     "CLAUDE.md",
                     "an emitter targeted the hand-authored project charter"
+                );
+            }
+        }
+    }
+
+    /// **A recurrence reaches every emitted format, and only where it is real.**
+    /// For any library, every file an emitter produces carries the recurrence
+    /// note of each recurred rule it names as a source, and carries no note for a
+    /// rule that has not recurred.
+    ///
+    /// This is the artifact that keeps the annotation wired. `recurrence_note`
+    /// is one function, but there are five independent splice sites, and a unit
+    /// test of the function proves nothing about whether an emitter calls it —
+    /// the same shape of gap that let the project layer point at the root
+    /// charter for months. Checked over the union of all five emitters' output.
+    #[test]
+    fn a_recurrence_is_annotated_in_every_emitted_format(lib in arb_library_recurring()) {
+        let outputs = [
+            emit::claude::emit(&lib),
+            emit::cursor::emit(&lib),
+            emit::copilot::emit(&lib),
+            emit::agents::emit(&lib),
+            emit::claude_rules::emit(&lib),
+        ];
+        for files in &outputs {
+            for file in files {
+                let mut expected_notes = 0usize;
+                for tag in file.sources() {
+                    let rule = lib
+                        .rules()
+                        .iter()
+                        .find(|r| r.tag().as_str() == tag.as_str())
+                        .expect("a file's source is a rule of the library");
+                    if let Some(note) = expected_recurrence_note(rule) {
+                        expected_notes += 1;
+                        prop_assert!(
+                            file.contents().contains(&note),
+                            "{} has recurred but {} carries no note for it",
+                            tag.as_str(),
+                            file.path().as_str()
+                        );
+                    }
+                }
+                // Counted, not merely "absent": a concatenated file holds many
+                // rules, so "no note anywhere" is the wrong question. One note
+                // per recurred source and no more is what says a rule that has
+                // never recurred was not annotated as though it had.
+                prop_assert_eq!(
+                    file.contents().matches("> Has recurred ").count(),
+                    expected_notes,
+                    "{} carries the wrong number of recurrence notes",
+                    file.path().as_str()
                 );
             }
         }

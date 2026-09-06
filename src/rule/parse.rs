@@ -13,8 +13,8 @@
 use serde::Deserialize;
 
 use super::{
-    Body, Date, DateError, EmptyText, ErrorClass, Home, Incident, Rule, RuleTag, RuleTagError,
-    Status, Title,
+    Body, Date, DateError, EmptyText, ErrorClass, Home, Incident, Recurrence, Rule, RuleTag,
+    RuleTagError, Status, Title,
 };
 
 /// Why a rule document failed to parse.
@@ -68,6 +68,23 @@ struct RawRule {
     home: RawHome,
     created: String,
     status: RawStatus,
+    incident: String,
+    /// Later occurrences of the same error class, as `[[recurrence]]` tables.
+    ///
+    /// `default` rather than required: forty-six rule files predate the field
+    /// and none of them needs editing. Absent means "has not recurred", which
+    /// is the honest reading of a corpus in which recurrence was not
+    /// recordable — not a claim that anyone checked.
+    #[serde(default)]
+    recurrence: Vec<RawRecurrence>,
+}
+
+/// One `[[recurrence]]` table. An array of tables rather than a list of
+/// strings so the pair stays legible and diffable in the file.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawRecurrence {
+    date: String,
     incident: String,
 }
 
@@ -134,6 +151,14 @@ impl RawRule {
         })?;
         let status = self.status.into_status()?;
         let body = Body::parse(body)?;
+        // Collected with `?`, not filtered: a malformed recurrence stops the
+        // build like any other field. A recurrence silently dropped is the
+        // evidence that the rule failed, dropped.
+        let recurrences = self
+            .recurrence
+            .into_iter()
+            .map(RawRecurrence::into_recurrence)
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Rule::new(
             tag,
             title,
@@ -143,7 +168,19 @@ impl RawRule {
             status,
             incident,
             body,
+            recurrences,
         ))
+    }
+}
+
+impl RawRecurrence {
+    fn into_recurrence(self) -> Result<Recurrence, ParseError> {
+        let date = Date::parse(&self.date).map_err(|source| ParseError::Date {
+            field: "recurrence.date",
+            source,
+        })?;
+        let incident = Incident::parse(self.incident)?;
+        Ok(Recurrence::new(date, incident))
     }
 }
 
@@ -338,6 +375,80 @@ Parse into a type wide enough to represent the out-of-range value.
         );
         let rule = parse_document(&doc).expect("attic parses");
         assert!(matches!(rule.status(), Status::Attic { .. }));
+    }
+
+    // A rule file written before the field existed parses to a rule with no
+    // recurrences — the reason none of the committed rules needed editing.
+    #[test]
+    fn a_rule_without_recurrences_parses_to_none() {
+        let rule = parse_document(DOC).expect("valid document parses");
+        assert!(!rule.has_recurred());
+        assert!(rule.recurrences().is_empty());
+    }
+
+    #[test]
+    fn recurrences_parse_as_an_array_of_tables() {
+        let doc = DOC.replace(
+            "+++\n\nParse into",
+            concat!(
+                "\n[[recurrence]]\n",
+                "date = \"2026-08-24\"\n",
+                "incident = \"Fired again: the build-path claim was never repaired.\"\n",
+                "\n[[recurrence]]\n",
+                "date = \"2026-08-30\"\n",
+                "incident = \"And again, in the domain-knowledge section.\"\n",
+                "+++\n\nParse into"
+            ),
+        );
+        let rule = parse_document(&doc).expect("recurrences parse");
+        assert!(rule.has_recurred());
+        assert_eq!(rule.recurrences().len(), 2);
+        assert_eq!(rule.recurrences()[0].date().to_string(), "2026-08-24");
+        assert!(
+            rule.recurrences()[1]
+                .incident()
+                .as_str()
+                .starts_with("And again")
+        );
+        assert_eq!(
+            rule.latest_recurrence().map(|d| d.to_string()),
+            Some("2026-08-30".to_owned())
+        );
+    }
+
+    // A malformed recurrence stops the build like any other field, and the
+    // error names which date failed — `recurrence.date`, not `created`.
+    #[test]
+    fn a_recurrence_with_a_bad_date_is_a_range_error_naming_the_field() {
+        let doc = DOC.replace(
+            "+++\n\nParse into",
+            "\n[[recurrence]]\ndate = \"2026-02-30\"\nincident = \"again\"\n+++\n\nParse into",
+        );
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::Date {
+                field: "recurrence.date",
+                source: DateError::DayOutOfRange(30),
+            })
+        );
+    }
+
+    #[test]
+    fn a_recurrence_with_an_empty_incident_is_rejected() {
+        let doc = DOC.replace(
+            "+++\n\nParse into",
+            "\n[[recurrence]]\ndate = \"2026-08-24\"\nincident = \"  \"\n+++\n\nParse into",
+        );
+        assert!(matches!(parse_document(&doc), Err(ParseError::Text(_))));
+    }
+
+    #[test]
+    fn an_unknown_field_in_a_recurrence_is_rejected() {
+        let doc = DOC.replace(
+            "+++\n\nParse into",
+            "\n[[recurrence]]\ndate = \"2026-08-24\"\nincident = \"again\"\nbogus = 1\n+++\n\nParse into",
+        );
+        assert!(matches!(parse_document(&doc), Err(ParseError::Toml(_))));
     }
 
     #[test]

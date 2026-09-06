@@ -20,7 +20,7 @@
 //!
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
-use super::{LoadSemantics, OutputFile, RelativePath, emittable, graduation_note};
+use super::{LoadSemantics, OutputFile, RelativePath, emittable, graduation_note, recurrence_note};
 use crate::library::{Library, Validated};
 use crate::rule::Rule;
 
@@ -82,6 +82,9 @@ fn render_mdc(rule: &Rule, scope: &LoadSemantics) -> String {
     if let Some(note) = graduation_note(rule) {
         out.push_str(&note);
     }
+    if let Some(note) = recurrence_note(rule) {
+        out.push_str(&note);
+    }
     out.push_str(rule.body().as_str());
     out.push('\n');
     out
@@ -102,6 +105,7 @@ mod tests {
             Status::active(),
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
+            Vec::new(),
         )
     }
 
