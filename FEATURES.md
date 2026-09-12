@@ -262,6 +262,16 @@ where a maintainer installed the hook, and TODO.md carries it.
 and twice in `TODO.md`, present in all 52 commit trees and in TODO.md since the first
 commit. Redacted in the same change; the history rewrite is carried in TODO.md.
 
+### Every dependency is priced in the decisions log, and so is every refusal
+
+What: `[R:price-every-dependency]`, codified 2026-09-12 — a dependency is a decision that arrives as one line in a manifest, so it gets an entry in the ARCHITECTURE decisions log (what it is for, why this one, what was refused — including writing it by hand — whether the default features were taken, whether it is dev-only), and a decision *not* to take one gets an entry too. The manifest comment points at the entry; it does not restate it.
+
+**Enforced by: NOTHING YET — exposed.** One half of the gate is mechanical and cheap — parse every manifest, fail if a dependency is not named in the decisions log, the same shape as the ledger-citation check — but this repository has no `scripts/verify.sh` to host it (only `scripts/no-banned-names.sh`), and building one is a separate change with its own argument. Carried in TODO.md.
+
+**The asymmetry is structural, not a gap in the gate.** A check can prove every dependency *taken* has an entry. Nothing mechanical can prove a dependency *refused* was recorded, because a refusal produces no artifact to check against — which is exactly why the refusal is the half that goes missing. That half is P4: the human reader is the only detector, and the gate, once it exists, must never be read as covering it.
+
+**Measured when the rule was written (this repository, 2026-09-12):** nine dependencies — six runtime (`toml`, `serde`, `clap`, `thiserror`, `anyhow`, `sha2`) and three dev (`proptest`, `tempfile`, `trybuild`) — against a decisions log in which three of the nine names occur at all and exactly one, `toml`, occurs as a crate choice, and that entry prices a *format* decision for which the crate's maintenance is the stated reason. No dev-dependency appears anywhere in it. The existing entries were deliberately **not** retrofitted: reconstructing a rejected list months later produces the flattering one, which is the failure `[R:decisions-log-records-rejected-alternatives]` already names.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.

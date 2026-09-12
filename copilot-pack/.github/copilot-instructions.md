@@ -234,6 +234,58 @@ at the consuming end instead. A repository can satisfy either and fail the other
 
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
 
+## Every dependency is priced in the decisions log, and so is every dependency refused [R:price-every-dependency]
+
+Every dependency gets an entry in the decisions log: what it is for, why this one, and
+what was refused. The refused list includes **writing it yourself**, with a rough size,
+whenever that was a live option -- and it usually was. A crate arrives as one line in a
+manifest: no design discussion, no diff worth reading, nothing that looks like a choice
+was made. The entry is what makes it one.
+
+A decision *not* to take a dependency gets an entry too, and that is the half which
+disappears. Forty lines written by hand in place of a crate leave no manifest line, no
+lockfile churn, nothing a later reader can trip over. The refusal exists only in the head
+of whoever made it, so the next session proposes the same crate, nobody can tell it was
+already priced and declined, and in it goes. A refused dependency and one nobody ever
+considered look identical from the outside; only a deliberate entry tells them apart.
+
+This is sharper with an assistant than without one. Reaching for a crate is what the
+training data does: asked to parse a date, hash a string, or retry a request, an
+assistant will propose a dependency before it proposes twenty lines, because published
+code overwhelmingly takes the dependency. The refusal is therefore the option that has to
+be written down on purpose, precisely because it is the option nothing else records.
+
+Feature flags are part of the price. `default-features = false` belongs in the entry
+together with its reason: what the default set drags in, and why that tree is not wanted.
+A crate taken with its defaults off is a different dependency from the same crate taken
+whole, and an entry that does not say which one was taken has not priced anything.
+
+Dev-only is part of the price, and it lowers it. An entry that can say *nothing shipped
+depends on this* is materially different from one that cannot: the blast radius is a
+build machine rather than every user, and the bar the alternatives had to clear was lower
+because of it. Say which it is.
+
+The manifest comment points at the entry; it does not restate it. A one-line purpose
+beside the dependency is where a reader actually meets it and is worth having -- what
+this is for, and where the decision lives. Standalone reasoning in a manifest comment is
+a second home for the rationale, and two homes drift: the comment is trimmed, the log is
+appended to, and neither reader can tell which one is current.
+
+Record the entry when the dependency is added, while the alternatives are still in mind.
+Reconstructed later, the rejected list is always the flattering one -- the same
+observation `[R:decisions-log-records-rejected-alternatives]` already makes, and the
+reason this rule is that one's sibling rather than its replacement. That rule requires a
+decision already recognised as a decision to carry its why and its refusals. This one
+says a dependency is such a decision despite arriving as a manifest line, and that
+choosing to take none is another.
+
+The asymmetry is real and must not be papered over. A gate can parse every manifest and
+fail when a dependency is not named in the log, so the half about dependencies **taken**
+is mechanisable and cheap. Nothing mechanical can check the half about dependencies
+**refused**: there is no artefact to compare the log against, which is exactly why that
+half is the one that goes missing. There the human reader is the only detector, and a
+gate covering the first half must never be read as covering the second.
+
 ## Reconcile declared against active wiring on a schedule the guard cannot break [R:reconcile-wiring-at-start]
 
 The entry condition is **declared is not active**. It is not "the wiring is unversioned". A tracked control goes dark just as quietly as an untracked one: a commented-out entry, a moved path, a lost executable bit. Version control yields a diff, but a diff does not tell you a guard is inert *now*, and nobody diffs a file they have no reason to suspect. Being unversioned is an aggravating factor -- no diff, no revert, no attribution -- never the qualifier.
@@ -691,4 +743,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=5f3fe37e32c8e80a8bd32b26f3d5eee203a0f1f5f7771bd9a6664aae3baec19a rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=e76f4a27f8f6c5f1b1cb340537620f79b48b1ed0020435cc8d89d748d29d8d9e rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

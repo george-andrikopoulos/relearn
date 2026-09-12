@@ -269,6 +269,44 @@ existed and failed. Corpus 48 -> 51.
       records the row as configuration-dependent and its TODO.md carries the buildable
       alternative: a check on that side that recomputes the footer hash itself.
 
+## Phase I — pricing a dependency (2026-09-12)
+
+`[R:price-every-dependency]`, `origin = "codified"` and labelled so deliberately: it came
+out of a design conversation, not out of a failure that cost something, and calling it
+mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -> 52.
+
+- [x] The rule: every dependency gets a decisions-log entry — purpose, why this one, what
+      was refused (including writing it by hand), feature flags, dev-only — and so does
+      every dependency **refused**, which is the half with no artifact and therefore the
+      half that is lost. Sibling of `[R:decisions-log-records-rejected-alternatives]`,
+      which it cites rather than restates.
+- [x] The anchoring pair measured here before the rule was written, not assumed: nine
+      dependencies against one named in the decisions log as a crate choice. Recorded in
+      the rule's `incident` and in FEATURES.md.
+- [x] `relearn lint` reports **no** `OverlappingScope` against the sibling rule — and the
+      negative is weak evidence, because that check groups on the *literal* error-class
+      text (case-insensitive). Two rules can overlap in meaning and never collide there.
+      Reported rather than resolved; merging the two is George's call.
+
+### Open
+
+- [ ] **The gate: every manifest entry named in the decisions log.** Parse `Cargo.toml`
+      (and any other manifest), fail when a dependency has no entry — the same shape as
+      the ledger-citation check. It has nowhere to live yet: this repository has no
+      `scripts/verify.sh`, only `scripts/no-banned-names.sh`, so standing one up is a
+      separate change with its own argument. Until then the rule is prose held by
+      nothing, and FEATURES.md says so. **The refusal half is not in scope for any gate**
+      — no artifact exists to check it against; that half is P4 by construction.
+- [ ] **Retrofit the existing log, or decide not to.** Eight of nine dependencies have no
+      entry: `serde`, `clap`, `thiserror`, `anyhow`, `sha2`, `proptest`, `tempfile`,
+      `trybuild` (`toml` is named, as the reason for a format decision). Writing entries
+      now means reconstructing rejected lists nobody remembers, which the sibling rule
+      warns produces the flattering version. Listed as candidates only; adding them is a
+      judgement about what was actually considered at the time.
+- [ ] **The manifest comments are not yet pointers.** Most carry standalone reasoning with
+      no reference to the log — the drift shape the rule names. One line each to fix, but
+      it belongs with the retrofit decision above rather than ahead of it.
+
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.
 - [ ] First-time-right capture on AI-assisted work
