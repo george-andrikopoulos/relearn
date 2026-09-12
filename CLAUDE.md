@@ -36,6 +36,8 @@ cargo test                     # unit + property tests
 cargo clippy -- -D warnings
 cargo fmt --check
 
+bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `cargo test`)
+
 relearn build --targets claude,cursor,copilot,agents   # compile rules to all targets
 relearn check                                          # validate library, no output written
 relearn list --home global                             # inspect
