@@ -26,6 +26,7 @@ It is the reference implementation of the error loop described in *Tuning the St
 - No emitted artifact is a source. Anything under an emitter's output path may be regenerated at any time and must never be hand-edited.
 - Every rule has exactly **one home** (`Home::Global | Domain | Project`). Two homes for one rule is unrepresentable in the type system, not merely discouraged.
 - Tags are unique across the library; a duplicate tag is a parse error.
+- Every dependency is priced before it is used: a row in `ARCHITECTURE.md`'s decisions log whose **Decision** cell opens with `Dependency:` (or `Dependencies:`) and names the crate in backticks. `tests/dependencies.rs` fails the build otherwise, and the nine crates that predate the rule are exempted by name in a list that may only shrink. The other half — recording a dependency *refused* — has no artifact and therefore no gate; it is on the person who refused it. `[R:price-every-dependency]`
 
 ## Build, run, test
 

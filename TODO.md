@@ -288,15 +288,23 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
       text (case-insensitive). Two rules can overlap in meaning and never collide there.
       Reported rather than resolved; merging the two is George's call.
 
+- [x] **The gate, built 2026-09-12: `tests/dependencies.rs`.** Every dependency in every
+      manifest must be named by a decisions-log row whose **Decision** cell opens with
+      `Dependency:` or `Dependencies:`. A test, not the `scripts/verify.sh` this item
+      originally waited for: `cargo test` already runs in CI on both platforms, so the
+      gate is wired by construction and cannot arrive disarmed the way
+      `scripts/no-banned-names.sh` can. Three further tests keep the check upright — the
+      exemption list must shrink, a stale exemption fails, and a renamed log section
+      fails rather than quietly emptying the priced set. Probed in eight directions
+      before being trusted; see FEATURES.md for the list. **The refusal half remains out
+      of scope for any gate** — no artifact exists to check it against; that half is P4
+      by construction, and the rule therefore stays `active` rather than graduating,
+      because a single-destination `Status::Graduated { to }` would print an
+      "Also enforced by" line that is false for half the rule. Same argument as
+      `[R:verdict-survives-the-channel]`, recorded under Phase F.
+
 ### Open
 
-- [ ] **The gate: every manifest entry named in the decisions log.** Parse `Cargo.toml`
-      (and any other manifest), fail when a dependency has no entry — the same shape as
-      the ledger-citation check. It has nowhere to live yet: this repository has no
-      `scripts/verify.sh`, only `scripts/no-banned-names.sh`, so standing one up is a
-      separate change with its own argument. Until then the rule is prose held by
-      nothing, and FEATURES.md says so. **The refusal half is not in scope for any gate**
-      — no artifact exists to check it against; that half is P4 by construction.
 - [ ] **Retrofit the existing log, or decide not to.** Eight of nine dependencies have no
       entry: `serde`, `clap`, `thiserror`, `anyhow`, `sha2`, `proptest`, `tempfile`,
       `trybuild` (`toml` is named, as the reason for a format decision). Writing entries
