@@ -1,8 +1,7 @@
 # Copilot pack — installation
 
 A self-contained drop-in that loads this repository's rule library into GitHub Copilot
-as repository custom instructions. Download this folder, copy one file into your
-repository, done.
+as custom instructions. Download this folder, copy one file into your repository, done.
 
 ## What is in here
 
@@ -10,7 +9,7 @@ repository, done.
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        46 rules, 540 lines — the instruction file
+    └── copilot-instructions.md        52 rules, 746 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -18,9 +17,12 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 24 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
+| `global` | 27 | The repository discipline and its controls, plus language-agnostic verification, provenance, disclosure and cost reasoning — see below |
 | `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
-| `project-*` | 4 | Rules belonging to the `relearn` and `stochos-lab` repositories specifically |
+| `project-*` | 7 | Rules belonging to the `relearn`, `stochos-lab` and `design-architecture-tool` repositories specifically |
+
+These counts are hand-written and nothing checks them. `grep -c '^## '` on the
+instruction file is the number that cannot go stale.
 
 ### The repository discipline
 
@@ -44,6 +46,15 @@ to the reader — a pipeline reports its last stage, a filter crops the verdict)
 muted), `revision-integrity` (restructuring silently breaks references the author cannot
 see), `case-collision` (two names differing only by case are one file on NTFS).
 
+Three about what a record costs, and who pays: `price-every-dependency` (a dependency is
+a decision that arrives as one line in a manifest, and the decision to take *none* leaves
+no artifact at all, so a crate already refused is added by the next session),
+`names-travel-with-the-quote` (quoting an incident carries its names past the gate that
+was holding them — a gate scans its own tree, and the quotation travels without it),
+`report-the-hit-not-the-match` (searching for a thing whose whole problem is that it
+exists means the output is another copy of it: report location, count and length, never
+the matched text, and never a field that can contain it).
+
 And one about whose call a cost is: `no-silent-spend` — a trade of the user's time
 against their money against thoroughness is theirs to make, put as a one-line costed
 fork at the moment it arises. It is symmetrical: quietly spending more to be thorough
@@ -66,16 +77,23 @@ behavioural laws types cannot encode, and unit tests are regression pins.
 
 ## Install
 
-**1. Copy the file into the target repository, keeping the path exactly:**
+**1. Find the path your Copilot actually reads — do not assume it.** In most
+repositories it is:
 
 ```
 <your-repo>/.github/copilot-instructions.md
 ```
 
-Create `.github/` if it does not exist. The filename and directory are what Copilot
-looks for; neither is configurable.
+which Copilot Chat and code completion read in VS Code, Visual Studio, JetBrains,
+github.com and the CLI. It is not the only surface, and in a managed corporate
+environment it is often not the available one. `.github/` may be owned by a repository
+template or a CODEOWNERS entry that rejects new files; the local convention may be
+path-scoped `*.instructions.md` files carrying an `applyTo:` header; VS Code can be
+pointed at other folders through `chat.instructionsFilesLocations`; and a root
+`AGENTS.md` is read by the coding agent. The prompt in the next section makes Copilot
+establish which of these applies, and report back, before it moves anything.
 
-**2. Confirm instruction files are enabled.** In VS Code, the setting is
+**2. Confirm instruction files are enabled.** In VS Code the setting is
 `github.copilot.chat.codeGeneration.useInstructionFiles`. A managed or enterprise
 profile can pin it off, in which case nothing you do to the file will have any effect —
 check this before debugging anything else.
@@ -85,20 +103,57 @@ repository, which is the point; a file left uncommitted helps only you.
 
 ## Letting Copilot do the install
 
-The install is one file into one known path, so doing it by hand is faster and cannot go
-wrong. If you would rather have Copilot place it, be explicit — "put it where it should
-go" is not something it can infer. Paste this:
+Into a repository whose layout you already know, copying one file by hand is faster and
+cannot go wrong. Use the prompt when you do **not** know the layout — an unfamiliar
+repository, or an employer with its own folder schema — because it makes Copilot find
+the reader before it creates the file, and stop rather than guess. "Put it where it
+should go" is not something it can infer.
 
-> Move the file `copilot-instructions.md` from this workspace to
-> `.github/copilot-instructions.md`, creating the `.github` directory if it does not
-> exist. Do not modify, reformat, reflow, summarise, or re-order its contents — it is a
-> generated artifact and must be copied byte for byte, including the HTML comment on the
-> final line. Do not create any other instruction files, and do not add an `AGENTS.md`.
-> When you are done, report the file's path and its line count, which should be 477.
+```
+You are installing a generated instruction file into this repository. It is a build
+artifact from another project: copy it, never rewrite it.
+
+STEP 1 — Before moving anything, tell me where instructions actually load from here.
+Report each of these, and write "unknown" rather than guessing:
+  - which Copilot client this is (VS Code, Visual Studio, JetBrains, github.com, CLI)
+    and its version;
+  - which of these this workspace already uses: .github/copilot-instructions.md; any
+    *.instructions.md file, under .github/instructions/ or anywhere else; a root or
+    nested AGENTS.md; instruction paths set in workspace or user settings
+    (github.copilot.chat.codeGeneration.instructions,
+    github.copilot.chat.codeGeneration.useInstructionFiles,
+    chat.instructionsFilesLocations);
+  - whether .github/ in this repo is constrained — a CODEOWNERS entry, a repository
+    template, or a CI check that fails on unexpected files there.
+
+STEP 2 — Propose ONE target path and wait for my yes. Name the single file path you
+would create and one sentence saying what will read it. If this repository already has
+a repository-wide instructions file, do not touch it: report its path and line count
+and stop, so I decide whether to merge or to scope this one to a subdirectory. If
+nothing here establishes a convention, say so and propose your client's documented
+default — do not invent a folder.
+
+STEP 3 — Copy, do not author. Place copilot-instructions.md at the agreed path byte for
+byte. Do not reformat, reflow, re-order, summarise, rewrite in your own words, split it
+across files, or drop the HTML comment on the last line — that comment carries a hash of
+the body, and any edit makes the next regeneration a conflict and is silently reverted.
+Add front-matter (applyTo:) only if the agreed path is a path-scoped *.instructions.md
+file, and only that one key.
+
+STEP 4 — Report the final path, the line count (expected: 746), and confirm that no
+other file was created or modified.
+```
+
+The expected line count belongs in the prompt because it is the one check the person
+pasting it can make without reading the file: 746 for this pack. A single-home build is
+shorter — 446 for `global` alone, 200 for `domain-rust` alone — so correct the number if
+you narrowed the set (see *Seven rules are about other repositories*, below).
 
 ## Confirming it loaded
 
-Do not treat file placement as proof. Ask Copilot Chat something only these rules answer:
+Do not treat file placement as proof, and do not ask the agent that just placed it — the
+file is in its context either way. In a **fresh chat**, ask something only these rules
+answer:
 
 > What does R:parse-wide-then-range-check require, and how does it differ from
 > R:parse-dont-validate?
@@ -106,7 +161,8 @@ Do not treat file placement as proof. Ask Copilot Chat something only these rule
 A correct answer distinguishes parsing into a type wide enough to *represent* the
 out-of-range value from minting the narrow witness at the boundary. In VS Code the reply
 also shows a **References** chip naming `copilot-instructions.md`. A generic answer with
-no reference chip means the file is not loaded, and step 2 is the first place to look.
+no reference chip means the file is not loaded, and the `useInstructionFiles` setting in
+step 2 above is the first place to look.
 
 ## Three things to know
 
@@ -117,21 +173,27 @@ conflict, and the edit itself is invisible to the rule library — it will be si
 reverted the next time anyone rebuilds. Change the rule in `rules/<tag>.md`, rebuild,
 re-copy.
 
-**Some rules describe an enforcement that does not exist outside this project.**
-`R:no-unwrap-in-production`, `R:no-anyhow-in-libraries` and `R:case-collision` are marked
-*graduated*, and each says its guarantee has moved to a write-time hook, so the
-instruction layer no longer has to hold it. Those hooks live in the rule author's own
-agent configuration. In any other environment there is no hook, and the note reads as a
-reason to relax an instruction that is in fact the only thing enforcing the rule. Treat
-every graduated rule as fully active unless you have installed equivalent tooling — grep
-the file for `Also enforced by` to find them, rather than trusting this paragraph to have
-kept count.
+**Some rules describe an enforcement that does not exist outside this project.** Eight
+rules are marked *graduated* as of 2026-09-12, and each says its guarantee has moved to
+a stronger control — a write-time hook in the rule author's own agent configuration, or
+a test or gate inside another of their repositories. In any other environment that
+control does not exist, and the note reads as a reason to relax an instruction which is
+in fact the only thing enforcing the rule. Treat every graduated rule as fully active
+unless you have installed equivalent tooling. Find them with
 
-**Four rules are about other repositories.** `R:generate-guards-unversioned`,
-`R:order-by-explicit-rank`, `R:no-secrets-in-config-repo` and
-`R:verify-tracked-after-move` are homed in `project-relearn` and `project-stochos-lab`.
-They are sound rules and harmless to carry, but they were written about those codebases.
-To emit a set without them, build one home at a time from the repository root:
+```bash
+grep -n 'Also enforced by' .github/copilot-instructions.md
+```
+
+rather than trusting this paragraph to have kept count.
+
+**Seven rules are about other repositories.** `R:generate-guards-unversioned` and
+`R:order-by-explicit-rank` are homed in `project-relearn`; `R:no-secrets-in-config-repo`
+and `R:verify-tracked-after-move` in `project-stochos-lab`; `R:role-is-an-edge-property`,
+`R:seeded-data-needs-a-migration` and `R:verify-the-glyph-exists` in
+`project-design-architecture-tool`. They are sound rules and harmless to carry, but they
+were written about those codebases. To emit a set without them, build one home at a time
+from the repository root:
 
 ```bash
 cargo run -- build --targets copilot --home global      --out <dir>
@@ -150,4 +212,5 @@ cargo run -- verify --targets copilot --out copilot-pack   # prove it is in sync
 ```
 
 CI runs the `verify` line, so a rule change that is not rebuilt into this pack fails the
-build rather than shipping a stale instruction file.
+build rather than shipping a stale instruction file. This README is hand-authored and
+sits outside that check — see the note under the table at the top.
