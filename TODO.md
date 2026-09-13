@@ -350,6 +350,47 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## There is a second install (2026-09-13)
+
+Not a second person — that cannot be manufactured, and two pseudonyms from one person is
+exactly the fake population the k-floor exists to detect. But a second **corpus**, on this
+machine, taking rules from a shared one it does not own.
+
+- [x] **The shared corpus exists**: `~/Documents/relearn-corpus`, a git repository with
+      `rules/`, `reports/`, a README stating the rules of engagement, and the scheduled
+      recompute C1 recorded as missing. A directory, not a service.
+- [x] **Five rules published**, each with a `published_incident` written for it — the raw
+      quotations stayed home, verified by sixteen probes for repository names, product names,
+      milestone identifiers, file paths and type names: **zero** crossings, all still present
+      locally. The real term list was the matcher's input, not a fixture.
+- [x] **`mesh-watchdog` is the subscriber** — aptly, since the sentinel-value rule was mined
+      from its own failure and has now come back to it as a cache from a corpus it does not
+      own. It holds five cached rules, lints clean, and builds its own `AGENTS.md` and
+      `.claude/skills/global/SKILL.md` from them.
+
+**What the second install found in its first ten minutes**, which no fixture had:
+
+- [x] **The publishable unit is a rule plus its citation closure, not a rule.** Publishing
+      three rules gave the subscriber a library with two dangling references, and `lint` fails
+      on those at the default deny level — so a new subscriber's *first* command fails, which
+      is the worst possible first impression. The closure of those three was five; publishing
+      the other two closed it.
+
+Carried:
+
+- [ ] **Nothing warns a contributor that a rule cites tags the destination does not carry.**
+      `contribute` reads the destination for one question (does this revision supersede?) and
+      could read it for a second at no extra cost. The check is cheap and the failure is
+      guaranteed — every subset publication of a corpus whose rules cite each other produces
+      it. **George's call**, because the right response might be a refusal, a warning, or
+      offering to publish the closure.
+- [ ] **The corpus has one contributor and one subscriber, both George.** The mechanics are
+      exercised; nothing about whether a rule mined from one person's sessions helps someone
+      whose sessions they never saw is. The aggregate stays empty and correctly so: five
+      distinct installs, and there is one.
+- [ ] **`mesh-watchdog`'s new `rules/`, `AGENTS.md` and `.claude/` are uncommitted**, left for
+      review rather than pushed into another repository's history.
+
 ## The public face caught up with the code (2026-09-13)
 
 Everything above shipped in one session, and the README's Status paragraph still described a

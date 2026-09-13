@@ -7,6 +7,7 @@ created = "2026-07-16"
 origin = "mined"
 status = { kind = "active" }
 incident = "ha-mcp v0.7.0 (2026-07-16): the IP allowlist passed all smoke gates via a dev OPTIONS_FILE override, while the real run.sh -> ALLOWED_CIDRS handoff produced non-JSON (bashio prints lists newline-separated) -- the headline security feature would have shipped silently disabled (fail-open). Caught in pre-deploy review, not smoke."
+published_incident = "An IP allowlist passed every smoke test through a development configuration override. The production path assembled the same setting differently and produced malformed input, so the headline security feature would have shipped silently disabled and failing open. Nothing in the test suite exercised the channel the deployment actually used; it was caught in a pre-deploy review by someone asking which line of production wiring the tests had never executed."
 
 [[recurrence]]
 date = "2026-09-04"

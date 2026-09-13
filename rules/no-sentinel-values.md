@@ -7,6 +7,7 @@ created = "2026-07-16"
 origin = "mined"
 status = { kind = "active" }
 incident = "mesh-watchdog (2026-07-16): a stopped Windows service was mapped to ServiceAge::zero(); the anti-thrash gate read 0 < min_age as too-young and suppressed the restart forever -- the exact recovery the tool existed for. Every per-task review passed it; only the whole-branch review against FEATURES.md caught it. Fix: enum ServiceLiveness { Stopped, Running(ServiceAge) }."
+published_incident = "A distinct state -- a service being stopped -- was encoded as the zero value of an existing numeric type. A downstream anti-thrash gate compared that zero against a minimum age, read it as too young, and suppressed forever the exact recovery the tool existed to perform. Every per-task review passed it; only a review of the whole change against the behaviour contract caught it. The fix was an enum in which the stopped state is its own variant, so no downstream reader can mistake it for an age."
 +++
 
 If "absent / stopped / unknown" is a real state, make it an enum variant, not a magic value of an existing type. Downstream code will forget to special-case a sentinel; it cannot forget a variant the compiler forces it to handle. If a range check reads a sentinel as a real quantity, it fails in the direction of the sentinel, not of safety.

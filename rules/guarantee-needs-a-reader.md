@@ -7,6 +7,7 @@ created = "2026-08-16"
 origin = "mined"
 status = { kind = "active" }
 incident = "Four instances in two days across three languages, one cause. A bash `destructive` parameter bound and never read, while the file header promised 'every deletion is confirmed even under --yes'. A db.rs comment justifying a nil-UUID sentinel with 'validation flags dangling references' when no such check existed. A ledger entry reading 'Inventory confirmed: no agent remains on a cost-chosen cheaper tier' when the sweep had consumed agent model: fields and never read rules prose -- leaving a price-tier recommendation live in every session for four weeks. And a restore chain that put its verifier inside the && , so a verifier failure fired the || branch and announced 'REFUSED -- settings.json untouched' *after* the file had already been replaced, one hour after this rule was installed. Ported into this library 2026-08-25."
+published_incident = "A one-time sweep answered a question about a repository, and a sentence recording the all-clear was written into a document. Six weeks later the thing the sweep had looked for was present both in the working tree and through most of the repository's history. Nothing in the system read the state that sentence asserted, and it was believed precisely because it was written down, which is what stopped anyone looking again. The sweep did not produce a control and the sentence was not one; the control that eventually held it reads the state on every push."
 
 [[recurrence]]
 date = "2026-09-05"
