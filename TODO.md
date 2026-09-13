@@ -315,6 +315,31 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
       no reference to the log — the drift shape the rule names. One line each to fix, but
       it belongs with the retrofit decision above rather than ahead of it.
 
+## The federation programme — sequencing, and what is next
+
+[`docs/federation-programme.md`](docs/federation-programme.md) sequences the design into phases
+(A1 → A2 → B1 → B2 → B3 → C1 → C2), **one phase per session**, each with the thing that can go
+wrong named in advance. It does not restate the design; `docs/federated-relearn.md` is the source
+and the programme is wrong where the two disagree.
+
+- [x] **A1 — `applies_to`: home is not scope.** Shipped 2026-09-13 (`3798521`); see below.
+- [ ] **Phase 0 — repair the design document (no code). NEXT, and it needs two decisions first.**
+  - [ ] **0.1** `docs/federated-relearn.md:134` says an install declares its scopes *in config*,
+        which contradicts §1's invariant 3 (no ambient state) and, since A1, describes a mechanism
+        that does not exist while contradicting one that does. The remaining question is not
+        "flag or config" — the shipped code answers that — but whether an install config ever
+        arrives and under what argument.
+  - [ ] **0.2** §5's rotating `install` pseudonym must persist between runs to *replace* rather
+        than duplicate a report, and anything persisting per-machine is what invariant 3 forbids.
+        Two resolutions keep `tests/solo_mode.rs` green: the human passes it on the command line,
+        or it lives inside the cloned aggregate repository.
+  - [x] ~~0.3 `copilot-pack/README.md` is stale~~ — **already closed**; measured before filing
+        (52 rules / 746 lines claimed, 746 lines and 52 `^## ` headings actual, layers 27/18/7
+        matching `relearn list --home`). Its counts remain hand-written with nothing checking
+        them: that exposure stands and is the real lesson of the item.
+- [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
+      the second person running it. A1 and A2 are worth building regardless; B onward is not.
+
 ## Phase A1 — home is not scope (shipped 2026-09-13)
 
 The first piece of the federated design (`docs/federated-relearn.md` §2) and deliberately the
