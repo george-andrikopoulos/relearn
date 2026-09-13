@@ -57,6 +57,14 @@ relearn build --rules ./rules --out . --scope rust --scope java
 # rather than read from a clock, so the result is reproducible.
 relearn adopt --rules ./rules --tag R:some-rule --on 2026-09-13
 
+# Prepare one rule to leave this machine. The rule's `incident` is a verbatim
+# quotation from a private session and never travels: what travels is
+# `published_incident`, a separate field you write yourself. Prints exactly
+# what would go and writes nothing without --confirm; the term list is
+# required, because a scrub that can run disarmed is not a scrub.
+relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256
+relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --confirm
+
 # Report advisory findings (overlapping scope, home-slug collisions,
 # dangling references). Writes nothing; non-zero exit if any are found.
 relearn lint --rules ./rules

@@ -23,6 +23,7 @@ fn rule(tag: &str, home: Home, error_class: &str, body: &str) -> Rule {
         Vec::new(),
         Vec::new(),
         Authority::Local,
+        None,
     )
 }
 
@@ -51,6 +52,7 @@ fn atticked(tag: &str) -> Rule {
         Vec::new(),
         Vec::new(),
         Authority::Local,
+        None,
     )
 }
 
@@ -234,6 +236,7 @@ fn a_tag_cited_twice_in_the_body_yields_one_finding() {
         Vec::new(),
         Vec::new(),
         Authority::Local,
+        None,
     )]);
     let dangling: Vec<_> = lint(&lib)
         .into_iter()
@@ -330,6 +333,7 @@ fn rule_with_incident(tag: &str, incident: &str, body: &str) -> Rule {
         Vec::new(),
         Vec::new(),
         Authority::Local,
+        None,
     )
 }
 
@@ -391,6 +395,7 @@ fn recurred(tag: &str, status: Status, dates: &[&str]) -> Rule {
             .collect(),
         Vec::new(),
         Authority::Local,
+        None,
     )
 }
 
@@ -505,6 +510,7 @@ fn with_origin(tag: &str, origin: Origin, status: Status, dates: &[&str]) -> Rul
             .collect(),
         Vec::new(),
         Authority::Local,
+        None,
     )
 }
 

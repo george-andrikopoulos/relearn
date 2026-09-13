@@ -286,6 +286,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Authority::Local,
+            None,
         )
     }
 
@@ -442,6 +443,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Authority::Local,
+            None,
         )
     }
 

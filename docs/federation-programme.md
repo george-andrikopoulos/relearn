@@ -203,7 +203,7 @@ version type having a **total order** (two caches of one rule must be comparable
 
 ---
 
-## PHASE B2 — `contribute`. The highest-risk phase in the programme.
+## PHASE B2 — `contribute` — **SHIPPED 2026-09-13**
 
 **Adds:** a command that produces a publishable rule file with a **published incident** — a
 rewritten account with no quotation, no names, no paths, no repository identifiers — while the

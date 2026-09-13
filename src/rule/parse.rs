@@ -14,8 +14,8 @@ use serde::Deserialize;
 
 use super::{
     Approval, Approver, Authority, Body, ControlRef, Date, DateError, EmptyText, ErrorClass, Home,
-    Incident, Origin, OriginError, Recurrence, Rule, RuleTag, RuleTagError, ScopeTag,
-    ScopeTagError, SourceId, Status, Title, Version,
+    Incident, Origin, OriginError, PublishedIncident, Recurrence, Rule, RuleTag, RuleTagError,
+    ScopeTag, ScopeTagError, SourceId, Status, Title, Version,
 };
 
 /// Why a rule document failed to parse.
@@ -130,6 +130,15 @@ struct RawRule {
     /// a cache before anything treats it as one.
     #[serde(default)]
     authority: Option<RawAuthority>,
+    /// The publishable account of the incident — a **separate authored field**,
+    /// never a transformation of `incident`.
+    ///
+    /// Absent for every rule nobody has prepared for contribution, which is
+    /// almost all of them. Its absence is why `contribute` refuses: there is
+    /// nothing to publish in place of the quotation, and the quotation itself
+    /// is what may not travel.
+    #[serde(default)]
+    published_incident: Option<String>,
 }
 
 /// The `authority` table: `kind`, plus the provenance the kind requires.
@@ -247,6 +256,13 @@ impl RawRule {
             Some(raw) => raw.into_authority()?,
             None => Authority::Local,
         };
+        // Authored only when a rule is being prepared for contribution, which is
+        // almost never — and never derived from `incident`, which is the whole
+        // design: see `PublishedIncident`.
+        let published_incident = self
+            .published_incident
+            .map(PublishedIncident::parse)
+            .transpose()?;
         Ok(Rule::new(
             tag,
             title,
@@ -260,6 +276,7 @@ impl RawRule {
             recurrences,
             applies_to,
             authority,
+            published_incident,
         ))
     }
 }

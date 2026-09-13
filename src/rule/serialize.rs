@@ -53,6 +53,13 @@ pub fn to_document(rule: &Rule) -> String {
         out.push_str(&line);
     }
     out.push_str(&kv("incident", rule.incident().as_str()));
+    // Beside `incident`, because a reader comparing the two is exactly the
+    // review this field exists for: the quotation that stays, and the account
+    // that may travel. Emitted only when authored, so no committed rule file
+    // changed when the field arrived.
+    if let Some(published) = rule.published_incident() {
+        out.push_str(&kv("published_incident", published.as_str()));
+    }
     // Emitted **only** when there is at least one, and last, because a TOML
     // array of tables captures every key that follows it. A rule that has not
     // recurred therefore renders exactly as it did before the field existed,
@@ -209,6 +216,7 @@ mod tests {
             recurrences,
             Vec::new(),
             Authority::Local,
+            None,
         )
     }
 
@@ -233,6 +241,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Authority::Local,
+            None,
         )
     }
 
@@ -343,6 +352,7 @@ mod tests {
                 .map(|s| ScopeTag::parse(*s).expect("valid scope"))
                 .collect(),
             Authority::Local,
+            None,
         )
     }
 
@@ -412,6 +422,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Authority::Local,
+            None,
         )
     }
 
@@ -469,6 +480,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             authority,
+            None,
         )
     }
 

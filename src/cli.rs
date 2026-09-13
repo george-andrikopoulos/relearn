@@ -34,6 +34,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+use crate::contribute::{Contribution, NotContributable};
 use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
@@ -42,6 +43,7 @@ use crate::rule::{
     AdoptError, CachedIsNotEditable, Date, DateError, EditableRule, RuleTag, RuleTagError,
     ScopeTag, ScopeTagError,
 };
+use crate::scrub::{ScrubError, TermList};
 
 /// The `relearn` command line.
 #[derive(Debug, Parser)]
@@ -127,6 +129,39 @@ enum Command {
         /// holds it.
         #[arg(long)]
         on: String,
+    },
+    /// Prepare one rule to leave this machine, and show exactly what would go.
+    ///
+    /// Prints the contribution and writes **nothing** unless `--confirm` is
+    /// given: the default is to show, because the only real control on what a
+    /// published incident says is a person reading it. The raw `incident` and
+    /// every recurrence are structurally absent from the output — see
+    /// `contribute::Contribution`. Writes a file; transmits nothing.
+    Contribute {
+        /// Directory of `*.md` rule files.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+        /// The rule to contribute.
+        #[arg(long)]
+        tag: String,
+        /// Path to the banned-terms list (salted digests; see
+        /// `scripts/no-banned-names.sh` for the format).
+        ///
+        /// **Required, so a contribution with no list is unconstructible rather
+        /// than a case somebody remembers to handle.** The script exits 2 when
+        /// disarmed; here the disarmed state cannot be reached. The path is
+        /// given rather than looked up in a home directory, because the tool
+        /// consults no ambient state.
+        #[arg(long)]
+        terms: PathBuf,
+        /// Where to write the contribution. Only used with `--confirm`.
+        #[arg(long, default_value = "contributions")]
+        out: PathBuf,
+        /// Write the file. Without it, the contribution is printed and nothing
+        /// is written — two steps, so the text is read before it exists
+        /// anywhere a `git push` could reach.
+        #[arg(long)]
+        confirm: bool,
     },
     /// Report advisory lint findings (overlapping scope, home-slug collisions,
     /// dangling references). Writes nothing; exits non-zero if any are found.
@@ -281,6 +316,43 @@ pub enum CliError {
     /// Writing a rule file failed.
     #[error(transparent)]
     RuleWrite(#[from] RuleWriteError),
+    /// The banned-terms list could not be read.
+    #[error("--terms {path:?}: {source}")]
+    TermsUnreadable {
+        /// The list path as given.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+    /// The banned-terms list could not arm the matcher.
+    #[error(transparent)]
+    Terms(ScrubError),
+    /// The rule may not be contributed.
+    #[error(transparent)]
+    NotContributable(NotContributable),
+    /// A protected name appears in text that would have left the machine.
+    ///
+    /// **The diagnostic names the field and the location, never the match** —
+    /// printing it would move the exposure into a terminal, a CI log or a
+    /// session transcript rather than closing it
+    /// (`[R:report-the-hit-not-the-match]`).
+    #[error("`{field}` contains a protected name — {detail}; rewrite it and try again")]
+    BannedName {
+        /// Which authored field the hit was in.
+        field: &'static str,
+        /// Location and length, from `scrub::Hit` — never the term.
+        detail: String,
+    },
+    /// The contribution file could not be written.
+    #[error("{path:?}: {source}")]
+    ContributionWrite {
+        /// The path at fault.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
     /// `--scope` was not a well-formed scope.
     ///
     /// Deliberately **not** `#[from]`: the derived `source` would make
@@ -360,6 +432,13 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             adopt(&rules, &tag, &on)?;
             Ok(ExitCode::SUCCESS)
         }
+        Command::Contribute {
+            rules,
+            tag,
+            terms,
+            out,
+            confirm,
+        } => contribute(&rules, &tag, &terms, &out, confirm),
         Command::Lint { rules, deny } => lint_rules(&rules, deny),
         Command::Verify {
             rules,
@@ -555,6 +634,93 @@ fn adopt(rules: &Path, tag: &str, on: &str) -> Result<(), CliError> {
         path.display()
     );
     Ok(())
+}
+
+/// `contribute`: show exactly what would leave, and write it only on `--confirm`.
+///
+/// Order matters and is deliberate. The projection is built first, so the four
+/// structural refusals (withheld home, no published incident, a cache, a
+/// mandate) happen before anything is read or printed. Then the matcher runs
+/// over the **published** incident and the body — the two fields a contributor
+/// writes — and a hit stops everything, reporting a location and a length and
+/// never the term (`[R:report-the-hit-not-the-match]`). Only then is the
+/// document printed, and only with `--confirm` is it written.
+///
+/// **Writes a file. Transmits nothing.** Publication is a person running `git`,
+/// which is why §9's aggregate is a repository rather than a service, and
+/// `tests/solo_mode.rs` is what keeps that true.
+fn contribute(
+    rules: &Path,
+    tag: &str,
+    terms: &Path,
+    out: &Path,
+    confirm: bool,
+) -> Result<ExitCode, CliError> {
+    let tag = RuleTag::parse(tag).map_err(CliError::Tag)?;
+    let terms_text =
+        std::fs::read_to_string(terms).map_err(|source| CliError::TermsUnreadable {
+            path: terms.to_path_buf(),
+            source,
+        })?;
+    let list = TermList::parse(&terms_text).map_err(CliError::Terms)?;
+
+    let library = fsio::load_rules(rules)?.validate()?;
+    let rule = library
+        .rules()
+        .iter()
+        .find(|r| r.tag() == &tag)
+        .ok_or_else(|| CliError::NoSuchRule {
+            requested: tag.as_str().to_owned(),
+        })?;
+
+    let contribution = Contribution::of(rule).map_err(CliError::NotContributable)?;
+
+    // Both fields a contributor authors, checked before either is printed. The
+    // body travels too, and a name in it leaks exactly as far as one in the
+    // published incident.
+    for (field, text) in [
+        (
+            "published_incident",
+            contribution.published_incident().as_str(),
+        ),
+        ("body", rule.body().as_str()),
+    ] {
+        if let Some(hit) = list.find(text) {
+            return Err(CliError::BannedName {
+                field,
+                detail: hit.to_string(),
+            });
+        }
+    }
+
+    println!("{}", contribution.what_would_leave());
+
+    if !confirm {
+        println!(
+            "Nothing written. {} term(s) checked and none found; the matcher cannot judge \
+             whether this text identifies someone without naming them.\n\
+             Re-run with --confirm to write it.",
+            list.len()
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    std::fs::create_dir_all(out).map_err(|source| CliError::ContributionWrite {
+        path: out.to_path_buf(),
+        source,
+    })?;
+    let path = out.join(format!("{}.md", tag.body()));
+    std::fs::write(&path, contribution.to_document()).map_err(|source| {
+        CliError::ContributionWrite {
+            path: path.clone(), // allow:clone: the error owns the path for its diagnostic, and the success line below prints it
+            source,
+        }
+    })?;
+    println!(
+        "written to {} — nothing has been transmitted; publishing it is a pull request you open yourself",
+        path.display()
+    );
+    Ok(ExitCode::SUCCESS)
 }
 
 /// `list`: print each rule as `tag  [home-slug]  title`, optionally filtered.

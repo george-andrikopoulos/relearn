@@ -30,6 +30,12 @@ It is the reference implementation of the error loop described in *Tuning the St
   its federation behaviour is a compile error. A filter in one publishing path compiles perfectly
   while a second path publishes everything. `Project` is withheld too — its home carries a
   filesystem path, which is a private identifier.
+- **The raw `incident` cannot reach a contribution.** `Contribution` is a projection that never
+  borrows `incident` or the recurrences — not stripped, never held — and what travels is
+  `published_incident`, a separate authored field of its own type. Nothing derives one from the
+  other: an automatic scrubber leaks what it did not recognise and stops people reading the
+  output. `contribute` prints and writes nothing without `--confirm`, runs the banned-terms
+  matcher over what a contributor authored, and reports a location and a length — never the match.
 - **A cached rule is never edited in place.** `Authority::Local | Adopted | Cached`; `fsio::write_rule`
   takes an `EditableRule` witness whose only constructor refuses a cache, so a write path added
   later cannot reach the filesystem without asking. Editing a cache is a silent fork — the edit

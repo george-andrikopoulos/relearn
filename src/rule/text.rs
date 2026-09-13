@@ -58,6 +58,36 @@ impl Incident {
     }
 }
 
+/// The account of an incident that may be **published**: what class of thing
+/// went wrong and what it cost, written for a stranger.
+///
+/// **A separate field, never a transformation of [`Incident`].** The raw
+/// incident is a verbatim quotation from a private working session; this is a
+/// rewritten account with no quotation, no names, no paths and no repository
+/// identifiers. Nothing derives one from the other — a scrubber would leak what
+/// it did not recognise and destroy context it did not understand, and worse, it
+/// would stop people reading the output because something appeared to be
+/// handling it.
+///
+/// A distinct type rather than a second `Incident` so the two cannot be swapped
+/// at a call site: the compiler refuses to put a raw incident where a published
+/// one belongs, which is the only place that mistake could ever be made.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PublishedIncident(String);
+
+impl PublishedIncident {
+    /// Parse a non-empty published incident.
+    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
+        Ok(Self(nonempty("published_incident", s)?))
+    }
+
+    /// The account text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// A rule's short human title.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Title(String);

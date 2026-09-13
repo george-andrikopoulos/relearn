@@ -23,8 +23,10 @@
 //! begins with the types (TODO.md Phase A), never with an emitter.
 
 pub mod cli;
+pub mod contribute;
 pub mod emit;
 pub mod fsio;
 pub mod library;
 pub mod lint;
 pub mod rule;
+pub mod scrub;

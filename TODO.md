@@ -345,6 +345,35 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## Phase B2 — `contribute` (shipped 2026-09-13)
+
+The projection that cannot hold the raw incident, the matcher that runs where the human is, and a
+command whose default writes nothing. Emission unchanged for all 52 rules (`verify` green).
+
+- [x] `Contribution<'a>` borrows only publishable fields — `incident` and recurrences are absent
+      from the struct, not removed by a renderer.
+- [x] `PublishedIncident`, a distinct type, so the raw and the published cannot be swapped.
+- [x] Four refusals at the one constructor, including **A2's federation exclusion consumed** and
+      a new one the projection forced: a mandate carries an approver's name.
+- [x] `scrub::TermList` — the matcher over one string, a finding that reports location and length
+      and never the match, and `--terms` required so the disarmed state is unconstructible.
+- [x] Two steps: print exactly what would leave, write only on `--confirm`. Writes a file,
+      transmits nothing.
+
+Carried, not decided here:
+
+- [ ] **`--terms` has no escape hatch for a contributor with nothing to protect.** A list must
+      carry a salt and at least one term, so someone with no protected names must still author a
+      list with a term they would never write. Deliberately strict — the alternative is an opt-out
+      that becomes the default — but it is a sharp edge and B2 did not smooth it.
+- [ ] **Two implementations of one matcher.** The Rust one and `scripts/no-banned-names.sh` share
+      a format, not code, because sharing code means spawning a process. Nothing checks that they
+      agree: a cross-check would need the real term list, which is deliberately not committed.
+      The format spec in both headers is the contract, and that is weaker than a test.
+- [ ] **The published incident is checked by a human and by a word matcher, and by nothing else.**
+      No artefact reads for meaning. Written here so the next reader does not mistake the
+      matcher's green for a judgement about the text.
+
 ## Phase B1 — `Authority`, and `adopt` (shipped 2026-09-13)
 
 `Authority::Local | Adopted | Cached`, `relearn adopt`, and the refusal that makes a silent fork

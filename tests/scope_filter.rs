@@ -49,6 +49,7 @@ fn rule(tag: &str, home: Home, applies_to: &[&str]) -> Rule {
         Vec::new(),
         scopes(applies_to),
         Authority::Local,
+        None,
     )
 }
 

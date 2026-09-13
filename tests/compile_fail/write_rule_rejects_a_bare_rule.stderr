@@ -1,7 +1,7 @@
 error[E0308]: mismatched types
-  --> tests/compile_fail/write_rule_rejects_a_bare_rule.rs:38:61
+  --> tests/compile_fail/write_rule_rejects_a_bare_rule.rs:39:61
    |
-38 |     let _ = fsio::write_rule(std::path::Path::new("rules"), &rule);
+39 |     let _ = fsio::write_rule(std::path::Path::new("rules"), &rule);
    |             ----------------                                ^^^^^ expected `&EditableRule<'_>`, found `&Rule`
    |             |
    |             arguments to this function are incorrect

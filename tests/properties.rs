@@ -147,6 +147,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
                     recurrences,
                     Vec::new(),
                     authority,
+                    None,
                 )
             },
         )
@@ -179,6 +180,7 @@ fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
                     Vec::new(),
                     Vec::new(),
                     Authority::Local,
+                    None,
                 ));
             }
             Library::from_rules(rules)
@@ -222,6 +224,7 @@ fn arb_library_recurring() -> impl Strategy<Value = Library<Validated>> {
                 recurrences,
                 Vec::new(),
                 Authority::Local,
+                None,
             ));
         }
         Library::from_rules(rules)
@@ -272,6 +275,7 @@ fn arb_library() -> impl Strategy<Value = Library<Validated>> {
                 Vec::new(),
                 Vec::new(),
                 Authority::Local,
+                None,
             ));
         }
         Library::from_rules(rules)
@@ -326,6 +330,7 @@ fn arb_library_scoped() -> impl Strategy<Value = Library<Validated>> {
                     Vec::new(),
                     applies_to,
                     Authority::Local,
+                    None,
                 ));
             }
             Library::from_rules(rules)
@@ -373,6 +378,7 @@ proptest! {
             Vec::new(),
             scopes.clone(),
             Authority::Local,
+            None,
         );
         let doc = to_document(&rule);
         prop_assert_eq!(doc.contains("applies_to"), !scopes.is_empty());
@@ -451,6 +457,7 @@ proptest! {
                     r.recurrences().to_vec(),
                     Vec::new(),
                     Authority::Local,
+                    None,
                 ))
                 .collect(),
         )
@@ -486,6 +493,7 @@ proptest! {
             rule.recurrences().to_vec(),
             rule.applies_to().to_vec(),
             Authority::Local,
+            None,
         );
         let without = Library::from_rules(vec![localised]).validate().expect("one tag validates");
 

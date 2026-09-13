@@ -4,8 +4,8 @@
 //! with its arguments in the wrong order — a swap is a compile error.
 
 use super::{
-    Authority, Body, Date, ErrorClass, Federation, Home, Incident, Origin, RuleTag, ScopeTag,
-    Status, Title,
+    Authority, Body, Date, ErrorClass, Federation, Home, Incident, Origin, PublishedIncident,
+    RuleTag, ScopeTag, Status, Title,
 };
 
 /// One later occurrence of the error class a rule already covers — evidence
@@ -59,6 +59,7 @@ pub struct Rule {
     recurrences: Vec<Recurrence>,
     applies_to: Vec<ScopeTag>,
     authority: Authority,
+    published_incident: Option<PublishedIncident>,
 }
 
 impl Rule {
@@ -104,6 +105,7 @@ impl Rule {
         recurrences: Vec<Recurrence>,
         applies_to: Vec<ScopeTag>,
         authority: Authority,
+        published_incident: Option<PublishedIncident>,
     ) -> Self {
         Rule {
             tag,
@@ -118,6 +120,7 @@ impl Rule {
             recurrences,
             applies_to,
             authority,
+            published_incident,
         }
     }
 
@@ -202,6 +205,17 @@ impl Rule {
     #[must_use]
     pub fn origin(&self) -> &Origin {
         &self.origin
+    }
+
+    /// The publishable account of the incident, if one has been authored.
+    ///
+    /// `None` for every rule nobody has prepared for contribution, which is
+    /// almost all of them. Writing one is an authored act: see
+    /// [`PublishedIncident`], and note that nothing derives it from
+    /// [`Rule::incident`].
+    #[must_use]
+    pub fn published_incident(&self) -> Option<&PublishedIncident> {
+        self.published_incident.as_ref()
     }
 
     /// Whether this install is the rule's home, holds a cache of one whose home
@@ -344,6 +358,7 @@ mod tests {
             recurrences,
             Vec::new(),
             Authority::Local,
+            None,
         )
     }
 
@@ -371,6 +386,7 @@ mod tests {
                 .map(|n| ScopeTag::parse(*n).expect("valid scope"))
                 .collect(),
             Authority::Local,
+            None,
         )
     }
 
