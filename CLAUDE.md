@@ -26,6 +26,13 @@ It is the reference implementation of the error loop described in *Tuning the St
 - No emitted artifact is a source. Anything under an emitter's output path may be regenerated at any time and must never be hand-edited.
 - Every rule has exactly **one home** (`Home::Global | Domain | Project`). Two homes for one rule is unrepresentable in the type system, not merely discouraged.
 - Tags are unique across the library; a duplicate tag is a parse error.
+- **One engineer with nothing else present can use it.** No account, no configuration file, no
+  network, no ambient state: the input is the path given on the command line and the output is the
+  path given on the command line, so the same corpus compiles identically on any machine. The
+  federation design (`docs/federated-relearn.md`) is a feature of the *corpus* and never a
+  dependency of the *compiler* — contribution and reporting are a person running `git`, which is
+  why its aggregate is a repository rather than a service. `tests/solo_mode.rs` fails the build on
+  a socket, a spawned process, an ambient read, or a networking crate anywhere in the tree.
 - Every dependency is priced before it is used: a row in `ARCHITECTURE.md`'s decisions log whose **Decision** cell opens with `Dependency:` (or `Dependencies:`) and names the crate in backticks. `tests/dependencies.rs` fails the build otherwise, and the nine crates that predate the rule are exempted by name in a list that may only shrink. The other half — recording a dependency *refused* — has no artifact and therefore no gate; it is on the person who refused it. `[R:price-every-dependency]`
 
 ## Build, run, test

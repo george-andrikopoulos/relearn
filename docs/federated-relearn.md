@@ -62,6 +62,39 @@ Getting those the wrong way round kills both halves. Credit is what makes anyone
 Anonymity is what makes anyone admit a rule of theirs failed — and recurrence is the only number
 that says whether a rule works.
 
+### The single-install guarantee — solo mode is the product
+
+Everything above is an option. **What `relearn` is, and must still be after all of it, is a
+compiler one engineer points at their own rules to emit their own instruction layers** — Claude
+skills, Cursor `.mdc`, Copilot, `AGENTS.md`, project `CLAUDE.md` — on one machine, offline, with
+no account, no config file and nobody else in the picture. Federation is a feature of the corpus,
+never a dependency of the compiler.
+
+Four invariants, and each names what holds it rather than promising it:
+
+1. **No configuration is required, and its absence is never a filter.** A rule with `applies_to`
+   emits everywhere when the install has declared no scopes. Scope filtering narrows only when
+   somebody asked for it, and a narrowed build reports what it withheld — a rule dropped in
+   silence is a lost correction, which is the failure the whole project exists to prevent.
+   *Held by:* `Audience::Everything` as the constructed default, and the emission round-trip over
+   the 52 rules (§13).
+2. **The tool never speaks to a network.** Contribution and reporting are a person running `git`,
+   not a client calling a server, which is exactly why §9's aggregate is a repository rather than
+   a service. *Held by:* `tests/solo_mode.rs` — no socket, no spawned process, no networking or
+   TLS or async-runtime crate anywhere in the dependency tree.
+3. **The tool consults no ambient state.** Its input is the path it was given; its output is the
+   path it was given. No home directory, no environment, no per-machine file that makes the same
+   corpus compile differently in two places. *Held by:* `tests/solo_mode.rs`.
+4. **Every federated field is optional, and absence is today's behaviour exactly.** `applies_to`,
+   `Authority`, `approval`: a solo corpus that never adopts anything never meets any of them, and
+   no existing rule file needs editing. *Held by:* the round-trip assertion in §13.
+
+The reason to write this down as invariants rather than intent: every federated feature is a
+standing reason to acquire an account, a client, a config file, a cache directory — each
+individually reasonable, and collectively the end of the thing a single engineer downloads. That
+erosion does not arrive as a decision anyone would have approved. It arrives one convenience at a
+time, which is what a gate is for.
+
 ---
 
 ## 2. Layers: home is not scope
@@ -318,6 +351,10 @@ A service can come later if volume demands it. It should not come first.
   to compile. The moment this needs a vector index it has become a different product and must be
   argued for as one.
 - **No silent adoption.** A cached rule arrives because someone pulled it, not because it matched.
+- **Nothing federated may become required** — no account, no config file, no network client, no
+  ambient state, and no scope filter that narrows a build nobody asked to narrow. The affirmative
+  form, with what holds each part, is §1's single-install guarantee; `tests/solo_mode.rs` is the
+  gate, and it is in the suite today rather than waiting for the first federated line of code.
 
 ---
 

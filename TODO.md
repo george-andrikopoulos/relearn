@@ -347,6 +347,16 @@ Paper 3 declines to claim.
         with a `ScopeNearDuplicate` finding instead of a curator. Scopes are audiences, not topics.
   - [x] A local attic suppresses, an upstream attic only warns; no new `Status` variant, because
         rule-replaces-rule is a version move on the same tag.
+- [x] **Solo mode is gated before any federated line of code exists (§1).** `tests/solo_mode.rs`:
+      no socket, no spawned process, no ambient state, no networking/TLS/async-runtime crate in
+      the tree. Two of §1's four invariants are *not* covered by it and are listed below, because
+      there is no configuration and no optional federated field yet to assert about.
+  - [ ] *(Blocked)* `Audience::Everything` as the constructed default, so **no configuration
+        means no filtering** — a rule with `applies_to` emits everywhere until someone declares
+        scopes, and a narrowed build reports what it withheld. A silently dropped rule is a lost
+        correction, which is the failure the project exists to prevent.
+  - [ ] *(Blocked)* Every federated field optional, absence being today's behaviour exactly —
+        proved by the same round-trip assertion as §13, not by intent.
 - [ ] *(Blocked on the above)* `applies_to` — an optional scope set, **absent meaning today's
       behaviour exactly**: parse, serialize, lint and all five emitters, plus the round-trip
       assertion that **the emitted tree does not change for any rule without it** — the same
