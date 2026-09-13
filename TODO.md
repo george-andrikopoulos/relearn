@@ -350,6 +350,46 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## The ledger reads its own enforcing artefacts (2026-09-13)
+
+Seventy `Enforced by:` claims, and nothing checked that any of them named something real.
+`tests/ledger.rs` now does, in two directions.
+
+- [x] Every path-qualified citation resolves — the file exists and defines that function,
+      comments stripped so a test named only in a comment cannot satisfy a claim that it
+      exists. Thirty-two citations across twelve test files.
+- [x] Every `Enforced by:` row names something in backticks **within sixty characters of the
+      marker**, or says `NOTHING YET`. The window is measured, not chosen: fifty-eight rows
+      open with their citation and the rest reach it within thirty.
+- [x] **The first version of that second direction was vacuous and the probe caught it.**
+      Asking whether a backtick appeared anywhere after the marker passes on every row by
+      accident, because the rows are paragraphs. It was found by probing — replacing a
+      citation with "careful review at commit time" and watching the check stay green.
+- [x] **Found while building:** the contradiction row claimed enforcement by "a
+      **process-control**, not a code artifact" — the only row naming neither an artefact nor
+      a gap, while this file's header had said since 2026-08-13 that the row *"stays exposed
+      by design"*. Corrected to agree with the header rather than carving the checker an
+      exception for it.
+- [x] The marker is matched **in bold**: the ledger's header explains the "Enforced by" column
+      in prose, and the first version failed on that sentence —
+      `[R:detector-excludes-own-definitions]` inside the artefact meant to keep the ledger
+      honest.
+
+Carried:
+
+- [ ] **Bare `module::item` citations are not resolved** — `lint::tally`, `Rule::serves`,
+      `Status::emittability` and about a hundred more. Resolving them means searching the tree,
+      and the same citation shape covers `env::var` and `ExitCode::FAILURE`; a checker carrying
+      an exclusion list of standard-library names grows one entry per release until somebody
+      mutes it. The path-qualified form was chosen because it carries its own file. Closing
+      this properly probably means citing artefacts by path everywhere, which is a convention
+      change across seventy rows and **George's call**, not a refactor to do in passing.
+- [ ] **Nothing checks that a named test actually *exercises* the feature its row claims.** The
+      check is existence, not relevance — a test could be renamed to match and assert nothing.
+      That is the half no gate performs, and it is the same boundary `[R:wired-artifact]`
+      draws: evidence that is forgeable by someone who wants to forge it, and sufficient
+      against the failure that actually happens, which is a rename nobody noticed.
+
 ## The counting gate caught its author (2026-09-13)
 
 `tests/pack_counts.rs` shipped, and within the hour `[R:doc-currency]` fired twice in the
