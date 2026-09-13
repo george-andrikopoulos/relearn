@@ -367,9 +367,10 @@ in the file where it costs most.
 
 Carried:
 
-- [ ] **`docs/worked-example.md` shows the single-install flow only** — one incident, one
-      rule, five emitted layers. The two-install round trip is described in the README and
-      demonstrated nowhere with real output, which is the standard that example set.
+- [x] **`docs/worked-example-two-installs.md`** — the two-install round trip, with real
+      output for every step: publish, status check, pull, build, revise, the backwards
+      refusal, the poke, refresh, fork, and the pull that leaves the fork alone. Its
+      reproduce script was run verbatim from a checkout before it was written down.
 
 ## Multiuser mode: both publisher and cache creator (2026-09-13)
 

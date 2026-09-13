@@ -5,6 +5,9 @@ caused it, the one neutral rule file it becomes, and the five vendor instruction
 `relearn build` compiles it out to. Every emitted block below is **actual `relearn build`
 output**, not a mock-up — see [Reproducing this](#reproducing-this) to regenerate it.
 
+For the same rule travelling **between two installs** — published, taken, revised, refreshed
+and forked — see [`worked-example-two-installs.md`](worked-example-two-installs.md).
+
 ## 1. The incident
 
 While building `relearn` itself, two of the emitters ordered rules by their home-slug

@@ -190,6 +190,7 @@ Before writing an incident, ask: **which repository's detector covers the file I
 - `docs/session-start-poke.md` — the `SessionStart` hook snippet for the poke, **deliberately not installed**: anything under `~/.claude` edits the layer loaded into every session on the machine, and no gate in this repository could see it.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.
 - `FEATURES.md` — the regression ledger; every feature names the artifact that enforces it.
+- `docs/worked-example-two-installs.md` — the same rule published, taken, revised, refreshed and forked between two installs, with real output.
 - `TODO.md` — open work, including every `NOTHING YET — exposed` gap from FEATURES.md.
 - `README.md` — the public face.
 

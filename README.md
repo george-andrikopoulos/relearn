@@ -198,7 +198,7 @@ Three things are refused rather than smoothed over, and each is the point rather
 
 Recurrence counts can also travel, and that flow is **anonymous, always** — `relearn report` writes upstream tags, bucketed counts and month-level dates, with no title, no incident, no body, no path, no name; `relearn aggregate` recomputes a cross-install view that publishes nothing below a five-install floor and prints its own confounds beside every number. `relearn lint --upstream <dir>` surfaces what the corpus knows that you might want to: a rule that fired here and is already covered upstream, a cache behind or retired upstream, and — off until asked for — contributions and high-recurrence rules you do not hold. A poke carries no severity and can never change an exit code.
 
-The design behind all of it is [`docs/federated-relearn.md`](docs/federated-relearn.md).
+A **worked example with real output** — the same rule published, taken, revised, refreshed and finally forked between two installs — is [`docs/worked-example-two-installs.md`](docs/worked-example-two-installs.md). The design behind all of it is [`docs/federated-relearn.md`](docs/federated-relearn.md).
 
 ## Design
 
