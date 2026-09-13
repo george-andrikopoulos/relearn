@@ -14,7 +14,7 @@ Behind most corrections is a decision the assistant made for itself. It extracte
 
 ## Status
 
-Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release): released** under Apache-2.0, with a worked example in place. Companion papers: *Tuning the Stochastic Machine* ([arXiv:2608.19125](https://arxiv.org/abs/2608.19125)) — the operating discipline this implements — *Grouping the Stochastic Machine* ([arXiv:2608.19140](https://arxiv.org/abs/2608.19140)), which references this repository, and *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([doi:10.5281/zenodo.22083202](https://doi.org/10.5281/zenodo.22083202)), which specifies the four-file repository discipline this repo is built on and uses this repository as its worked case. Paper 3 is a Zenodo preprint, not an arXiv one: arXiv moderation declined it on 2026-08-24 and will consider an appeal only after publication in a conventional journal with a resolving DOI to the published version. Its study materials — pre-registration, blinded pack, both codings, `kappa.py`, results — are deposited separately at [doi:10.5281/zenodo.22082967](https://doi.org/10.5281/zenodo.22082967), so the evidence can be checked without reading the paper first. See `TODO.md`.
+Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release): released** under Apache-2.0, with a worked example in place. **Sharing a corpus between installs shipped 2026-09-13** — `contribute`, `pull`, `adopt`, `report`, `aggregate`, and the poke inside `lint` — and is described below; it is **entirely optional**, and a single engineer needs none of it (`tests/solo_mode.rs` is what keeps that true). Companion papers: *Tuning the Stochastic Machine* ([arXiv:2608.19125](https://arxiv.org/abs/2608.19125)) — the operating discipline this implements — *Grouping the Stochastic Machine* ([arXiv:2608.19140](https://arxiv.org/abs/2608.19140)), which references this repository, and *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([doi:10.5281/zenodo.22083202](https://doi.org/10.5281/zenodo.22083202)), which specifies the four-file repository discipline this repo is built on and uses this repository as its worked case. Paper 3 is a Zenodo preprint, not an arXiv one: arXiv moderation declined it on 2026-08-24 and will consider an appeal only after publication in a conventional journal with a resolving DOI to the published version. Its study materials — pre-registration, blinded pack, both codings, `kappa.py`, results — are deposited separately at [doi:10.5281/zenodo.22082967](https://doi.org/10.5281/zenodo.22082967), so the evidence can be checked without reading the paper first. See `TODO.md`.
 
 ### What was measured, including what failed
 
@@ -161,6 +161,44 @@ existed does.
 Every emitted file carries a generated-by header and a content hash; `build` refuses to overwrite any file it did not write (and aborts the whole run rather than leave a half-generated tree), so a target directory can safely hold both generated and hand-authored files. `relearn verify` is the read-only complement: it recomputes each generated file's body hash and re-emits from the current rules, reporting any file that was hand-edited or has drifted from its source — a drop-in CI check that the committed instruction files are in sync.
 
 Build from source with `cargo build --release`; the binary is `relearn`.
+
+## Sharing a corpus between installs
+
+**Optional, and it changes nothing for one engineer.** `relearn` needs no account, no config file, no network and no per-machine state; the input is a path you give it and the output is a path you give it. `tests/solo_mode.rs` fails the build on a socket, a spawned process, an ambient read, or a networking crate anywhere in the tree — so the features below cannot quietly become requirements.
+
+What they share is a **directory both installs can see**: a common drive, a mounted share, a git checkout. Nothing is fetched and nothing syncs. A rule leaves because somebody published it and arrives because somebody asked for it.
+
+```sh
+# One engineer publishes a rule. The `incident` is a verbatim quotation from a
+# private session and never travels — what travels is `published_incident`, a
+# separate field written by hand. --version says which revision this is.
+relearn contribute --tag R:some-rule --terms ~/terms.sha256 --version 1 \
+    --out /mnt/shared/corpus/rules --confirm
+
+# Another checks what the shared corpus would change here. No --confirm, so it
+# writes nothing: this is the status check to run before starting work.
+relearn pull --upstream /mnt/shared/corpus --all --from shared --on 2026-09-13
+
+#   take     R:some-rule
+#   keep     R:mine (yours, not a cache)
+#   keep     R:old-cache (unwanted, and kept — pass --prune to drop it)
+
+# Then applies it, dropping caches that are gone or retired upstream.
+relearn pull --upstream /mnt/shared/corpus --all --prune \
+    --from shared --on 2026-09-13 --confirm
+```
+
+A pulled rule is a **cache**: it compiles into your instruction layer exactly like your own rules, because it keeps the home it arrived with — but it is not yours to edit, and the write path refuses. To change one, `adopt` it (a deliberate fork that records what it came from) or contribute the change upstream.
+
+Three things are refused rather than smoothed over, and each is the point rather than an inconvenience:
+
+- **A rule whose home never leaves a machine never arrives on one.** A project home names a filesystem path and an org layer is an organisation's own, in both directions.
+- **A republication must go forwards.** Publishing a revision at or below the one already there would make every existing cache read as newer than upstream, and nothing would notice — the staleness check is exactly the comparison that would have been corrupted.
+- **Only a cache may be deleted.** `--prune` drops copies, never source: a cache is regenerable, a rule you own and a fork you took are not.
+
+Recurrence counts can also travel, and that flow is **anonymous, always** — `relearn report` writes upstream tags, bucketed counts and month-level dates, with no title, no incident, no body, no path, no name; `relearn aggregate` recomputes a cross-install view that publishes nothing below a five-install floor and prints its own confounds beside every number. `relearn lint --upstream <dir>` surfaces what the corpus knows that you might want to: a rule that fired here and is already covered upstream, a cache behind or retired upstream, and — off until asked for — contributions and high-recurrence rules you do not hold. A poke carries no severity and can never change an exit code.
+
+The design behind all of it is [`docs/federated-relearn.md`](docs/federated-relearn.md).
 
 ## Design
 

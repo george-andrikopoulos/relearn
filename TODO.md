@@ -350,6 +350,27 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## The public face caught up with the code (2026-09-13)
+
+Everything above shipped in one session, and the README's Status paragraph still described a
+repository with no federation in it — the first thing a reader sees, and `[R:doc-currency]`
+in the file where it costs most.
+
+- [x] **README Status** names the sharing flows and says plainly that they are optional and
+      that a single engineer needs none of them.
+- [x] **A "Sharing a corpus between installs" section** with the real two-install workflow:
+      publish, status-check, apply. It leads with what does *not* change for one engineer,
+      because that is the product, and names the three refusals as the point rather than as
+      inconveniences.
+- [x] **`ARCHITECTURE.md`'s dependency direction** now mentions `pull`; **`CLAUDE.md`'s command
+      block** now lists the federation commands it had never carried.
+
+Carried:
+
+- [ ] **`docs/worked-example.md` shows the single-install flow only** — one incident, one
+      rule, five emitted layers. The two-install round trip is described in the README and
+      demonstrated nowhere with real output, which is the standard that example set.
+
 ## Multiuser mode: both publisher and cache creator (2026-09-13)
 
 George's call, in three decisions: `contribute` carries a version, the shared corpus lives on a

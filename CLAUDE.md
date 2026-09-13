@@ -119,7 +119,17 @@ bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `
 relearn build --targets claude,cursor,copilot,agents   # compile rules to all targets
 relearn check                                          # validate library, no output written
 relearn list --home global                             # inspect
-relearn lint --upstream <clone>                        # findings, then the federation's pokes
+relearn lint --upstream <drive>                        # findings, then the federation's pokes
+
+# The federation flows. Every one of them prints first and writes only on
+# --confirm, none of them transmits anything, and <drive> is a directory both
+# installs can see — given on the command line like every other input.
+relearn pull --upstream <drive> --all --from <name> --on <date>   # the status check
+relearn pull --upstream <drive> --all --prune --from <name> --on <date> --confirm
+relearn contribute --tag R:x --terms <list> --version <n> --out <drive>/rules
+relearn adopt --tag R:x --on <date>                    # the loud fork of a cache
+relearn report --aggregate <clone> --generated YYYY-MM # anonymous recurrence counts
+relearn aggregate --clone <clone> --generated YYYY-MM  # the scheduled recompute
 ```
 
 ## Definition of done — runs on EVERY feature or fix
