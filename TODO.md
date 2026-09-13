@@ -315,34 +315,59 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
       no reference to the log — the drift shape the rule names. One line each to fix, but
       it belongs with the retrofit decision above rather than ahead of it.
 
-## Phase J — federated recurrence (design filed 2026-09-13; **nothing built**)
+## Phase J — federated relearn (design v2 filed 2026-09-13; **nothing built**)
 
-The design is [`docs/federated-recurrence.md`](docs/federated-recurrence.md), filed on the
-same footing as `docs/recurrence-session-hook.md`: written down so it is not re-invented,
-deliberately not implemented. Its thesis is *federate the signal, not the corpus* — publish
-an error-class identifier and a count, never `incident`, `body`, `tag` or any identity. It
-is the cross-install answer to the same question Phase F answered locally, and it is the
-only route on the table to the n = 1 objection and to measuring the decay curve Paper 3
-declines to claim.
+The design is [`docs/federated-relearn.md`](docs/federated-relearn.md), filed on the same
+footing as `docs/recurrence-session-hook.md`: written down so it is not re-invented,
+deliberately not implemented. **v2 supersedes the v1 filed the same day** (then
+`docs/federated-recurrence.md`, in commit 522679f). v1's thesis was *federate the
+signal, not the corpus* — a class catalogue and counts, no rule text ever. v2 lets rules
+travel and moves the privacy problem to **contribution time, where a human is present**:
+one home, many regenerable caches, and three flows with three different privacy models —
+contribution **attributed**, cache carrying its author, recurrence report **anonymous,
+always**. It is still the cross-install answer to the question Phase F answered locally, and
+still the only route on the table to the n = 1 objection and to measuring the decay curve
+Paper 3 declines to claim.
 
-- [ ] **Decide the five open questions (§10).** They are George's, and the design says so.
+- [ ] **Decide the six open questions (§12).** They are George's, and the design says so.
       Nothing below can be built before they are answered.
-  - [ ] Who curates the class catalogue — a maintainer does not scale, a free-for-all
-        re-imports the entity-resolution problem through the back door.
+  - [ ] Was dropping the error-class catalogue right? It made federating a signal cheap;
+        without it, contributing a whole scrubbed rule is the only route — higher bar,
+        fewer signals.
+  - [ ] Who reviews contributions — the §4 scrub is the step most likely to be done badly,
+        and a reviewer without the contributor's context cannot check it. The governance
+        question.
   - [ ] What is *k* for the anonymity floor. Proposed 5; wants an argument, not a preference.
   - [ ] Whether `control` **kind** is published at all — most useful field, most likely leak.
-  - [ ] Whether `class` lives on the rule or in a separate local mapping file.
-  - [ ] Catalogue versioning when an entry is merged, split or retired — the same problem as
+  - [ ] Scope vocabulary for `applies_to`: free strings grow four spellings of *low-latency*;
+        a controlled list needs an owner. The catalogue problem one layer down.
+  - [ ] Cache staleness when an upstream rule is retired or superseded — the same shape as
         `Status` on rules; do not invent it twice.
-- [ ] *(Blocked on the above)* The `class` optional field: parse, serialize, lint and all five
-      emitters, plus the round-trip assertion that **the emitted tree does not change for any
-      rule without a `class`** — the same proof that carried `recurrences`.
-- [ ] *(Blocked)* `relearn report` — writes a file, publishes nothing. No auto-sync, ever.
-- [ ] *(Blocked)* The four federated lint findings (`ClassRecurrentElsewhere`,
-      `GraduatedElsewhere`, `UnminedClass`, `InertLocally`).
-- [ ] **Counter-metric, not optional (§6).** Cross-install recurrence measures frequency *and*
+- [ ] *(Blocked on the above)* `applies_to` — an optional scope set, **absent meaning today's
+      behaviour exactly**: parse, serialize, lint and all five emitters, plus the round-trip
+      assertion that **the emitted tree does not change for any rule without it** — the same
+      proof that carried `recurrences`.
+- [ ] *(Blocked)* `Home::Org { name }`, and the structural guarantee that an `Org`-homed rule
+      can never be contributed and never appears in a report — an exhaustive match that fails
+      to compile when a home variant is added without deciding its federation behaviour, not
+      a filter someone can forget.
+- [ ] *(Blocked)* `Authority::Local | Cached { .. }` — emitters treat both identically; the
+      **edit path refuses `Cached`**, the same shape as `[R:generate-guards-unversioned]`.
+      `adopt` is the deliberate fork, with recorded provenance.
+- [ ] *(Blocked)* `Origin::Mandated` with an `approval` provenance table, and the exclusion of
+      mandated rules from every recurrence statistic. No regulatory-alignment claim ships
+      without a named signer — `[R:guarantee-needs-a-reader]`.
+- [ ] *(Blocked)* `relearn contribute` — requires a hand-written **published incident**, shows
+      exactly what will leave, demands confirmation. The raw `incident` never leaves the
+      machine. First mechanical enforcement of `[R:names-travel-with-the-quote]`.
+- [ ] *(Blocked)* `relearn report` — writes a file, publishes nothing. No auto-sync, ever, in
+      either direction. Only upstream tags are reportable.
+- [ ] *(Blocked)* The poke, surfaced in `relearn lint` rather than a `news` command nobody
+      runs: reactive trigger on by default, broadcast triggers capped by a number in config.
+- [ ] **Counter-metric, not optional (§8).** Cross-install recurrence measures frequency *and*
       diligence, inseparably; the aggregate must print that sentence beside its own numbers.
-      A published report is also not research consent — that is a separate, recorded opt-in.
+      The mined fraction is the counter-metric to the federation itself. A published report is
+      also not research consent — that is a separate, recorded opt-in.
 
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.
