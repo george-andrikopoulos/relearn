@@ -315,7 +315,7 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
       no reference to the log — the drift shape the rule names. One line each to fix, but
       it belongs with the retrofit decision above rather than ahead of it.
 
-## Phase J — federated relearn (design v2 filed 2026-09-13; **nothing built**)
+## Phase J — federated relearn (design v2 filed 2026-09-13, its six questions answered the same day; **nothing built**)
 
 The design is [`docs/federated-relearn.md`](docs/federated-relearn.md), filed on the same
 footing as `docs/recurrence-session-hook.md`: written down so it is not re-invented,
@@ -329,24 +329,28 @@ always**. It is still the cross-install answer to the question Phase F answered 
 still the only route on the table to the n = 1 objection and to measuring the decay curve
 Paper 3 declines to claim.
 
-- [ ] **Decide the six open questions (§12).** They are George's, and the design says so.
-      Nothing below can be built before they are answered.
-  - [ ] Was dropping the error-class catalogue right? It made federating a signal cheap;
-        without it, contributing a whole scrubbed rule is the only route — higher bar,
-        fewer signals.
-  - [ ] Who reviews contributions — the §4 scrub is the step most likely to be done badly,
-        and a reviewer without the contributor's context cannot check it. The governance
-        question.
-  - [ ] What is *k* for the anonymity floor. Proposed 5; wants an argument, not a preference.
-  - [ ] Whether `control` **kind** is published at all — most useful field, most likely leak.
-  - [ ] Scope vocabulary for `applies_to`: free strings grow four spellings of *low-latency*;
-        a controlled list needs an owner. The catalogue problem one layer down.
-  - [ ] Cache staleness when an upstream rule is retired or superseded — the same shape as
-        `Status` on rules; do not invent it twice.
+- [x] **Decide the six open questions (§12).** ~~They are George's, and the design says so.~~
+      **Answered 2026-09-13**, the same day they were filed; §12 now records each decision with
+      its why, and the two that moved the design carried edits into §5 and §8.
+  - [x] The catalogue stays dropped — a second identity space means per-install, per-rule entity
+        resolution with no error-correcting feedback, and it was the sole source of v1's own
+        hardest question. The real cost is a **biased** under-count, not a sparse one, and it is
+        paid back by `adopt` (§5) and declared in the aggregate (§8).
+  - [x] The contributor owns the scrub, mechanically, on their own machine; review checks only
+        what a reviewer can see — duplication against the corpus, origin, parse. One maintainer
+        plus a published checklist until there is volume.
+  - [x] *k* = 5 (the standard cell-suppression floor, a benchmark a reader can look up) **and**
+        counts publish as buckets — an exact count plus a month defeats pseudonym rotation.
+  - [x] `control` kind is published, on the structural condition that it is a sealed enum with
+        no free-text variant and no `Other(String)`. Never the control's name, hashed or not.
+  - [x] The corpus is the scope vocabulary — one identity space, as in the catalogue answer —
+        with a `ScopeNearDuplicate` finding instead of a curator. Scopes are audiences, not topics.
+  - [x] A local attic suppresses, an upstream attic only warns; no new `Status` variant, because
+        rule-replaces-rule is a version move on the same tag.
 - [ ] *(Blocked on the above)* `applies_to` — an optional scope set, **absent meaning today's
       behaviour exactly**: parse, serialize, lint and all five emitters, plus the round-trip
       assertion that **the emitted tree does not change for any rule without it** — the same
-      proof that carried `recurrences`.
+      proof that carried `recurrences`. `Scope` parses at the perimeter (§12.5).
 - [ ] *(Blocked)* `Home::Org { name }`, and the structural guarantee that an `Org`-homed rule
       can never be contributed and never appears in a report — an exhaustive match that fails
       to compile when a home variant is added without deciding its federation behaviour, not
@@ -354,20 +358,40 @@ Paper 3 declines to claim.
 - [ ] *(Blocked)* `Authority::Local | Cached { .. }` — emitters treat both identically; the
       **edit path refuses `Cached`**, the same shape as `[R:generate-guards-unversioned]`.
       `adopt` is the deliberate fork, with recorded provenance.
+- [ ] *(Blocked)* `relearn adopt <tag>` — **load-bearing, not a convenience** (§12.1): it is what
+      makes the common case free once contribution is expensive, and it is the only route by
+      which a locally-mined signal becomes reportable at all.
+- [ ] *(Blocked)* `CachedRuleRetiredUpstream { tag, upstream_status, since }` — Warning, and it
+      **cannot** suppress emission: only a local `Status` reaches `Status::emittability` (§12.6).
+      An upstream retirement that installs refuse by adopting is the federation's best signal.
 - [ ] *(Blocked)* `Origin::Mandated` with an `approval` provenance table, and the exclusion of
       mandated rules from every recurrence statistic. No regulatory-alignment claim ships
       without a named signer — `[R:guarantee-needs-a-reader]`.
 - [ ] *(Blocked)* `relearn contribute` — requires a hand-written **published incident**, shows
       exactly what will leave, demands confirmation. The raw `incident` never leaves the
       machine. First mechanical enforcement of `[R:names-travel-with-the-quote]`.
+  - [ ] The scrub runs **here, not at review** (§12.2): the `scripts/no-banned-names.sh` matcher
+        over the published incident. Reusable as a matcher; its `File::Find` half is not, since
+        the target is one string. Reports location and length, never the match; **exits 2 when
+        disarmed** — a contribution with no term list is refused, not passed.
 - [ ] *(Blocked)* `relearn report` — writes a file, publishes nothing. No auto-sync, ever, in
       either direction. Only upstream tags are reportable.
+  - [ ] Counts serialize as **buckets** (`1 | 2-4 | 5-9 | 10+`), with no path that emits an exact
+        integer, and `Control` is a **sealed enum, no free-text variant** (§12.3, §12.4). Both
+        are type-shaped on purpose: the leak is unrepresentable rather than forbidden.
+  - [ ] k = 5 as a published constant, plus the caveat in the aggregate that a small homogeneous
+        reporting population defeats any k — and that the aggregator cannot detect it.
 - [ ] *(Blocked)* The poke, surfaced in `relearn lint` rather than a `news` command nobody
       runs: reactive trigger on by default, broadcast triggers capped by a number in config.
-- [ ] **Counter-metric, not optional (§8).** Cross-install recurrence measures frequency *and*
-      diligence, inseparably; the aggregate must print that sentence beside its own numbers.
-      The mined fraction is the counter-metric to the federation itself. A published report is
-      also not research consent — that is a separate, recorded opt-in.
+- [ ] *(Blocked)* `ScopeNearDuplicate` — a scope used by exactly one rule within edit distance 2
+      of one used by many. Extends `Finding::OverlappingScope`'s shape rather than adding a
+      parallel mechanism, and it is what replaces a vocabulary curator (§12.5).
+- [ ] **Counter-metrics, not optional (§8) — now two.** Cross-install recurrence measures
+      frequency *and* diligence, inseparably. And with the catalogue gone, the aggregate counts
+      only **classes somebody published a rule for**: a bias toward the cheap incidents, not mere
+      sparseness. Both sentences ship beside the numbers. The mined fraction is the
+      counter-metric to the federation itself. A published report is also not research consent —
+      that is a separate, recorded opt-in.
 
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.

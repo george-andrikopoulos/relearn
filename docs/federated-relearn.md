@@ -4,9 +4,10 @@
 there is no `applies_to` field, no `Authority`, no `Home::Org`, no `Origin::Mandated`, and
 no `contribute`, `report` or `adopt` command. It is filed so the design is written down
 rather than re-invented, on the same footing as
-[`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions in §12 are
-open and are the author's to decide; §13 records what the definition of done would demand
-if it is ever built.
+[`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried
+open were **answered on 13 September 2026** and §12 now records the decisions with their
+whys; two of them moved the design rather than merely filling a blank, and §5 and §8 carry
+the edits. §13 records what the definition of done would demand if it is ever built.
 
 ### One home, many caches, and a signal that travels · v2, 13 September 2026
 
@@ -173,7 +174,7 @@ generated = "2026-09"      # month, never a day
 
 [[observation]]
 rule        = "R:verify-through-production-path"   # an upstream tag; never a local-only one
-recurrences = 2
+recurrences = "2-4"         # a bucket: 1 | 2-4 | 5-9 | 10+ — never an exact count
 latest      = "2026-08"
 status      = "graduated"
 control     = "type"        # type | property-test | unit-test | gate | hook — the KIND, never the code
@@ -184,17 +185,26 @@ Absent: title, incident, body, path, name, repository, language, day-level dates
 **Dates coarsen to the month as a privacy decision, not a formatting one.** In a team of eight,
 *"someone hit this on 28 August"* identifies a person to anyone who was in the room.
 
-**k-anonymity floor.** The aggregate publishes no rule's count until at least *k* distinct
-installs have reported it. Below the floor, a count of one is a finger pointing at someone.
-Propose k = 5, as a published constant a reader can check rather than a policy they must trust.
+**k-anonymity floor, and buckets.** The aggregate publishes no rule's count until at least *k*
+distinct installs have reported it; k = 5, a published constant a reader can check rather than a
+policy they must trust. But k protects the wrong quantity on its own — which rule you hold is
+barely sensitive, whereas an **exact** count plus a month, reported month after month, stitches a
+rotating pseudonym back into one install. So counts publish as buckets. The decay curve in §11
+needs orders, not integers, so this costs almost nothing and closes the longitudinal path. §12.3
+carries the argument, including the case a constant cannot fix.
 
 **Only upstream tags may be reported.** A locally-mined rule has no shared identity, so it cannot
 be counted. To federate its signal you either adopt the upstream rule that covers the class, or
-contribute yours — both deliberate human acts. *(v1 proposed a separate lightweight error-class
-catalogue for exactly this case. It is dropped: the upstream library **is** the shared
-vocabulary, which is a real simplification. The cost is that federating a signal now requires
-contributing a whole rule rather than picking a taxonomy term, which raises the bar. Probably
-correct — it keeps quality up — but it is a decision with a price and §12 keeps it open.)*
+contribute yours — both deliberate human acts. v1's error-class catalogue existed for exactly
+this case and is dropped (§12.1): the upstream library **is** the shared vocabulary, one identity
+space rather than two.
+
+**Which makes `adopt` load-bearing rather than a convenience.** The bar for contributing is
+deliberately high, and a high bar suppresses signal hardest where scrubbing is hardest — so the
+common case, where upstream already holds a rule for the class that just bit you, has to cost
+nothing: `relearn adopt <tag>` caches it, and from that moment recurrences are reportable with no
+authoring at all. Contribution is then reserved for genuinely new classes, where a high bar is
+right.
 
 ---
 
@@ -267,10 +277,14 @@ are structural rather than promises:
    that will eventually rank.
 2. **Nothing is ever auto-published.** `report` and `contribute` write files; a human publishes
    them. The first person who discovers the tool syncing silently is the last person who uses it.
-3. **The aggregate prints its own confound.** Cross-install recurrence measures frequency *and*
-   diligence, inseparably — a class that appears rarely may be rare, or may be one nobody admits
-   to. That sentence ships beside the numbers, or the headline figure is the overclaim this
-   project exists to prevent.
+3. **The aggregate prints its own confounds — both of them.** Cross-install recurrence measures
+   frequency *and* diligence, inseparably: a class that appears rarely may be rare, or may be one
+   nobody admits to. And since v1's catalogue is gone (§12.1), the aggregate can only ever count
+   **classes somebody has published a rule for** — never the universe of error classes. That
+   second sentence is not a sparseness caveat, it is a bias: the authoring-and-scrubbing bar is
+   highest exactly where the incidents are most sensitive, which is often where they are most
+   expensive. Both sentences ship beside the numbers, or the headline figure is the overclaim
+   this project exists to prevent.
 
 ---
 
@@ -327,23 +341,139 @@ and then deciding it is a dataset is precisely the failure this series argues ag
 
 ---
 
-## 12. Open — bring back, do not decide
+## 12. Decided — 13 September 2026
 
-1. **Dropping the error-class catalogue (§5).** It made federating a signal cheap; without it,
-   contributing a whole scrubbed rule is the only route. Simpler, higher quality bar, fewer
-   signals. Is that the right trade?
-2. **Who reviews contributions?** The scrub in §4 is the step most likely to be done badly, and
-   a reviewer who does not know the contributor's context cannot check it properly. This is the
-   governance question and it decides whether the corpus stays trustworthy.
-3. **What is k?** Proposed 5. Needs an argument, not a preference.
-4. **Is `control` kind safe to publish?** Most useful field in the aggregate, most likely to leak
-   something about a codebase. Probably fine; worth one adversarial pass.
-5. **Scope vocabulary.** `applies_to` is a free-string set today. Uncontrolled, it grows four
-   spellings of *low-latency*; controlled, somebody owns the list. Same problem as the catalogue,
-   one layer down.
-6. **What happens when an upstream rule is retired or superseded while installs cache it?** The
-   cache needs its own staleness story, and it is the same shape as `Status` on rules. Do not
-   invent it twice.
+These six were filed open, as *bring back, do not decide*. They were brought back and decided the
+same day. Each records the question as it stood, the decision, and the why — and where a decision
+moved the design rather than filling a blank, it says which section changed.
+
+### 12.1 The error-class catalogue stays dropped, and `adopt` pays the cost back
+
+*Open as: it made federating a signal cheap; without it, contributing a whole scrubbed rule is the
+only route. Simpler, higher bar, fewer signals — is that the right trade?*
+
+**Dropped, and the strongest argument is not simplification.** A catalogue is a second identity
+space for one concept, and mapping between two identity spaces is entity resolution performed
+per-install, per-rule, forever — with no error-correcting feedback, because a mis-mapped class is
+invisible while a contributed rule is read by someone. Note that v1's hardest open question,
+*who curates the catalogue*, existed **only** because of the catalogue: dropping it deletes a
+governance problem rather than deferring one.
+
+But v2 understated the cost, and it is not "fewer signals" — it is a **biased** under-count.
+Raising the bar to author-scrub-PR-review suppresses signal hardest where scrubbing is hardest,
+which is the sensitive private repositories, which are disproportionately where the expensive
+incidents happen. Sparse is fine; skewed toward the cheap incidents is a measurement problem.
+
+The repair is not a taxonomy, it is making the common case free — see §5, where `adopt` is now
+load-bearing rather than a convenience — and stating the residual bias in the aggregate itself,
+which is §8's second confound. Both sections changed.
+
+### 12.2 The contributor owns the scrub; review checks what a reviewer can actually see
+
+*Open as: the scrub in §4 is the step most likely to be done badly, and a reviewer who does not
+know the contributor's context cannot check it properly.*
+
+**Then stop designing review as the scrub control.** A reviewer cannot know that *"the deploy
+script"* names a customer. A control whose reader cannot perform the check is a guarantee with no
+reader — `[R:guarantee-needs-a-reader]`, in the design of the tool that enforces it.
+
+The scrub moves to the only place it can work, the contributor's machine, mechanically:
+`relearn contribute` runs the banned-terms matcher over the **published** incident before it
+writes anything. That machinery exists here already — `scripts/no-banned-names.sh`, salted
+digests, normalise then join runs of up to three tokens then slide every stored length inside
+each token. The matcher is reusable; its `File::Find` half is not, since the target is one string
+rather than a tree. It must keep the gate's two hard properties: a finding reports location and
+length and **never** the match (`[R:report-the-hit-not-the-match]`), and a missing term list
+exits 2, not 0 — a disarmed scrub refuses to contribute rather than passing green.
+
+That leaves the reviewer the job a contributor genuinely cannot do: does this duplicate an
+existing rule's error class (P2 — only someone holding the whole corpus can see it), is it
+`mined` or doctrine wearing a rule's clothes, does it parse, and a belt-and-braces read for an
+obvious identifier. Governance starts as one maintainer plus a published merge checklist;
+per-domain reviewers arrive when a domain has volume, because deciding a scaling structure at
+zero volume is inventing a requirement.
+
+One thing said plainly rather than implied: **a bad scrub is irreversible.** A contribution can
+be withdrawn from the corpus; public git history is forever. Pre-publication is the only real
+control, which is the whole reason the check moved to the contributor's machine.
+
+### 12.3 k = 5, and counts publish as buckets because k alone protects the wrong quantity
+
+*Open as: proposed 5, needs an argument, not a preference.*
+
+**k = 5**, because it is the standard statistical-disclosure cell-suppression floor — national
+statistics offices commonly use 3 or 5, the k-anonymity literature 5 to 10 — and its virtue is
+that a reader can look the benchmark up instead of trusting the author's taste.
+
+The sharper finding is that k guards the wrong thing. Which rule an install holds is barely
+sensitive. The fingerprint is the **exact** recurrence count plus a month, reported month after
+month: rotation of the pseudonym does not help when successive counts stitch the identities back
+together. So counts publish as buckets — `1 | 2-4 | 5-9 | 10+` — which §5's report format now
+carries. The decay curve in §11 needs orders of magnitude, not integers, so the analytical cost
+is near zero and the longitudinal path closes.
+
+And the caveat a constant cannot fix, stated rather than papered over: if the reporting population
+is small and homogeneous — every report from one organisation's installs — k = 5 protects nobody,
+and the aggregator cannot detect that it is happening.
+
+### 12.4 Publish `control` kind — conditional on it being a sealed enum with no escape hatch
+
+*Open as: most useful field in the aggregate, most likely to leak something about a codebase.*
+
+The adversarial pass: the value set is five closed values. *"This install uses gates"* says they
+have CI. *"type"* implies a typed language, which the rule's tag usually implies anyway. Against
+the rule identity already being published, the control kind adds essentially no linkage — and it
+is the field that makes the aggregate worth reading, since *four installs held this with a type
+and one with a gate* conveys the shape of the answer without anyone shipping code.
+
+The leak arrives the day someone can write `gate:internal-payments-lint`. So the condition is
+structural rather than procedural: `Control` is a **sealed enum with no free-text variant and no
+`Other(String)`**, parsed at the perimeter, a sixth kind requiring a public schema bump. The
+control's *name* is never published, and not as a hash either — a digest over a small dictionary
+is a lookup, not a protection.
+
+Published on that condition, which the type system holds rather than a reviewer remembering.
+
+### 12.5 The corpus is the scope vocabulary; a linter catches the near-misses
+
+*Open as: free strings grow four spellings of low-latency; a controlled list needs an owner.*
+
+Neither. A `Scope` newtype parses at the perimeter and enforces lexical shape — lowercase,
+`[a-z0-9-]`, no leading or trailing hyphen, bounded length — which kills `Low-Latency` and
+`low latency` outright. The set of scopes in use is then **whatever appears in the public
+corpus**: one identity space, not two, which is §12.1's answer applied one layer down.
+
+Drift is a near-miss problem and near-misses are detectable without a curator: a
+`ScopeNearDuplicate` finding for a scope used by exactly one rule within edit distance 2 of a
+scope used by many. That is the shape of `Finding::OverlappingScope`, which exists — extend it
+rather than inventing a parallel mechanism.
+
+One convention that cannot be typed and therefore has to be written down: **scopes are audiences,
+not topics.** `rust`, `java`, `embedded` — things an install can declare it *is*. Not
+`performance`, `security`, `testing`, which turn the field into tags and make it a second home
+for what `error_class` already carries.
+
+### 12.6 A local attic suppresses; an upstream attic only warns
+
+*Open as: the cache needs its own staleness story, and it is the same shape as `Status` on rules.
+Do not invent it twice.*
+
+Reuse `Status`; `Authority::Cached { version, pulled }` already supplies the comparison point.
+The decision that matters is **who** retired it. A local `Attic` suppresses emission. An upstream
+`Attic` only warns — deleting an instruction a team relies on because a stranger retired it is a
+correction lost with no reader, which is P1 and the exact failure this tool exists to prevent;
+the local install may hold evidence the upstream author does not. That local-versus-remote
+distinction is precisely what `Authority` models, so expressing it needs nothing new.
+
+`CachedRuleRetiredUpstream { tag, upstream_status, since }`, Warning. Three human resolutions:
+pull, adopt, drop. And **`adopt` on an upstream retirement is the most valuable signal the
+federation can produce** — a retirement that installs refuse is evidence the retirement was
+wrong, which is the population telling an author something no single install can know.
+
+On supersession: **no new `Status` variant.** `Graduated { to }` means promoted to a control, not
+replaced by another rule, and rule-replaces-rule is just a new version of the same tag — the
+cache sees `version` move. Only tag-level death needs `Attic`. That is the reading of *do not
+invent it twice* that actually holds.
 
 ---
 
@@ -356,3 +486,13 @@ corpus was not disturbed, exactly as it did for `recurrences`.
 
 `contribute`, `report` and `adopt` write no instruction layer and must not be reachable from
 `build`.
+
+**§12 turned four of the answers into types rather than policies, and those are the enforcing
+artifacts to name when the FEATURES rows are written.** `Control` is a sealed enum with no
+free-text variant (§12.4) — the leak is unrepresentable, not forbidden. A recurrence count
+serializes as a bucket, so there is no path that emits an exact integer (§12.3). `Scope` parses
+at the perimeter and `ScopeNearDuplicate` extends `Finding` (§12.5). `CachedRuleRetiredUpstream`
+is a Warning and cannot suppress emission, because only a local `Status` reaches
+`Status::emittability` (§12.6). The one answer that is *not* a type is §12.2's governance split,
+and it is written down precisely because nothing can check it — the half that can be checked, the
+banned-terms matcher over the published incident, exits 2 when disarmed.
