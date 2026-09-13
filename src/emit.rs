@@ -355,6 +355,7 @@ mod tests {
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
+            Vec::new(),
         )
     }
 
@@ -376,6 +377,7 @@ mod tests {
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
+            Vec::new(),
             Vec::new(),
         )
     }

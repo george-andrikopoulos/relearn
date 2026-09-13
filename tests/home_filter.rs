@@ -24,6 +24,7 @@ fn rule(tag: &str, home: Home) -> Rule {
         Incident::parse("an incident").expect("non-empty incident"),
         Body::parse("The body.").expect("non-empty body"),
         Vec::new(),
+        Vec::new(),
     )
 }
 

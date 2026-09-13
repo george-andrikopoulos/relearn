@@ -9,6 +9,9 @@
 //!   `R:[a-z0-9][a-z0-9-]*`); possessing one *is* the proof.
 //! - `Home` is `Global | Domain { name } | Project { path }` — one home per
 //!   rule is a type-level guarantee, not a lint.
+//! - `ScopeTag` is the *audience* a rule serves, and is deliberately a separate
+//!   field from `Home`: ownership has exactly one answer, audience has several.
+//!   A scope never affects where a rule is emitted, only whether it is.
 //! - `Status` carries its payload, so "graduated" without a destination or
 //!   "attic" without a reason cannot be constructed.
 //! - Date fields parse wide, then range-check (`[R:parse-wide-then-range-check]`).
@@ -23,6 +26,7 @@ mod def;
 mod home;
 mod origin;
 mod parse;
+mod scope;
 mod serialize;
 mod status;
 mod tag;
@@ -33,6 +37,7 @@ pub use def::{Recurrence, Rule};
 pub use home::{DomainName, Home, ProjectPath};
 pub use origin::{Origin, UnknownOrigin};
 pub use parse::{ParseError, parse_document};
+pub use scope::{ScopeTag, ScopeTagError};
 pub use serialize::to_document;
 pub use status::{Destination, Emittability, Reason, Status};
 pub use tag::{RuleTag, RuleTagError};

@@ -12,7 +12,7 @@
 //! as a TOML basic string so quotes, backslashes, and control characters
 //! survive the round trip.
 
-use super::{Home, Rule, Status};
+use super::{Home, Rule, ScopeTag, Status};
 
 /// Serialize a rule to its neutral document form (`+++` front-matter, then the
 /// markdown body). [`super::parse_document`] parses the result back to an equal
@@ -24,6 +24,16 @@ pub fn to_document(rule: &Rule) -> String {
     out.push_str(&kv("title", rule.title().as_str()));
     out.push_str(&kv("error_class", rule.error_class().as_str()));
     out.push_str(&home_line(rule.home()));
+    // Written beside `home` because that is where a human reads it: home says
+    // who owns the rule, `applies_to` says who loads it, and the two questions
+    // belong next to each other in the file even though the constructor takes
+    // them apart. Emitted **only** when non-empty, so a rule that declares no
+    // audience renders exactly as it did before the field existed — the reason
+    // none of the fifty-two committed rules needed editing, asserted over the
+    // real corpus by `tests/corpus.rs`.
+    if rule.is_scoped() {
+        out.push_str(&applies_to_line(rule.applies_to()));
+    }
     out.push_str(&kv("created", &rule.created().to_string()));
     out.push_str(&kv("origin", rule.origin().as_str()));
     out.push_str(&status_line(rule.status()));
@@ -62,6 +72,19 @@ fn home_line(home: &Home) -> String {
             toml_basic_string(path.as_str())
         ),
     }
+}
+
+/// The `applies_to = [...]` line, a TOML array of basic strings in file order.
+///
+/// Order is preserved rather than sorted, for the same reason recurrences are:
+/// the serializer must reproduce the file it parsed, and sorting here would
+/// rewrite every scoped rule the first time a build ran.
+fn applies_to_line(scopes: &[ScopeTag]) -> String {
+    let list: Vec<String> = scopes
+        .iter()
+        .map(|s| toml_basic_string(s.as_str()))
+        .collect();
+    format!("applies_to = [{}]\n", list.join(", "))
 }
 
 /// The `status = { ... }` line; a graduated/atticked status carries its payload.
@@ -105,8 +128,8 @@ fn toml_basic_string(s: &str) -> String {
 mod tests {
     use super::to_document;
     use crate::rule::{
-        Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, Status, Title,
-        parse_document,
+        Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, ScopeTag,
+        Status, Title, parse_document,
     };
 
     fn rule_with_recurrences(recurrences: Vec<Recurrence>) -> Rule {
@@ -121,6 +144,7 @@ mod tests {
             Incident::parse("the triggering incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
+            Vec::new(),
         )
     }
 
@@ -142,6 +166,7 @@ mod tests {
             status,
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
+            Vec::new(),
             Vec::new(),
         )
     }
@@ -234,6 +259,57 @@ mod tests {
             incident_at < table_at,
             "the scalar keys must precede the array of tables:\n{doc}"
         );
+    }
+
+    fn scoped_rule(scopes: &[&str]) -> Rule {
+        Rule::new(
+            RuleTag::parse("R:x").expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::domain("low-latency").expect("non-empty domain"),
+            Date::parse("2026-09-13").expect("valid date"),
+            Origin::Mined,
+            Status::active(),
+            Incident::parse("the triggering incident").expect("non-empty incident"),
+            Body::parse("Do the thing.").expect("non-empty body"),
+            Vec::new(),
+            scopes
+                .iter()
+                .map(|s| ScopeTag::parse(*s).expect("valid scope"))
+                .collect(),
+        )
+    }
+
+    // The assertion that makes "no rule file needs editing" true for this field
+    // at the unit level; `tests/corpus.rs` makes it true over the real fifty-two.
+    #[test]
+    fn an_unscoped_rule_renders_no_applies_to_line() {
+        let doc = to_document(&scoped_rule(&[]));
+        assert!(
+            !doc.contains("applies_to"),
+            "a rule declaring no audience must render exactly as it did before \
+             the field existed:\n{doc}"
+        );
+    }
+
+    #[test]
+    fn round_trips_applies_to_in_file_order() {
+        let r = scoped_rule(&["rust", "java"]);
+        let doc = to_document(&r);
+        assert!(doc.contains("applies_to = [\"rust\", \"java\"]"), "{doc}");
+        assert_eq!(parse_document(&doc), Ok(r));
+    }
+
+    // Beside `home`, because that is where a reader asks the question: home says
+    // who owns the rule, `applies_to` says who loads it. The ordering is pinned
+    // rather than left to the next edit of `to_document`.
+    #[test]
+    fn the_applies_to_line_follows_home() {
+        let doc = to_document(&scoped_rule(&["rust"]));
+        let home_at = doc.find("home = ").expect("home is emitted");
+        let scope_at = doc.find("applies_to = ").expect("applies_to is emitted");
+        let created_at = doc.find("created = ").expect("created is emitted");
+        assert!(home_at < scope_at && scope_at < created_at, "{doc}");
     }
 
     #[test]

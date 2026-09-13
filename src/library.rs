@@ -146,6 +146,7 @@ mod tests {
             Incident::parse("an incident").expect("non-empty"),
             Body::parse("Do the thing.").expect("non-empty"),
             Vec::new(),
+            Vec::new(),
         )
     }
 

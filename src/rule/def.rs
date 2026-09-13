@@ -3,7 +3,7 @@
 //! part already proved its own invariant) and the constructor cannot be called
 //! with its arguments in the wrong order — a swap is a compile error.
 
-use super::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title};
+use super::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, ScopeTag, Status, Title};
 
 /// One later occurrence of the error class a rule already covers — evidence
 /// that the rule was written down and the error happened anyway.
@@ -54,12 +54,13 @@ pub struct Rule {
     incident: Incident,
     body: Body,
     recurrences: Vec<Recurrence>,
+    applies_to: Vec<ScopeTag>,
 }
 
 impl Rule {
     /// Assemble a rule from its validated parts.
     ///
-    /// Ten arguments, deliberately: these are the rule's essential fields and
+    /// Eleven arguments, deliberately: these are the rule's essential fields and
     /// construction requires all of them (there is no incomplete-`Rule` state
     /// to guard against). Every parameter is a distinct newtype, so an
     /// argument-order mistake is a compile error rather than a runtime bug — the
@@ -72,7 +73,18 @@ impl Rule {
     /// constructor site — silent; as an argument it is a compile error at the
     /// site that drops it. Same reasoning as "a parse failure stops the build":
     /// the fact that is easiest to lose is the one that must be impossible to
-    /// lose quietly.
+    /// lose quietly. `applies_to` is required for the same reason, though its
+    /// failure runs the other way: a dropped audience makes a rule *more*
+    /// visible, not less, and a rule silently re-universalised is still a rule
+    /// nobody decided to broadcast.
+    ///
+    /// **The two collection arguments come last, in the order the format grew
+    /// them** (`recurrences` 2026-09-06, `applies_to` 2026-09-13), so adding a
+    /// field never renumbers an existing argument. Position carries no risk
+    /// here — every parameter is a distinct type, `Vec<Recurrence>` and
+    /// `Vec<ScopeTag>` included, so a swap is a compile error. The *file*
+    /// format orders itself for a human reader instead: `applies_to` is
+    /// written beside `home`, because that is where it is read.
     #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub fn new(
@@ -86,6 +98,7 @@ impl Rule {
         incident: Incident,
         body: Body,
         recurrences: Vec<Recurrence>,
+        applies_to: Vec<ScopeTag>,
     ) -> Self {
         Rule {
             tag,
@@ -98,6 +111,7 @@ impl Rule {
             incident,
             body,
             recurrences,
+            applies_to,
         }
     }
 
@@ -119,10 +133,51 @@ impl Rule {
         &self.error_class
     }
 
-    /// Where the rule lives.
+    /// Where the rule lives. One answer, always.
     #[must_use]
     pub fn home(&self) -> &Home {
         &self.home
+    }
+
+    /// Which audiences the rule serves, or empty for "every audience".
+    ///
+    /// Deliberately not a second home: [`Rule::home`] says who owns the rule
+    /// and says it once; this says who should load it, which has no such
+    /// cardinality. An emitter must never read this to decide a *path* —
+    /// `Home` alone decides where a rule lands, and scope decides only whether
+    /// it is included.
+    #[must_use]
+    pub fn applies_to(&self) -> &[ScopeTag] {
+        &self.applies_to
+    }
+
+    /// Whether this rule is narrowed to particular audiences.
+    #[must_use]
+    pub fn is_scoped(&self) -> bool {
+        !self.applies_to.is_empty()
+    }
+
+    /// Whether this rule should be emitted for `audience`.
+    ///
+    /// Two defaults, and both are the safety decision rather than a
+    /// convenience:
+    ///
+    /// * **An empty `audience` serves everything.** No `--scope` means no
+    ///   narrowing, so an invocation that asks for nothing in particular gets
+    ///   the whole library, exactly as it did before this field existed.
+    /// * **An unscoped rule serves every audience.** This is the load-bearing
+    ///   one. Adding `applies_to` to one rule must never be able to remove a
+    ///   *different* rule from an existing build, and a rule that has declared
+    ///   no audience has not opted out of anyone's. A silently dropped rule is
+    ///   a lost correction — the invariant at the top of `CLAUDE.md`.
+    ///
+    /// Only a rule that *has* declared an audience can be withheld, and only
+    /// from an audience it does not name.
+    #[must_use]
+    pub fn serves(&self, audience: &[ScopeTag]) -> bool {
+        audience.is_empty()
+            || !self.is_scoped()
+            || self.applies_to.iter().any(|s| audience.contains(s))
     }
 
     /// The date the rule was created.
@@ -210,6 +265,7 @@ mod tests {
             Incident::parse("the triggering incident").expect("non-empty incident"),
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
+            Vec::new(),
         )
     }
 
@@ -218,6 +274,58 @@ mod tests {
             Date::parse(date).expect("valid date"),
             Incident::parse("it happened again").expect("non-empty incident"),
         )
+    }
+
+    fn scoped(names: &[&str]) -> Rule {
+        Rule::new(
+            RuleTag::parse("R:x").expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::domain("low-latency").expect("non-empty domain"),
+            Date::parse("2026-09-13").expect("valid date"),
+            Origin::Mined,
+            Status::active(),
+            Incident::parse("the triggering incident").expect("non-empty incident"),
+            Body::parse("Do the thing.").expect("non-empty body"),
+            Vec::new(),
+            names
+                .iter()
+                .map(|n| ScopeTag::parse(*n).expect("valid scope"))
+                .collect(),
+        )
+    }
+
+    fn audience(names: &[&str]) -> Vec<ScopeTag> {
+        names
+            .iter()
+            .map(|n| ScopeTag::parse(*n).expect("valid scope"))
+            .collect()
+    }
+
+    // The two safety defaults, pinned where they are defined. Either one
+    // inverted would let `--scope` withhold a rule nobody scoped, which is a
+    // correction lost.
+    #[test]
+    fn an_unscoped_rule_serves_every_audience() {
+        let r = scoped(&[]);
+        assert!(!r.is_scoped());
+        assert!(r.serves(&[]));
+        assert!(r.serves(&audience(&["rust"])));
+        assert!(r.serves(&audience(&["java", "cobol"])));
+    }
+
+    #[test]
+    fn an_empty_audience_is_served_by_every_rule() {
+        assert!(scoped(&["rust"]).serves(&[]));
+    }
+
+    #[test]
+    fn a_scoped_rule_serves_only_an_audience_it_names() {
+        let r = scoped(&["rust", "java"]);
+        assert!(r.is_scoped());
+        assert!(r.serves(&audience(&["java"])));
+        assert!(r.serves(&audience(&["cobol", "rust"])));
+        assert!(!r.serves(&audience(&["cobol"])));
     }
 
     #[test]

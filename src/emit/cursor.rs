@@ -107,6 +107,7 @@ mod tests {
             Incident::parse("an incident").expect("non-empty incident"),
             Body::parse(body).expect("non-empty body"),
             Vec::new(),
+            Vec::new(),
         )
     }
 

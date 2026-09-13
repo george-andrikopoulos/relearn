@@ -43,6 +43,13 @@ relearn list --rules ./rules --home domain-rust
 relearn build --rules ./rules --out .
 relearn build --rules ./rules --out . --targets cursor,copilot
 
+# Narrow by audience rather than by owner. A rule declaring no `applies_to`
+# is emitted whatever you ask for; only a scoped rule can be withheld, and
+# only from an audience it does not name. Repeatable, composes with --home,
+# and an audience no rule declares is an error rather than a quiet drop.
+relearn build --rules ./rules --out . --scope rust
+relearn build --rules ./rules --out . --scope rust --scope java
+
 # Report advisory findings (overlapping scope, home-slug collisions,
 # dangling references). Writes nothing; non-zero exit if any are found.
 relearn lint --rules ./rules
@@ -68,6 +75,20 @@ incident    = "Grouping task 01: 5/5 samples parsed into u16, so 70000 read as N
 
 Parse into a type wide enough to represent the out-of-range value, then range-check.
 ```
+
+`home` says who **owns** a rule, and there is exactly one. An optional
+`applies_to` says who should **load** it, and there may be several:
+
+```
+home        = { kind = "domain", name = "low-latency" }
+applies_to  = ["rust", "java"]
+```
+
+One file, one tag, one incident, one owner — compiled into both language
+builds. The alternative, a nested `rust/low-latency`, writes the shared
+principle twice and it drifts from the first commit. Omit `applies_to` and the
+rule serves every audience, which is what every rule written before the field
+existed does.
 
 Every emitted file carries a generated-by header and a content hash; `build` refuses to overwrite any file it did not write (and aborts the whole run rather than leave a half-generated tree), so a target directory can safely hold both generated and hand-authored files. `relearn verify` is the read-only complement: it recomputes each generated file's body hash and re-emits from the current rules, reporting any file that was hand-edited or has drifted from its source — a drop-in CI check that the committed instruction files are in sync.
 

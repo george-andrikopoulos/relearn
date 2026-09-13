@@ -20,6 +20,7 @@ fn rule(tag: &str, home: Home, error_class: &str, body: &str) -> Rule {
         Incident::parse("an incident").expect("non-empty incident"),
         Body::parse(body).expect("non-empty body"),
         Vec::new(),
+        Vec::new(),
     )
 }
 
@@ -45,6 +46,7 @@ fn atticked(tag: &str) -> Rule {
         .expect("non-empty reason"),
         Incident::parse("an incident").expect("non-empty incident"),
         Body::parse("Body.").expect("non-empty body"),
+        Vec::new(),
         Vec::new(),
     )
 }
@@ -227,6 +229,7 @@ fn a_tag_cited_twice_in_the_body_yields_one_finding() {
         Incident::parse("first seen alongside no tags at all").expect("non-empty incident"),
         Body::parse("This builds on R:ghost, and again on R:ghost.").expect("non-empty body"),
         Vec::new(),
+        Vec::new(),
     )]);
     let dangling: Vec<_> = lint(&lib)
         .into_iter()
@@ -321,6 +324,7 @@ fn rule_with_incident(tag: &str, incident: &str, body: &str) -> Rule {
         Incident::parse(incident).expect("non-empty incident"),
         Body::parse(body).expect("non-empty body"),
         Vec::new(),
+        Vec::new(),
     )
 }
 
@@ -380,6 +384,7 @@ fn recurred(tag: &str, status: Status, dates: &[&str]) -> Rule {
                 )
             })
             .collect(),
+        Vec::new(),
     )
 }
 
@@ -492,6 +497,7 @@ fn with_origin(tag: &str, origin: Origin, status: Status, dates: &[&str]) -> Rul
                 )
             })
             .collect(),
+        Vec::new(),
     )
 }
 

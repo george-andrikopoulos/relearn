@@ -315,6 +315,49 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
       no reference to the log — the drift shape the rule names. One line each to fix, but
       it belongs with the retrofit decision above rather than ahead of it.
 
+## Phase A1 — home is not scope (shipped 2026-09-13)
+
+The first piece of the federated design (`docs/federated-relearn.md` §2) and deliberately the
+only one that pays for itself with **no federation at all**: `applies_to` on a rule, `--scope`
+on `build` / `verify` / `list`, and a `ScopeTag` witness. Nothing here touches the network,
+contributions, caches or reports. The emitted tree did not change for any of the 52 rules —
+`relearn verify` green, 63 files — and no rule file needed editing.
+
+- [x] `ScopeTag` newtype, parsed at the perimeter; `applies_to` on `Rule`; `Rule::serves` holding
+      both safety defaults where no caller can reimplement them.
+- [x] `--scope` on `build`, `verify` and `list`, narrowing through one shared
+      `restrict_to_scopes` so a build and its paired gate cannot disagree.
+- [x] An unknown scope is a loud error for `build`/`verify`, an empty listing for `list`.
+- [x] Enforcers shipped in the same change: `tests/scope_filter.rs`, four new property tests,
+      parse/serialize unit pins, four `cli` tests. FEATURES rows and the decisions-log entry
+      recording **why nesting was rejected**.
+
+Discovered while building it, deliberately not decided here:
+
+- [ ] **A rule homed in `domain-low-latency` reaches four of the five targets.**
+      `emit::claude_rules` emits project homes and *known language domains* only — a domain with
+      no glob table is `LoadSemantics::OnRequest` and is skipped — so the motivating example of
+      this very phase is absent from `.claude/rules/`. Skills, Cursor, Copilot and `AGENTS.md`
+      all carry it. Either `low-latency` earns a glob set, or the rules layer needs a story for
+      an always-loaded non-language domain. Not a regression: this predates scoping.
+- [ ] **A controlled scope vocabulary.** `applies_to` is free strings, bounded only in shape.
+      Uncontrolled it grows two spellings of *low-latency*; controlled, somebody owns the list.
+      The federated design answers it as §12.5 (the corpus is the vocabulary, plus a
+      `ScopeNearDuplicate` lint finding) — that finding is **not** built here.
+- [ ] **Should `lint` flag a scope used by exactly one rule?** The early signal that the
+      vocabulary is drifting, before there are two spellings to merge. George's call; §12.5
+      sketches the shape.
+- [ ] **Should `copilot-pack/` and `claude-pack/` gain scoped variants?** They are built per home
+      today and keep working untouched, because unscoped rules always emit. Changing nothing for
+      now.
+- [ ] **Should an emitted rule announce its audience?** A scoped rule currently emits identically
+      to an unscoped one — which is what makes the byte-identity property provable, and it means
+      a reader of `skills/domain-low-latency/SKILL.md` cannot see that the rule is scoped. An
+      annotation would be the recurrence-note shape, and it would change emitted bytes for scoped
+      rules only.
+- [ ] **Candidate rules for `applies_to`.** Reported in the A1 summary, **none applied**: deciding
+      a rule's audience is a judgement about who is harmed by not seeing it, and that is George's.
+
 ## Phase J — federated relearn (design v2 filed 2026-09-13, its six questions answered the same day; **nothing built**)
 
 The design is [`docs/federated-relearn.md`](docs/federated-relearn.md), filed on the same

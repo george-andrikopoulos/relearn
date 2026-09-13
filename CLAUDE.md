@@ -25,6 +25,15 @@ It is the reference implementation of the error loop described in *Tuning the St
 - A rule that fails to parse **stops the build** — it is never silently skipped. A silently dropped rule is a correction lost, which is the exact failure the project exists to prevent.
 - No emitted artifact is a source. Anything under an emitter's output path may be regenerated at any time and must never be hand-edited.
 - Every rule has exactly **one home** (`Home::Global | Domain | Project`). Two homes for one rule is unrepresentable in the type system, not merely discouraged.
+- **`applies_to` is not a second home.** Home answers *who owns and maintains this rule* and has
+  one answer; `applies_to` answers *who should load it* and may have several — a low-latency rule
+  that Rust and Java engineers both need lives in one file, with one tag and one incident, and is
+  compiled into both language builds. A scope is an **audience** (`rust`, `java`, `embedded`),
+  never a topic (`performance`, `security`) — a topic is what `error_class` already carries.
+  Scope decides only *whether* a rule is emitted; `Home` alone decides *where*, and
+  `scope_never_reaches_an_emitted_path_or_body` is what keeps that true. **A rule declaring no
+  `applies_to` is emitted under every audience**, so adding a scope to one rule can never remove a
+  different rule from an existing build — the first invariant above, one layer up.
 - Tags are unique across the library; a duplicate tag is a parse error.
 - **One engineer with nothing else present can use it.** No account, no configuration file, no
   network, no ambient state: the input is the path given on the command line and the output is the

@@ -14,7 +14,7 @@ use serde::Deserialize;
 
 use super::{
     Body, Date, DateError, EmptyText, ErrorClass, Home, Incident, Origin, Recurrence, Rule,
-    RuleTag, RuleTagError, Status, Title, UnknownOrigin,
+    RuleTag, RuleTagError, ScopeTag, ScopeTagError, Status, Title, UnknownOrigin,
 };
 
 /// Why a rule document failed to parse.
@@ -52,6 +52,17 @@ pub enum ParseError {
     /// The `origin` field held a value that is not a known origin.
     #[error("field `origin`: {0}")]
     Origin(#[from] UnknownOrigin),
+    /// An `applies_to` entry was not a well-formed scope.
+    #[error("field `applies_to`: {0}")]
+    Scope(#[from] ScopeTagError),
+    /// The same scope appeared twice in one rule's `applies_to`.
+    ///
+    /// A parse error for the same reason a duplicate rule tag is: it is a
+    /// mistake, and accepting it would mean one written intent with two
+    /// behaviours — the list would no longer say what it appears to say, and
+    /// the second entry would be silently inert.
+    #[error("field `applies_to`: scope `{0}` is listed twice")]
+    DuplicateScope(String),
     /// A tagged table was missing a field its kind requires.
     #[error("`{context}` requires field `{field}`")]
     MissingField {
@@ -81,6 +92,15 @@ struct RawRule {
     /// recordable — not a claim that anyone checked.
     #[serde(default)]
     recurrence: Vec<RawRecurrence>,
+    /// The audiences this rule serves, as a TOML array of strings.
+    ///
+    /// `default` rather than required, and the absent case must stay the
+    /// overwhelmingly common one: fifty-two rule files predate the field and
+    /// none of them needs editing. Absent means "every audience", which is the
+    /// only safe reading — a rule that has declared no audience has not opted
+    /// out of anyone's, and a rule dropped from a build is a correction lost.
+    #[serde(default)]
+    applies_to: Vec<String>,
 }
 
 /// One `[[recurrence]]` table. An array of tables rather than a list of
@@ -164,6 +184,7 @@ impl RawRule {
             .into_iter()
             .map(RawRecurrence::into_recurrence)
             .collect::<Result<Vec<_>, _>>()?;
+        let applies_to = parse_scopes(self.applies_to)?;
         Ok(Rule::new(
             tag,
             title,
@@ -175,8 +196,28 @@ impl RawRule {
             incident,
             body,
             recurrences,
+            applies_to,
         ))
     }
+}
+
+/// Parse an `applies_to` array into scope witnesses, rejecting a duplicate.
+///
+/// Collected with `?` rather than filtered, like every other field: a malformed
+/// scope stops the build. The duplicate check is linear over a list that is
+/// realistically two or three entries long, and it preserves file order — the
+/// serializer must reproduce the file it parsed, so sorting here would rewrite
+/// every scoped rule on the next build.
+fn parse_scopes(raw: Vec<String>) -> Result<Vec<ScopeTag>, ParseError> {
+    let mut scopes: Vec<ScopeTag> = Vec::with_capacity(raw.len());
+    for entry in raw {
+        let scope = ScopeTag::parse(entry)?;
+        if scopes.contains(&scope) {
+            return Err(ParseError::DuplicateScope(scope.as_str().to_owned()));
+        }
+        scopes.push(scope);
+    }
+    Ok(scopes)
 }
 
 impl RawRecurrence {
@@ -465,6 +506,88 @@ Parse into a type wide enough to represent the out-of-range value.
             "\n[[recurrence]]\ndate = \"2026-08-24\"\nincident = \"again\"\nbogus = 1\n+++\n\nParse into",
         );
         assert!(matches!(parse_document(&doc), Err(ParseError::Toml(_))));
+    }
+
+    // A rule file written before `applies_to` existed parses to a rule that
+    // serves every audience — the reason none of the fifty-two committed rules
+    // needed editing, and the reason adding the field to one rule cannot remove
+    // a different rule from anyone's build.
+    #[test]
+    fn a_rule_without_applies_to_parses_as_unscoped() {
+        let rule = parse_document(DOC).expect("valid document parses");
+        assert!(!rule.is_scoped());
+        assert!(rule.applies_to().is_empty());
+        assert!(rule.serves(&[ScopeTag::parse("java").expect("valid scope")]));
+    }
+
+    #[test]
+    fn applies_to_parses_as_an_array_of_scopes_in_file_order() {
+        let doc = with_field("tag", "\"R:x\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napplies_to = [\"rust\", \"java\"]\n",
+        );
+        let rule = parse_document(&doc).expect("scopes parse");
+        let scopes: Vec<&str> = rule.applies_to().iter().map(ScopeTag::as_str).collect();
+        assert_eq!(scopes, vec!["rust", "java"]);
+        assert!(rule.is_scoped());
+    }
+
+    #[test]
+    fn a_malformed_scope_stops_the_build_naming_the_field() {
+        let doc = with_field("tag", "\"R:x\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napplies_to = [\"Rust\"]\n",
+        );
+        assert!(matches!(parse_document(&doc), Err(ParseError::Scope(_))));
+    }
+
+    #[test]
+    fn an_empty_scope_entry_is_rejected() {
+        let doc = with_field("tag", "\"R:x\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napplies_to = [\"rust\", \"  \"]\n",
+        );
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::Scope(ScopeTagError::Empty))
+        );
+    }
+
+    // A duplicate is a parse error for the same reason a duplicate rule tag is:
+    // one written intent with two behaviours, the second of them inert.
+    #[test]
+    fn a_repeated_scope_is_a_parse_error_naming_it() {
+        let doc = with_field("tag", "\"R:x\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napplies_to = [\"rust\", \"java\", \"rust\"]\n",
+        );
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::DuplicateScope("rust".to_owned()))
+        );
+    }
+
+    // Trimming happens at the perimeter, so a stray space in the array is a
+    // formatting accident rather than a failure — and the *trimmed* value is
+    // what a duplicate is judged against.
+    #[test]
+    fn scopes_are_trimmed_before_the_duplicate_check() {
+        let doc = with_field("tag", "\"R:x\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napplies_to = [\"rust\", \" rust \"]\n",
+        );
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::DuplicateScope("rust".to_owned()))
+        );
+    }
+
+    #[test]
+    fn an_empty_applies_to_array_is_the_same_as_absent() {
+        let doc = with_field("tag", "\"R:x\"")
+            .replace("incident = \"i\"\n", "incident = \"i\"\napplies_to = []\n");
+        let rule = parse_document(&doc).expect("an empty array parses");
+        assert!(!rule.is_scoped());
     }
 
     #[test]

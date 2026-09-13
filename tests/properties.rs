@@ -11,8 +11,8 @@ use proptest::prelude::*;
 use relearn::emit;
 use relearn::library::{Library, Validated};
 use relearn::rule::{
-    Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, Status, Title,
-    parse_document, to_document,
+    Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, ScopeTag, Status,
+    Title, parse_document, to_document,
 };
 
 /// Non-empty, edge-trimmed text (parsing trims, so generated values must have no
@@ -90,6 +90,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
                     Incident::parse(incident).expect("non-empty incident"),
                     Body::parse(body).expect("non-empty body"),
                     recurrences,
+                    Vec::new(),
                 )
             },
         )
@@ -119,6 +120,7 @@ fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
                     status,
                     Incident::parse("incident").expect("non-empty incident"),
                     Body::parse("body").expect("non-empty body"),
+                    Vec::new(),
                     Vec::new(),
                 ));
             }
@@ -161,6 +163,7 @@ fn arb_library_recurring() -> impl Strategy<Value = Library<Validated>> {
                 Incident::parse("incident").expect("non-empty incident"),
                 Body::parse("body").expect("non-empty body"),
                 recurrences,
+                Vec::new(),
             ));
         }
         Library::from_rules(rules)
@@ -209,12 +212,71 @@ fn arb_library() -> impl Strategy<Value = Library<Validated>> {
                 Incident::parse("incident").expect("non-empty incident"),
                 Body::parse("body").expect("non-empty body"),
                 Vec::new(),
+                Vec::new(),
             ));
         }
         Library::from_rules(rules)
             .validate()
             .expect("distinct tags validate")
     })
+}
+
+/// Zero to three distinct, well-shaped scopes. **Zero is included deliberately
+/// and is the shape that matters most**: the unscoped rule is the entire
+/// existing corpus, and its rendering and its emission must both be unchanged.
+fn arb_scopes() -> impl Strategy<Value = Vec<ScopeTag>> {
+    proptest::collection::vec(
+        proptest::string::string_regex("[a-z][a-z0-9-]{0,12}").expect("valid scope regex"),
+        0..3,
+    )
+    .prop_map(|names| {
+        let mut seen = BTreeSet::new();
+        names
+            .into_iter()
+            // Duplicates are a parse error, so a generated rule must not carry
+            // one — the generator models a *valid* rule, not any rule.
+            .filter(|n| seen.insert(n.clone()))
+            .map(|n| ScopeTag::parse(n).expect("generated scope is well-shaped"))
+            .collect()
+    })
+}
+
+/// A validated library of up to five rules with varied homes and **varied
+/// audiences** — some scoped, some not. The mix is the point: a filter tested
+/// only against scoped rules would never notice that it was dropping unscoped
+/// ones, which is the failure the safety default exists to prevent.
+fn arb_library_scoped() -> impl Strategy<Value = Library<Validated>> {
+    proptest::collection::vec((arb_tag_body(), arb_home(), arb_text(), arb_scopes()), 0..5)
+        .prop_map(|items| {
+            let mut seen = BTreeSet::new();
+            let mut rules = Vec::new();
+            for (tag_body, home, text, applies_to) in items {
+                if !seen.insert(tag_body.clone()) {
+                    continue; // keep tags distinct so validation succeeds
+                }
+                rules.push(Rule::new(
+                    RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
+                    Title::parse(text).expect("non-empty title"),
+                    ErrorClass::parse("error class").expect("non-empty error class"),
+                    home,
+                    Date::parse("2026-09-13").expect("valid date"),
+                    Origin::Mined,
+                    Status::active(),
+                    Incident::parse("incident").expect("non-empty incident"),
+                    Body::parse("body").expect("non-empty body"),
+                    Vec::new(),
+                    applies_to,
+                ));
+            }
+            Library::from_rules(rules)
+                .validate()
+                .expect("distinct tags validate")
+        })
+}
+
+/// An arbitrary audience to narrow by, including the empty one (no `--scope`).
+fn arb_audience() -> impl Strategy<Value = Vec<ScopeTag>> {
+    arb_scopes()
 }
 
 proptest! {
@@ -226,6 +288,117 @@ proptest! {
         let doc = to_document(&rule);
         let reparsed = parse_document(&doc).expect("a serialized rule must re-parse");
         prop_assert_eq!(reparsed, rule);
+    }
+
+    /// `applies_to` survives the neutral round trip for any generated scope
+    /// set, **including the empty one** — which must serialize to no field at
+    /// all, not to `applies_to = []`. An empty array would rewrite all
+    /// fifty-two committed rules on the next build; `tests/corpus.rs` catches
+    /// that over the real files and this catches it over generated ones.
+    #[test]
+    fn applies_to_survives_the_round_trip_and_empty_renders_nothing(
+        tag_body in arb_tag_body(),
+        scopes in arb_scopes(),
+    ) {
+        let rule = Rule::new(
+            RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("error class").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-09-13").expect("valid date"),
+            Origin::Mined,
+            Status::active(),
+            Incident::parse("incident").expect("non-empty incident"),
+            Body::parse("body").expect("non-empty body"),
+            Vec::new(),
+            scopes.clone(),
+        );
+        let doc = to_document(&rule);
+        prop_assert_eq!(doc.contains("applies_to"), !scopes.is_empty());
+        prop_assert_eq!(parse_document(&doc).expect("a serialized rule re-parses"), rule);
+    }
+
+    /// **The one that makes the safety default a fact.** For any library and any
+    /// audience, narrowing by that audience keeps every rule that declares no
+    /// `applies_to`, and every emitter's output for those rules is byte-identical
+    /// to its output with no narrowing at all.
+    ///
+    /// Stated over emitted files rather than over the filtered library, because
+    /// the claim a reader cares about is about the tree on disk: adding
+    /// `applies_to` to one rule must never be able to change, or remove, what an
+    /// existing build writes for a different rule.
+    #[test]
+    fn narrowing_never_touches_an_unscoped_rule(
+        lib in arb_library_scoped(),
+        audience in arb_audience(),
+    ) {
+        let unscoped = lib.filter(|r| !r.is_scoped());
+        let narrowed = lib.filter(|r| r.serves(&audience));
+
+        for rule in unscoped.rules() {
+            prop_assert!(
+                narrowed.rules().iter().any(|r| r.tag() == rule.tag()),
+                "an unscoped rule was withheld by --scope, which is a lost correction"
+            );
+        }
+
+        let unscoped_narrowed = narrowed.filter(|r| !r.is_scoped());
+        prop_assert_eq!(emit::claude::emit(&unscoped_narrowed), emit::claude::emit(&unscoped));
+        prop_assert_eq!(emit::cursor::emit(&unscoped_narrowed), emit::cursor::emit(&unscoped));
+        prop_assert_eq!(emit::copilot::emit(&unscoped_narrowed), emit::copilot::emit(&unscoped));
+        prop_assert_eq!(emit::agents::emit(&unscoped_narrowed), emit::agents::emit(&unscoped));
+        prop_assert_eq!(
+            emit::claude_rules::emit(&unscoped_narrowed),
+            emit::claude_rules::emit(&unscoped)
+        );
+    }
+
+    /// An empty audience — no `--scope` — narrows nothing at all, scoped rules
+    /// included. The row of the table that is easiest to get wrong by treating
+    /// "no audience requested" as "the empty audience".
+    #[test]
+    fn no_audience_emits_exactly_what_an_unnarrowed_build_emits(lib in arb_library_scoped()) {
+        let narrowed = lib.filter(|r| r.serves(&[]));
+        prop_assert_eq!(narrowed.len(), lib.len());
+        prop_assert_eq!(emit::claude::emit(&narrowed), emit::claude::emit(&lib));
+        prop_assert_eq!(emit::cursor::emit(&narrowed), emit::cursor::emit(&lib));
+        prop_assert_eq!(emit::copilot::emit(&narrowed), emit::copilot::emit(&lib));
+        prop_assert_eq!(emit::agents::emit(&narrowed), emit::agents::emit(&lib));
+        prop_assert_eq!(emit::claude_rules::emit(&narrowed), emit::claude_rules::emit(&lib));
+    }
+
+    /// A scope changes *whether* a rule is emitted, never *what* is emitted or
+    /// *where*. The same library, with every scope stripped, produces the same
+    /// files under an empty audience — so no emitter has learned to read
+    /// `applies_to` for a path or a body.
+    #[test]
+    fn scope_never_reaches_an_emitted_path_or_body(lib in arb_library_scoped()) {
+        let stripped = Library::from_rules(
+            lib.rules()
+                .iter()
+                .map(|r| Rule::new(
+                    r.tag().clone(),
+                    r.title().clone(),
+                    r.error_class().clone(),
+                    r.home().clone(),
+                    r.created(),
+                    r.origin(),
+                    r.status().clone(),
+                    r.incident().clone(),
+                    r.body().clone(),
+                    r.recurrences().to_vec(),
+                    Vec::new(),
+                ))
+                .collect(),
+        )
+        .validate()
+        .expect("the same tags still validate");
+
+        prop_assert_eq!(emit::claude::emit(&stripped), emit::claude::emit(&lib));
+        prop_assert_eq!(emit::cursor::emit(&stripped), emit::cursor::emit(&lib));
+        prop_assert_eq!(emit::copilot::emit(&stripped), emit::copilot::emit(&lib));
+        prop_assert_eq!(emit::agents::emit(&stripped), emit::agents::emit(&lib));
+        prop_assert_eq!(emit::claude_rules::emit(&stripped), emit::claude_rules::emit(&lib));
     }
 
     /// Every emitter is a deterministic function of the library: re-emitting the

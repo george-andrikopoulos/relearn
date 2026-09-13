@@ -12,6 +12,17 @@
 //! no rule is in is an **error** — an empty emission would make the paired
 //! `verify --home` pass over nothing.
 //!
+//! `--scope <audience>` narrows the same three commands by *audience* rather
+//! than by owner, and is repeatable. The two questions are independent and so
+//! are the flags: `--home` asks who maintains a rule, `--scope` asks who loads
+//! it. **A rule declaring no `applies_to` is emitted under every audience**, so
+//! adding a scope to one rule can never remove a different rule from an
+//! existing build; only a scoped rule can be withheld, and only from an
+//! audience it does not name. An audience no rule declares is an error for
+//! `build` and `verify` — the emission would otherwise be quietly missing every
+//! scoped rule while looking like a success — and merely an empty listing for
+//! `list`, exactly as `--home` is.
+//!
 //! **Must NOT:** contain business logic. It translates arguments into calls on
 //! `library`/`emit`/`fsio` and formats their results; the rules of the domain
 //! live in those modules. Library code returns typed errors ([`CliError`] wraps
@@ -27,6 +38,7 @@ use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, LoadError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
 use crate::lint;
+use crate::rule::{ScopeTag, ScopeTagError};
 
 /// The `relearn` command line.
 #[derive(Debug, Parser)]
@@ -69,6 +81,12 @@ enum Command {
         /// `project-<slug>`). A slug no rule is in is an error, not an empty emission.
         #[arg(long)]
         home: Option<String>,
+        /// Narrow to one audience; repeatable (`--scope rust --scope java`).
+        /// A rule declaring no `applies_to` is emitted whatever is asked for;
+        /// only a scoped rule can be withheld, and only from an audience it does
+        /// not name. A scope no rule declares is an error, not a quiet drop.
+        #[arg(long)]
+        scope: Vec<String>,
     },
     /// List rules, optionally filtered by home layer (its slug).
     List {
@@ -79,6 +97,11 @@ enum Command {
         /// `project-<slug>`).
         #[arg(long)]
         home: Option<String>,
+        /// Only rules served by this audience; repeatable. Unlike `build` and
+        /// `verify`, a scope no rule declares simply prints nothing — printing
+        /// nothing *is* an answer here, as it is for `list --home`.
+        #[arg(long)]
+        scope: Vec<String>,
     },
     /// Report advisory lint findings (overlapping scope, home-slug collisions,
     /// dangling references). Writes nothing; exits non-zero if any are found.
@@ -113,6 +136,10 @@ enum Command {
         /// `project-<slug>`). A slug no rule is in is an error, not an empty emission.
         #[arg(long)]
         home: Option<String>,
+        /// Narrow to one audience; repeatable. Must match the `--scope` the
+        /// paired `build` used, or the two disagree about what should be on disk.
+        #[arg(long)]
+        scope: Vec<String>,
     },
 }
 
@@ -203,6 +230,43 @@ pub enum CliError {
         /// Every home slug the library does contain, sorted and deduplicated.
         known: Vec<String>,
     },
+    /// `--scope` was not a well-formed scope.
+    ///
+    /// Deliberately **not** `#[from]`: the derived `source` would make
+    /// [`report`] print the same sentence twice, once as the error and once as
+    /// its own cause. The prefix is what the reader needs — which flag was
+    /// wrong — so it is kept and the redundant chain is not.
+    #[error("--scope: {0}")]
+    Scope(ScopeTagError),
+    /// `--scope` named an audience no rule in the library declares.
+    ///
+    /// Loud for a **different reason** than [`CliError::UnknownHome`], and the
+    /// difference is worth stating because it is sharper. An unknown home
+    /// produces an empty emission, which at least looks wrong. An unknown scope
+    /// produces an emission that is *quietly missing every scoped rule* while
+    /// every unscoped one is still there — output that looks like success. A
+    /// mistyped `--scope rsut` must fail rather than ship a tree with the Rust
+    /// corpus silently absent from it.
+    #[error("no rule declares scope {requested} ({})", declared(known))]
+    UnknownScope {
+        /// The scope as given on the command line.
+        requested: String,
+        /// Every scope the library does declare, sorted and deduplicated.
+        known: Vec<String>,
+    },
+}
+
+/// Render the declared-scope list for [`CliError::UnknownScope`].
+///
+/// An empty list is its own message rather than an empty parenthesis: "declared
+/// scopes: " followed by nothing tells a reader the lookup failed, not that
+/// scoping is unused in this library, and those call for different fixes.
+fn declared(known: &[String]) -> String {
+    if known.is_empty() {
+        "no rule in this library declares `applies_to`".to_owned()
+    } else {
+        format!("declared: {}", known.join(", "))
+    }
 }
 
 /// Parse the command line, dispatch, and turn the outcome into a process exit.
@@ -232,12 +296,13 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             out,
             targets,
             home,
+            scope,
         } => {
-            build(&rules, &out, &targets, home.as_deref())?;
+            build(&rules, &out, &targets, home.as_deref(), &scope)?;
             Ok(ExitCode::SUCCESS)
         }
-        Command::List { rules, home } => {
-            list(&rules, home.as_deref())?;
+        Command::List { rules, home, scope } => {
+            list(&rules, home.as_deref(), &scope)?;
             Ok(ExitCode::SUCCESS)
         }
         Command::Lint { rules, deny } => lint_rules(&rules, deny),
@@ -246,7 +311,8 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             out,
             targets,
             home,
-        } => verify(&rules, &out, &targets, home.as_deref()),
+            scope,
+        } => verify(&rules, &out, &targets, home.as_deref(), &scope),
     }
 }
 
@@ -303,9 +369,61 @@ fn restrict_to_home(
     Ok(filtered)
 }
 
+/// Restrict a validated library to the rules that serve `audience`, or fail
+/// loudly if a requested scope is one no rule declares. `build` and `verify`
+/// share this for the same reason they share [`restrict_to_home`] and
+/// [`emit_selected`]: two implementations of "what is in scope" would
+/// eventually disagree, and the gate would be checking a different set from the
+/// one that was written.
+///
+/// **An empty `audience` narrows nothing**, and every unscoped rule survives
+/// every audience — the safety default, held in [`Rule::serves`] rather than
+/// here, so no caller can reimplement it differently.
+fn restrict_to_scopes(
+    validated: &Library<Validated>,
+    audience: &[String],
+) -> Result<Library<Validated>, CliError> {
+    if audience.is_empty() {
+        return Ok(validated.filter(|_| true));
+    }
+    // Parse at the perimeter: `--scope Rust` is rejected here as a malformed
+    // scope, before anything is compared, so nothing downstream matches strings.
+    let requested: Vec<ScopeTag> = audience
+        .iter()
+        .map(|s| ScopeTag::parse(s.as_str()).map_err(CliError::Scope))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut known: Vec<String> = validated
+        .rules()
+        .iter()
+        .flat_map(|r| r.applies_to())
+        .map(|s| s.as_str().to_owned())
+        .collect();
+    known.sort();
+    known.dedup();
+
+    if let Some(unknown) = requested
+        .iter()
+        .find(|s| !known.iter().any(|k| k == s.as_str()))
+    {
+        return Err(CliError::UnknownScope {
+            requested: unknown.as_str().to_owned(),
+            known,
+        });
+    }
+    Ok(validated.filter(|r| r.serves(&requested)))
+}
+
 /// `build`: load, validate, emit each unique target, and write under `out`.
-fn build(rules: &Path, out: &Path, targets: &[Target], home: Option<&str>) -> Result<(), CliError> {
+fn build(
+    rules: &Path,
+    out: &Path,
+    targets: &[Target],
+    home: Option<&str>,
+    scope: &[String],
+) -> Result<(), CliError> {
     let validated = restrict_to_home(&fsio::load_rules(rules)?.validate()?, home)?;
+    let validated = restrict_to_scopes(&validated, scope)?;
     let files = emit_selected(&validated, targets);
     let written = fsio::write_all(out, &files)?;
     println!("wrote {written} file(s) under {}", out.display());
@@ -321,8 +439,10 @@ fn verify(
     out: &Path,
     targets: &[Target],
     home: Option<&str>,
+    scope: &[String],
 ) -> Result<ExitCode, CliError> {
     let validated = restrict_to_home(&fsio::load_rules(rules)?.validate()?, home)?;
+    let validated = restrict_to_scopes(&validated, scope)?;
     let files = emit_selected(&validated, targets);
     let reports = fsio::verify_all(out, &files)?;
 
@@ -343,11 +463,24 @@ fn verify(
 }
 
 /// `list`: print each rule as `tag  [home-slug]  title`, optionally filtered.
-fn list(rules: &Path, home: Option<&str>) -> Result<(), CliError> {
+///
+/// Deliberately **not** using [`restrict_to_scopes`]: an audience no rule
+/// declares prints nothing here rather than failing, mirroring `list --home`.
+/// Printing nothing *is* an answer for a listing; for a build or a gate it is
+/// not, which is why the two treat the same input differently. A malformed
+/// `--scope` is still a parse error — the perimeter binds everywhere.
+fn list(rules: &Path, home: Option<&str>, scope: &[String]) -> Result<(), CliError> {
     let validated = fsio::load_rules(rules)?.validate()?;
+    let audience: Vec<ScopeTag> = scope
+        .iter()
+        .map(|s| ScopeTag::parse(s.as_str()).map_err(CliError::Scope))
+        .collect::<Result<Vec<_>, _>>()?;
     for rule in validated.rules() {
         let slug = HomeSlug::of(rule.home());
         if home.is_some_and(|filter| filter != slug.as_str()) {
+            continue;
+        }
+        if !rule.serves(&audience) {
             continue;
         }
         println!(
@@ -443,6 +576,168 @@ mod tests {
         std::fs::write(dir.join(file), contents).expect("write rule file");
     }
 
+    /// A rule document carrying an `applies_to` array.
+    fn scoped_rule_doc(tag: &str, home_toml: &str, title: &str, scopes: &[&str]) -> String {
+        let list: Vec<String> = scopes.iter().map(|s| format!("\"{s}\"")).collect();
+        rule_doc(tag, home_toml, title).replace(
+            "incident = \"i\"\n",
+            &format!("incident = \"i\"\napplies_to = [{}]\n", list.join(", ")),
+        )
+    }
+
+    /// A rules directory holding one unscoped rule and one scoped to `rust`.
+    fn mixed_rules_dir() -> tempfile::TempDir {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        write_rule(
+            rules.path(),
+            "g.md",
+            &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
+        );
+        write_rule(
+            rules.path(),
+            "s.md",
+            &scoped_rule_doc(
+                "R:s",
+                "{ kind = \"domain\", name = \"rust\" }",
+                "Scoped rule",
+                &["rust"],
+            ),
+        );
+        rules
+    }
+
+    /// The four-row table at the CLI surface. Asserted on the emitted
+    /// `AGENTS.md`, which carries every rule in one file, so "was this rule
+    /// emitted" is a substring question with no per-target confounds.
+    #[test]
+    fn build_scope_withholds_only_scoped_rules_that_do_not_match() {
+        let rules = mixed_rules_dir();
+
+        for (audience, scoped_expected) in [
+            (Vec::new(), true),
+            (vec!["rust".to_owned()], true),
+            (vec!["java".to_owned()], false),
+            (vec!["rust".to_owned(), "java".to_owned()], true),
+        ] {
+            let out = tempfile::tempdir().expect("out tempdir");
+            // `java` is declared by no rule, so on its own it would be a loud
+            // error; the row is exercised by declaring it on a third rule.
+            write_rule(
+                rules.path(),
+                "j.md",
+                &scoped_rule_doc(
+                    "R:j",
+                    "{ kind = \"domain\", name = \"rust\" }",
+                    "Java rule",
+                    &["java"],
+                ),
+            );
+            build(rules.path(), out.path(), &[Target::Agents], None, &audience)
+                .expect("build succeeds");
+
+            let agents = std::fs::read_to_string(out.path().join("AGENTS.md"))
+                .expect("AGENTS.md was written");
+            assert!(
+                agents.contains("R:g"),
+                "the unscoped rule must survive every audience ({audience:?})"
+            );
+            assert_eq!(
+                agents.contains("R:s"),
+                scoped_expected,
+                "the rust-scoped rule under audience {audience:?}"
+            );
+        }
+    }
+
+    /// A scope no rule declares is an error — and the reason is sharper than the
+    /// unknown-home one. An unknown home emits nothing, which looks wrong; an
+    /// unknown scope emits a tree that is *quietly missing every scoped rule*,
+    /// which looks like success.
+    #[test]
+    fn build_with_an_unknown_scope_is_an_error_naming_the_declared_ones() {
+        let rules = mixed_rules_dir();
+        let out = tempfile::tempdir().expect("out tempdir");
+
+        let err = build(
+            rules.path(),
+            out.path(),
+            &[Target::Agents],
+            None,
+            &["rsut".to_owned()],
+        )
+        .expect_err("an unknown scope must fail");
+
+        match err {
+            CliError::UnknownScope { requested, known } => {
+                assert_eq!(requested, "rsut");
+                assert_eq!(known, vec!["rust".to_owned()]);
+            }
+            other => panic!("expected UnknownScope, got {other:?}"),
+        }
+        assert!(
+            !out.path().join("AGENTS.md").exists(),
+            "nothing may be written before the scope is rejected"
+        );
+    }
+
+    /// The message must read as an answer in the case that will be commonest
+    /// for a long time: a library where nothing is scoped at all.
+    #[test]
+    fn an_unknown_scope_against_an_unscoped_library_says_so() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let out = tempfile::tempdir().expect("out tempdir");
+        write_rule(
+            rules.path(),
+            "g.md",
+            &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
+        );
+
+        let err = build(
+            rules.path(),
+            out.path(),
+            &[Target::Agents],
+            None,
+            &["rust".to_owned()],
+        )
+        .expect_err("an unknown scope must fail");
+        assert!(
+            err.to_string().contains("no rule in this library declares"),
+            "an empty declared-set needs its own message, got: {err}"
+        );
+    }
+
+    /// `--scope Rust` is rejected at the perimeter as a malformed scope, before
+    /// anything is compared — so nothing downstream ever matches raw strings.
+    #[test]
+    fn a_malformed_scope_is_rejected_before_the_lookup() {
+        let rules = mixed_rules_dir();
+        let out = tempfile::tempdir().expect("out tempdir");
+
+        let err = build(
+            rules.path(),
+            out.path(),
+            &[Target::Agents],
+            None,
+            &["Rust".to_owned()],
+        )
+        .expect_err("a malformed scope must fail");
+        assert!(matches!(err, CliError::Scope(_)), "got {err:?}");
+    }
+
+    /// `list --scope` mirrors `list --home`: an audience nothing declares prints
+    /// nothing rather than failing, because printing nothing *is* an answer for
+    /// a listing. A build or a gate has no such reading, which is why the two
+    /// commands treat the same input differently.
+    #[test]
+    fn list_with_an_undeclared_scope_prints_nothing_and_succeeds() {
+        let rules = mixed_rules_dir();
+        list(rules.path(), None, &["java".to_owned()]).expect("list succeeds");
+        list(rules.path(), None, &["rust".to_owned()]).expect("list succeeds");
+        // A malformed scope is still a parse error here — the perimeter binds
+        // everywhere, even where an empty result is legitimate.
+        assert!(list(rules.path(), None, &["Rust".to_owned()]).is_err());
+    }
+
     #[test]
     fn build_runs_the_whole_pipeline_and_writes_skills() {
         let rules = tempfile::tempdir().expect("rules tempdir");
@@ -458,7 +753,7 @@ mod tests {
             &rule_doc("R:r", "{ kind = \"domain\", name = \"rust\" }", "Rust rule"),
         );
 
-        build(rules.path(), out.path(), &[Target::Claude], None).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Claude], None, &[]).expect("build succeeds");
 
         let skill = std::fs::read_to_string(out.path().join("skills/domain-rust/SKILL.md"))
             .expect("the rust skill was written");
@@ -498,6 +793,7 @@ mod tests {
             out.path(),
             &[Target::ClaudeRules],
             Some("domain-rust"),
+            &[],
         )
         .expect("build succeeds");
 
@@ -525,6 +821,7 @@ mod tests {
             out.path(),
             &[Target::ClaudeRules],
             Some("domain-cobol"),
+            &[],
         )
         .expect_err("an unknown home must fail");
 
@@ -555,7 +852,7 @@ mod tests {
             ),
         );
 
-        build(rules.path(), out.path(), &[Target::Cursor], None).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Cursor], None, &[]).expect("build succeeds");
 
         let mdc = std::fs::read_to_string(out.path().join(".cursor/rules/parse-wide.mdc"))
             .expect("the cursor rule was written");
@@ -610,7 +907,7 @@ mod tests {
         std::fs::write(&target, "human authored\n").expect("seed human file");
 
         assert!(matches!(
-            build(rules.path(), out.path(), &[Target::Claude], None),
+            build(rules.path(), out.path(), &[Target::Claude], None, &[]),
             Err(CliError::Write(WriteError::WouldClobberUnversioned { .. }))
         ));
         assert_eq!(
@@ -630,9 +927,9 @@ mod tests {
             &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
         );
 
-        build(rules.path(), out.path(), &[Target::Agents], None).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("build succeeds");
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents], None).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("verify runs"),
             ExitCode::SUCCESS,
             "a freshly built tree verifies clean"
         );
@@ -645,7 +942,7 @@ mod tests {
         );
         std::fs::write(&agents, edited).expect("tamper");
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents], None).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("verify runs"),
             ExitCode::FAILURE,
             "a hand-edited generated file fails verification"
         );
@@ -662,7 +959,7 @@ mod tests {
         );
         // Never built: the expected AGENTS.md is absent.
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents], None).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("verify runs"),
             ExitCode::FAILURE,
             "a never-built (missing) target fails verification"
         );
@@ -676,12 +973,12 @@ mod tests {
             "g.md",
             &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
         );
-        list(rules.path(), None).expect("list all succeeds");
-        list(rules.path(), Some("global")).expect("filtered list succeeds");
+        list(rules.path(), None, &[]).expect("list all succeeds");
+        list(rules.path(), Some("global"), &[]).expect("filtered list succeeds");
 
         let missing = rules.path().join("does-not-exist");
         assert!(matches!(
-            list(&missing, None),
+            list(&missing, None, &[]),
             Err(CliError::Load(LoadError::ReadDir { .. }))
         ));
     }
