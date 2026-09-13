@@ -3,7 +3,9 @@
 //! part already proved its own invariant) and the constructor cannot be called
 //! with its arguments in the wrong order — a swap is a compile error.
 
-use super::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, ScopeTag, Status, Title};
+use super::{
+    Body, Date, ErrorClass, Federation, Home, Incident, Origin, RuleTag, ScopeTag, Status, Title,
+};
 
 /// One later occurrence of the error class a rule already covers — evidence
 /// that the rule was written down and the error happened anyway.
@@ -186,11 +188,43 @@ impl Rule {
         self.created
     }
 
-    /// Where the rule came from: a real failure, or existing practice written
-    /// down. The counter-metric to recurrence — see [`Origin`].
+    /// Where the rule came from: a real failure, existing practice written
+    /// down, or a mandate with its approval. The counter-metric to recurrence —
+    /// see [`Origin`].
+    ///
+    /// Borrowed rather than copied since `Mandated` carries its approval: the
+    /// payload is what makes "a mandate with no signer" unconstructible, and
+    /// that is worth more than `Copy`.
     #[must_use]
-    pub fn origin(&self) -> Origin {
-        self.origin
+    pub fn origin(&self) -> &Origin {
+        &self.origin
+    }
+
+    /// Whether this rule may leave the machine, which is a property of its home
+    /// and of nothing else.
+    ///
+    /// One question, asked in one place: there is no second predicate here that
+    /// could drift from [`Home::federation`], and every publishing path reads
+    /// this rather than re-deriving it. Nothing consumes it yet —
+    /// `contribute` and `report` are later phases — and it is established first
+    /// deliberately: an exclusion added after the publishing code is an
+    /// exclusion somebody has to remember to apply to it.
+    #[must_use]
+    pub fn is_publishable(&self) -> bool {
+        matches!(self.home.federation(), Federation::Publishable)
+    }
+
+    /// Whether this rule belongs in the recurrence statistics at all.
+    ///
+    /// A mandate does not. It was never mined, so it cannot be recurrence
+    /// evidence; and it must not land in the *inert* count either, because inert
+    /// means "authored and never fired" — a judgement about something that was
+    /// meant to be evidence. A control-framework requirement was never meant to
+    /// be. Counting mandates in either number swamps the only figure that says
+    /// whether prose is holding.
+    #[must_use]
+    pub fn counts_toward_recurrence_statistics(&self) -> bool {
+        !self.origin.is_mandated()
     }
 
     /// Whether this rule is inert evidence: authored rather than mined, and
@@ -198,9 +232,14 @@ impl Rule {
     /// nothing — you cannot author your way to a delta — so a library that
     /// looks healthy because it is full of them is the failure a bare
     /// recurrence count would hide.
+    ///
+    /// A mandated rule is **not** inert, however dormant: see
+    /// [`Rule::counts_toward_recurrence_statistics`].
     #[must_use]
     pub fn is_inert(&self) -> bool {
-        !self.origin.is_mined() && !self.has_recurred()
+        self.counts_toward_recurrence_statistics()
+            && !self.origin.is_mined()
+            && !self.has_recurred()
     }
 
     /// The rule's lifecycle status.

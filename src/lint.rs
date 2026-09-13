@@ -351,11 +351,20 @@ fn recurrence_after_graduation(library: &Library<Validated>) -> Vec<Finding> {
 /// never been seen to fire. The null result says those are the ones that change
 /// nothing, so a library that looks healthy because it is full of them is
 /// exactly what a bare recurrence count would hide. Read together or not at all.
+///
+/// **Mandated rules are outside both numbers**, and the count of them is
+/// reported so the denominator is visible rather than assumed. A mandate was
+/// never mined, so it cannot be recurrence evidence; and it is not *inert*
+/// either, because inert means "authored and never fired" — a judgement about
+/// something that was meant to be evidence. Counting control-framework
+/// requirements in either figure would swamp the only number that says whether
+/// prose is holding, with rules that were never about that.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tally {
     total: usize,
     recurred: usize,
     inert: usize,
+    mandated: usize,
 }
 
 impl Tally {
@@ -376,16 +385,42 @@ impl Tally {
     pub fn inert(self) -> usize {
         self.inert
     }
+
+    /// Rules mandated rather than learned — **excluded** from both numbers
+    /// above, and reported so that exclusion is visible.
+    #[must_use]
+    pub fn mandated(self) -> usize {
+        self.mandated
+    }
+
+    /// The population the two figures above are actually about: every rule that
+    /// was meant to be evidence, mandates removed. The honest denominator, and
+    /// the one a reader needs in order to turn either count into a fraction.
+    #[must_use]
+    pub fn evidential(self) -> usize {
+        self.total - self.mandated
+    }
 }
 
-/// Count the library's recurred and inert fractions.
+/// Count the library's recurred and inert fractions, and the mandated rules
+/// held out of both.
 #[must_use]
 pub fn tally(library: &Library<Validated>) -> Tally {
     let rules = library.rules();
     Tally {
         total: rules.len(),
-        recurred: rules.iter().filter(|r| r.has_recurred()).count(),
+        // Both filters go through `counts_toward_recurrence_statistics` rather
+        // than testing the origin here, so there is one definition of what
+        // belongs in the statistics and no second copy to drift from it.
+        recurred: rules
+            .iter()
+            .filter(|r| r.counts_toward_recurrence_statistics() && r.has_recurred())
+            .count(),
         inert: rules.iter().filter(|r| r.is_inert()).count(),
+        mandated: rules
+            .iter()
+            .filter(|r| !r.counts_toward_recurrence_statistics())
+            .count(),
     }
 }
 

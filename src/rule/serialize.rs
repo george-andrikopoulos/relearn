@@ -12,7 +12,7 @@
 //! as a TOML basic string so quotes, backslashes, and control characters
 //! survive the round trip.
 
-use super::{Home, Rule, ScopeTag, Status};
+use super::{Approval, Home, Rule, ScopeTag, Status};
 
 /// Serialize a rule to its neutral document form (`+++` front-matter, then the
 /// markdown body). [`super::parse_document`] parses the result back to an equal
@@ -36,6 +36,13 @@ pub fn to_document(rule: &Rule) -> String {
     }
     out.push_str(&kv("created", &rule.created().to_string()));
     out.push_str(&kv("origin", rule.origin().as_str()));
+    // Beside `origin`, because it *is* the origin's payload: a mandate's
+    // provenance is its sign-off, where a mined rule's is its incident. Emitted
+    // by matching the variant rather than by testing an option, so the two can
+    // never disagree about whether a rule was approved.
+    if let Some(approval) = rule.origin().approval() {
+        out.push_str(&approval_line(approval));
+    }
     out.push_str(&status_line(rule.status()));
     out.push_str(&kv("incident", rule.incident().as_str()));
     // Emitted **only** when there is at least one, and last, because a TOML
@@ -63,6 +70,10 @@ fn kv(key: &str, value: &str) -> String {
 fn home_line(home: &Home) -> String {
     match home {
         Home::Global => "home = { kind = \"global\" }\n".to_owned(),
+        Home::Org { name } => format!(
+            "home = {{ kind = \"org\", name = {} }}\n",
+            toml_basic_string(name.as_str())
+        ),
         Home::Domain { name } => format!(
             "home = {{ kind = \"domain\", name = {} }}\n",
             toml_basic_string(name.as_str())
@@ -72,6 +83,17 @@ fn home_line(home: &Home) -> String {
             toml_basic_string(path.as_str())
         ),
     }
+}
+
+/// The `approval = { ... }` line of a mandated rule — the inline table the
+/// parser requires when, and only when, `origin = "mandated"`.
+fn approval_line(approval: &Approval) -> String {
+    format!(
+        "approval = {{ by = {}, date = {}, control = {} }}\n",
+        toml_basic_string(approval.by().as_str()),
+        toml_basic_string(&approval.date().to_string()),
+        toml_basic_string(approval.control().as_str())
+    )
 }
 
 /// The `applies_to = [...]` line, a TOML array of basic strings in file order.
@@ -128,8 +150,8 @@ fn toml_basic_string(s: &str) -> String {
 mod tests {
     use super::to_document;
     use crate::rule::{
-        Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, ScopeTag,
-        Status, Title, parse_document,
+        Approval, Approver, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin, Recurrence,
+        Rule, RuleTag, ScopeTag, Status, Title, parse_document,
     };
 
     fn rule_with_recurrences(recurrences: Vec<Recurrence>) -> Rule {
@@ -310,6 +332,82 @@ mod tests {
         let scope_at = doc.find("applies_to = ").expect("applies_to is emitted");
         let created_at = doc.find("created = ").expect("created is emitted");
         assert!(home_at < scope_at && scope_at < created_at, "{doc}");
+    }
+
+    #[test]
+    fn round_trips_an_org_home() {
+        let r = rule_with(
+            "an org principle",
+            Home::org("acme").expect("non-empty org"),
+            Status::active(),
+            "Do the thing.",
+        );
+        let doc = to_document(&r);
+        assert!(
+            doc.contains("home = { kind = \"org\", name = \"acme\" }"),
+            "{doc}"
+        );
+        assert_eq!(parse_document(&doc), Ok(r));
+    }
+
+    fn mandated_rule() -> Rule {
+        Rule::new(
+            RuleTag::parse("R:x").expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::org("acme").expect("non-empty org"),
+            Date::parse("2026-09-13").expect("valid date"),
+            Origin::Mandated(Approval::new(
+                Approver::parse("the change board").expect("non-empty approver"),
+                Date::parse("2026-07-11").expect("valid date"),
+                ControlRef::parse("AC-6(9)").expect("non-empty control"),
+            )),
+            Status::active(),
+            Incident::parse("the mandate was accepted").expect("non-empty incident"),
+            Body::parse("Do the mandated thing.").expect("non-empty body"),
+            Vec::new(),
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn round_trips_a_mandate_with_its_approval() {
+        let r = mandated_rule();
+        let doc = to_document(&r);
+        assert!(doc.contains("origin = \"mandated\""), "{doc}");
+        assert!(
+            doc.contains(
+                "approval = { by = \"the change board\", date = \"2026-07-11\", \
+                 control = \"AC-6(9)\" }"
+            ),
+            "{doc}"
+        );
+        assert_eq!(parse_document(&doc), Ok(r));
+    }
+
+    /// The approval line comes from matching the variant, so a rule that is not
+    /// mandated cannot render one — there is no option to leave set by mistake.
+    #[test]
+    fn a_rule_that_is_not_mandated_renders_no_approval_line() {
+        let doc = to_document(&rule_with(
+            "x",
+            Home::global(),
+            Status::active(),
+            "Do the thing.",
+        ));
+        assert!(!doc.contains("approval"), "{doc}");
+    }
+
+    /// Beside `origin`, because it is the origin's payload: a reader asking
+    /// "where did this rule come from?" finds the answer and its signer
+    /// together.
+    #[test]
+    fn the_approval_line_follows_origin() {
+        let doc = to_document(&mandated_rule());
+        let origin_at = doc.find("origin = ").expect("origin is emitted");
+        let approval_at = doc.find("approval = ").expect("approval is emitted");
+        let status_at = doc.find("status = ").expect("status is emitted");
+        assert!(origin_at < approval_at && approval_at < status_at, "{doc}");
     }
 
     #[test]

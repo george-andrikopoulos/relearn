@@ -154,7 +154,7 @@ decisions-log entry recording **why nesting was rejected**.
 
 ---
 
-## PHASE A2 — the org layer and mandated content
+## PHASE A2 — the org layer and mandated content — **SHIPPED 2026-09-13**
 
 **Adds:** `Home::Org { name }`; `Origin::Mandated` beside `Mined | Codified`; an `approval = { by,
 date, control }` block required when and only when origin is `Mandated`.

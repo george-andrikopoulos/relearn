@@ -11,8 +11,8 @@ use proptest::prelude::*;
 use relearn::emit;
 use relearn::library::{Library, Validated};
 use relearn::rule::{
-    Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, ScopeTag, Status,
-    Title, parse_document, to_document,
+    Approval, Approver, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin, Recurrence,
+    Rule, RuleTag, ScopeTag, Status, Title, parse_document, to_document,
 };
 
 /// Non-empty, edge-trimmed text (parsing trims, so generated values must have no
@@ -36,11 +36,31 @@ fn arb_date() -> impl Strategy<Value = Date> {
     })
 }
 
+/// Every home kind, `Org` included — so every property in this file (attic
+/// leakage, the rules layer, path safety, emitter determinism) covers the new
+/// variant rather than needing its own copy. A generator that omits a variant
+/// silently narrows every property built on it.
 fn arb_home() -> impl Strategy<Value = Home> {
     prop_oneof![
         Just(Home::global()),
+        arb_text().prop_map(|n| Home::org(n).expect("non-empty org")),
         arb_text().prop_map(|n| Home::domain(n).expect("non-empty domain")),
         arb_text().prop_map(|p| Home::project(p).expect("non-empty project")),
+    ]
+}
+
+/// Every origin kind, mandates included. The approval is fixed rather than
+/// generated: what the properties here care about is that a mandate *has* one
+/// and travels with it, not what it says.
+fn arb_origin() -> impl Strategy<Value = Origin> {
+    prop_oneof![
+        Just(Origin::Mined),
+        Just(Origin::Codified),
+        Just(Origin::Mandated(Approval::new(
+            Approver::parse("the change board").expect("non-empty approver"),
+            Date::parse("2026-07-11").expect("valid date"),
+            ControlRef::parse("AC-6(9)").expect("non-empty control"),
+        ))),
     ]
 }
 
@@ -76,16 +96,27 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
         arb_text(),
         arb_text(),
         arb_recurrences(),
+        arb_origin(),
     )
         .prop_map(
-            move |(title, error_class, home, created, status, incident, body, recurrences)| {
+            move |(
+                title,
+                error_class,
+                home,
+                created,
+                status,
+                incident,
+                body,
+                recurrences,
+                origin,
+            )| {
                 Rule::new(
                     RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
                     Title::parse(title).expect("non-empty title"),
                     ErrorClass::parse(error_class).expect("non-empty error class"),
                     home,
                     created,
-                    Origin::Mined,
+                    origin,
                     status,
                     Incident::parse(incident).expect("non-empty incident"),
                     Body::parse(body).expect("non-empty body"),
@@ -382,7 +413,8 @@ proptest! {
                     r.error_class().clone(),
                     r.home().clone(),
                     r.created(),
-                    r.origin(),
+                    r.origin().clone(), // allow:clone: the rebuilt rule owns its origin, and the source library must stay intact for the comparison this property makes
+
                     r.status().clone(),
                     r.incident().clone(),
                     r.body().clone(),

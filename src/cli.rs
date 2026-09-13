@@ -501,10 +501,24 @@ fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
     let findings = lint::lint(&validated);
     let t = lint::tally(&validated);
     let summary = format!(
-        "{} rule(s): {} recurred, {} inert (codified and never fired)",
+        // The mandated count is printed **only when there is one**, and that is
+        // not cosmetic: "0 mandated" on every line of every run is the kind of
+        // permanently-zero column a reader learns to skip, and this number is
+        // worth reading precisely when it is not zero — it is the size of the
+        // hold-out that the two figures before it exclude.
+        "{} rule(s): {} recurred, {} inert (codified and never fired){}",
         t.total(),
         t.recurred(),
-        t.inert()
+        t.inert(),
+        if t.mandated() == 0 {
+            String::new()
+        } else {
+            format!(
+                "; {} mandated, held out of both over {} evidential rule(s)",
+                t.mandated(),
+                t.evidential()
+            )
+        }
     );
     if findings.is_empty() {
         println!("ok: no lint findings");

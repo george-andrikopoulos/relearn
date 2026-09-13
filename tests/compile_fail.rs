@@ -14,3 +14,20 @@ fn typestate_gate_rejects_unvalidated_libraries() {
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/compile_fail/emit_rejects_unvalidated_library.rs");
 }
+
+/// The federation exclusion's mechanism, pinned as a negative: a match on `Home`
+/// that does not decide about every variant does not compile. That is what makes
+/// "an `Org`-homed rule can never be contributed" a property of the type system
+/// rather than a filter somebody has to remember to add to the second publishing
+/// path.
+///
+/// It pins the mechanism, not the future: it cannot prove a variant added in
+/// 2027 is classified *correctly*, only that it must be classified at all. The
+/// other half — that `Home::federation` itself has no catch-all arm, which would
+/// silently classify that variant — is `tests/federation_exclusion.rs`, because
+/// a wildcard compiles fine and no compiler can object to it.
+#[test]
+fn a_match_on_home_must_decide_about_every_variant() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/compile_fail/home_match_must_be_exhaustive.rs");
+}

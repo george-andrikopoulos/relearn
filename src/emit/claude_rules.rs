@@ -87,7 +87,18 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
         // `Global` is `Always` too, but it is not a *rules-layer* concern: it has
         // an always-resident home already, and emitting it here as well would put
         // one rule in two Claude files — the duplication this tool exists to stop.
-        let in_layer = matches!(rule.home(), Home::Project { .. } | Home::Domain { .. });
+        //
+        // **`Org` follows `Global`, and this is a decision rather than an
+        // omission.** A `matches!` is not exhaustive, so the compiler did not ask
+        // — which is exactly why it is written down here: an organisation layer
+        // is always-resident like the global one and reaches its readers through
+        // the skill, so emitting it into the rules layer as well would be the
+        // same duplication. An org that wants a project-scoped file is asking
+        // for a different feature, and `TODO.md` carries it.
+        let in_layer = match rule.home() {
+            Home::Project { .. } | Home::Domain { .. } => true,
+            Home::Global | Home::Org { .. } => false,
+        };
         if representable && in_layer {
             by_home
                 .entry(HomeSlug::of(rule.home()))
@@ -163,6 +174,7 @@ fn render_layer(home: &Home, rules: &[&Rule]) -> String {
 fn layer_heading(home: &Home) -> String {
     match home {
         Home::Project { .. } => "Project rules".to_owned(),
+        Home::Org { name } => format!("Rules for the {} organisation", name.as_str()),
         Home::Domain { name } => format!("Rules for domain: {}", name.as_str()),
         // Not reachable: `emit` keeps `Global` out of this layer. Rendering a
         // truthful heading is cheaper than a panic and keeps the function total.

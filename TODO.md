@@ -345,6 +345,37 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## Phase A2 — the org layer and mandated content (shipped 2026-09-13)
+
+`Home::Org { name }`, `Origin::Mandated(Approval)`, and the federation exclusion — established
+**before** anything can federate, which is the order that matters. No network, no new command.
+Emission unchanged for all 52 rules (`verify` green, 63 files); the lint summary is byte-identical
+because the corpus holds no mandate.
+
+- [x] `Home::Org { name }` with `OrgName`, and `Federation` / `Home::federation` as an exhaustive
+      match with no catch-all — plus `Rule::is_publishable` reading that one answer.
+- [x] The compile-fail pin (`E0004` naming `Org`, asserted by its error rather than by failing)
+      and the source-level wildcard check, probed in both directions.
+- [x] `Origin::Mandated(Approval)` with `approval = { by, date, control }` required when and only
+      when mandated — both halves refusals, neither a warning.
+- [x] Mandates held out of both counter-metric numbers through one predicate, with the hold-out
+      and the evidential denominator reported.
+- [x] `arb_home` and a new `arb_origin` generate the new variants, so **every existing property**
+      covers them rather than each needing its own copy.
+
+Decisions this phase was forced to take, carried for confirmation rather than left implicit:
+
+- [ ] **`Project` is `Withheld` alongside `Org`.** The exhaustive match required an answer for
+      every variant; a project home carries a filesystem path (a private identifier) and is
+      meaningless upstream, so withholding is the conservative direction and costs nothing while
+      nothing federates. **B2 should confirm it** — contributing a project rule would mean
+      re-homing it first, which is an authored act rather than a transfer.
+- [ ] **An `Org` layer is not emitted into `.claude/rules/`.** It follows `Global`: always-resident
+      and reaching its readers through the skill, so emitting it there too would duplicate one rule
+      into two Claude files. That site is a `matches!` rather than an exhaustive match, so the
+      compiler did **not** ask — it is now written as a match precisely so the next variant cannot
+      slip through it. An org wanting a project-scoped file is a different feature.
+
 ## Phase A1 — home is not scope (shipped 2026-09-13)
 
 The first piece of the federated design (`docs/federated-relearn.md` §2) and deliberately the

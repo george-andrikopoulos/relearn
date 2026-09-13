@@ -24,7 +24,16 @@ It is the reference implementation of the error loop described in *Tuning the St
 
 - A rule that fails to parse **stops the build** — it is never silently skipped. A silently dropped rule is a correction lost, which is the exact failure the project exists to prevent.
 - No emitted artifact is a source. Anything under an emitter's output path may be regenerated at any time and must never be hand-edited.
-- Every rule has exactly **one home** (`Home::Global | Domain | Project`). Two homes for one rule is unrepresentable in the type system, not merely discouraged.
+- Every rule has exactly **one home** (`Home::Global | Org | Domain | Project`). Two homes for one rule is unrepresentable in the type system, not merely discouraged.
+- **An `Org`-homed rule never leaves the machine**, and that is a match rather than a filter:
+  `Home::federation` decides every variant with no catch-all arm, so adding a home without deciding
+  its federation behaviour is a compile error. A filter in one publishing path compiles perfectly
+  while a second path publishes everything. `Project` is withheld too — its home carries a
+  filesystem path, which is a private identifier.
+- **A mandate carries its approval, and is not evidence.** `Origin::Mandated(Approval)` makes a
+  mandate with no signer and an approval on a mined rule both unconstructible, and mandated rules
+  are held out of the recurrence statistics entirely — they were never mined, and they are not
+  *inert* either, because inert is a judgement about something that was meant to be evidence.
 - **`applies_to` is not a second home.** Home answers *who owns and maintains this rule* and has
   one answer; `applies_to` answers *who should load it* and may have several — a low-latency rule
   that Rust and Java engineers both need lives in one file, with one tag and one incident, and is

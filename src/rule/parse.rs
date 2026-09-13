@@ -13,8 +13,9 @@
 use serde::Deserialize;
 
 use super::{
-    Body, Date, DateError, EmptyText, ErrorClass, Home, Incident, Origin, Recurrence, Rule,
-    RuleTag, RuleTagError, ScopeTag, ScopeTagError, Status, Title, UnknownOrigin,
+    Approval, Approver, Body, ControlRef, Date, DateError, EmptyText, ErrorClass, Home, Incident,
+    Origin, OriginError, Recurrence, Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, Status,
+    Title,
 };
 
 /// Why a rule document failed to parse.
@@ -44,14 +45,16 @@ pub enum ParseError {
         source: DateError,
     },
     /// The `home` table carried an unrecognised `kind`.
-    #[error("`home` has unknown kind `{0}` (expected global | domain | project)")]
+    #[error("`home` has unknown kind `{0}` (expected global | org | domain | project)")]
     UnknownHomeKind(String),
     /// The `status` table carried an unrecognised `kind`.
     #[error("`status` has unknown kind `{0}` (expected active | graduated | attic)")]
     UnknownStatusKind(String),
-    /// The `origin` field held a value that is not a known origin.
+    /// The `origin` field, or its `approval` table, did not describe a valid
+    /// origin — including the two halves of "an approval is required when and
+    /// only when the origin is mandated".
     #[error("field `origin`: {0}")]
-    Origin(#[from] UnknownOrigin),
+    Origin(#[from] OriginError),
     /// An `applies_to` entry was not a well-formed scope.
     #[error("field `applies_to`: {0}")]
     Scope(#[from] ScopeTagError),
@@ -101,6 +104,25 @@ struct RawRule {
     /// out of anyone's, and a rule dropped from a build is a correction lost.
     #[serde(default)]
     applies_to: Vec<String>,
+    /// The sign-off behind a **mandated** rule.
+    ///
+    /// Optional in the raw shape and mandatory in the parsed one: the table is
+    /// absent for every mined or codified rule and required for every mandate,
+    /// and `Origin::parse` sees the pair and refuses either mismatch. Modelling
+    /// it as `Option` here rather than on `Rule` is what keeps the illegal
+    /// states out of the domain type — the raw shape may hold anything a file
+    /// contains; the parsed shape may not.
+    #[serde(default)]
+    approval: Option<RawApproval>,
+}
+
+/// The `approval` table of a mandated rule.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawApproval {
+    by: String,
+    date: String,
+    control: String,
 }
 
 /// One `[[recurrence]]` table. An array of tables rather than a list of
@@ -173,7 +195,11 @@ impl RawRule {
             field: "created",
             source,
         })?;
-        let origin = Origin::parse(&self.origin)?;
+        // The approval is parsed first so its own fields report their own
+        // errors (`approval.by must not be empty`), and handed to `Origin::parse`
+        // as the other half of the pair it has to judge.
+        let approval = self.approval.map(RawApproval::into_approval).transpose()?;
+        let origin = Origin::parse(&self.origin, approval)?;
         let status = self.status.into_status()?;
         let body = Body::parse(body)?;
         // Collected with `?`, not filtered: a malformed recurrence stops the
@@ -220,6 +246,18 @@ fn parse_scopes(raw: Vec<String>) -> Result<Vec<ScopeTag>, ParseError> {
     Ok(scopes)
 }
 
+impl RawApproval {
+    fn into_approval(self) -> Result<Approval, ParseError> {
+        let by = Approver::parse(self.by)?;
+        let date = Date::parse(&self.date).map_err(|source| ParseError::Date {
+            field: "approval.date",
+            source,
+        })?;
+        let control = ControlRef::parse(self.control)?;
+        Ok(Approval::new(by, date, control))
+    }
+}
+
 impl RawRecurrence {
     fn into_recurrence(self) -> Result<Recurrence, ParseError> {
         let date = Date::parse(&self.date).map_err(|source| ParseError::Date {
@@ -241,6 +279,13 @@ impl RawHome {
                     field: "name",
                 })?;
                 Ok(Home::domain(name)?)
+            }
+            "org" => {
+                let name = self.name.ok_or(ParseError::MissingField {
+                    context: "home org",
+                    field: "name",
+                })?;
+                Ok(Home::org(name)?)
             }
             "project" => {
                 let path = self.path.ok_or(ParseError::MissingField {
@@ -588,6 +633,106 @@ Parse into a type wide enough to represent the out-of-range value.
             .replace("incident = \"i\"\n", "incident = \"i\"\napplies_to = []\n");
         let rule = parse_document(&doc).expect("an empty array parses");
         assert!(!rule.is_scoped());
+    }
+
+    #[test]
+    fn an_org_home_parses_and_names_its_organisation() {
+        let doc = with_field("home", "{ kind = \"org\", name = \"acme\" }");
+        let rule = parse_document(&doc).expect("an org home parses");
+        match rule.home() {
+            Home::Org { name } => assert_eq!(name.as_str(), "acme"),
+            other => panic!("expected an org home, got {other:?}"),
+        }
+        assert!(
+            !rule.is_publishable(),
+            "an org-homed rule must never be publishable"
+        );
+    }
+
+    #[test]
+    fn an_org_home_without_a_name_is_missing_field() {
+        let doc = with_field("home", "{ kind = \"org\" }");
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::MissingField {
+                context: "home org",
+                field: "name",
+            })
+        );
+    }
+
+    #[test]
+    fn a_mandate_parses_with_its_approval_table() {
+        let doc = with_field("origin", "\"mandated\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napproval = { by = \"the change board\", \
+             date = \"2026-07-11\", control = \"AC-6(9)\" }\n",
+        );
+        let rule = parse_document(&doc).expect("a mandate parses");
+        let approval = rule.origin().approval().expect("a mandate has an approval");
+        assert_eq!(approval.by().as_str(), "the change board");
+        assert_eq!(approval.date().to_string(), "2026-07-11");
+        assert_eq!(approval.control().as_str(), "AC-6(9)");
+        assert!(!rule.counts_toward_recurrence_statistics());
+    }
+
+    // The two halves of "required when and only when", end to end through the
+    // whole parser rather than only at `Origin::parse`.
+    #[test]
+    fn a_mandate_without_an_approval_stops_the_build() {
+        let doc = with_field("origin", "\"mandated\"");
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::Origin(OriginError::MandateWithoutApproval))
+        );
+    }
+
+    #[test]
+    fn an_approval_without_a_mandate_stops_the_build() {
+        let doc = with_field("tag", "\"R:x\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napproval = { by = \"b\", date = \"2026-07-11\", control = \"c\" }\n",
+        );
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::Origin(OriginError::ApprovalWithoutMandate(
+                "mined".to_owned()
+            )))
+        );
+    }
+
+    #[test]
+    fn an_approval_with_a_bad_date_names_its_own_field() {
+        let doc = with_field("origin", "\"mandated\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napproval = { by = \"b\", date = \"2026-02-30\", control = \"c\" }\n",
+        );
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::Date {
+                field: "approval.date",
+                source: DateError::DayOutOfRange(30),
+            })
+        );
+    }
+
+    #[test]
+    fn an_empty_approver_is_rejected() {
+        let doc = with_field("origin", "\"mandated\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napproval = { by = \"  \", date = \"2026-07-11\", control = \"c\" }\n",
+        );
+        assert!(matches!(parse_document(&doc), Err(ParseError::Text(_))));
+    }
+
+    #[test]
+    fn an_unknown_field_in_an_approval_is_rejected() {
+        let doc = with_field("origin", "\"mandated\"").replace(
+            "incident = \"i\"\n",
+            "incident = \"i\"\napproval = { by = \"b\", date = \"2026-07-11\", \
+             control = \"c\", bogus = 1 }\n",
+        );
+        assert!(matches!(parse_document(&doc), Err(ParseError::Toml(_))));
     }
 
     #[test]

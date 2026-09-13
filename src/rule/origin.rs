@@ -11,16 +11,107 @@
 //! library that looks healthy because it is full of them is the failure the
 //! recurrence count would otherwise hide.
 
+use super::Date;
+use super::text::{EmptyText, nonempty};
+
+/// Who signed off a mandated rule — a person, a board, a working group.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Approver(String);
+
+impl Approver {
+    /// Parse a non-empty approver.
+    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
+        Ok(Self(nonempty("approval.by", s)?))
+    }
+
+    /// The approver text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// The control-framework requirement a mandated rule implements, in whatever
+/// vocabulary the organisation's framework uses — `AC-6(9)`, `A.9.2.3`, a
+/// policy clause number.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ControlRef(String);
+
+impl ControlRef {
+    /// Parse a non-empty control reference.
+    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
+        Ok(Self(nonempty("approval.control", s)?))
+    }
+
+    /// The control reference text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// The provenance of a **mandated** rule: who approved it, when, and against
+/// which control.
+///
+/// For a mined rule, provenance is the incident — what went wrong. A mandate has
+/// no incident, because nothing went wrong: it is a requirement somebody
+/// accepted on a date. Recording the approver is what lets any compliance claim
+/// follow from a record rather than from the tool asserting one
+/// (`[R:guarantee-needs-a-reader]` — a tool claiming regulatory alignment with
+/// no signer is an unenforced guarantee, and in a regulated environment a
+/// liability rather than a feature).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Approval {
+    by: Approver,
+    date: Date,
+    control: ControlRef,
+}
+
+impl Approval {
+    /// Record an approval: who, when, against which control. All three are
+    /// required — an approval missing any of them is not an approval.
+    #[must_use]
+    pub fn new(by: Approver, date: Date, control: ControlRef) -> Self {
+        Approval { by, date, control }
+    }
+
+    /// Who approved it.
+    #[must_use]
+    pub fn by(&self) -> &Approver {
+        &self.by
+    }
+
+    /// When it was approved.
+    #[must_use]
+    pub fn date(&self) -> Date {
+        self.date
+    }
+
+    /// The control it implements.
+    #[must_use]
+    pub fn control(&self) -> &ControlRef {
+        &self.control
+    }
+}
+
 /// Where a rule came from.
 ///
-/// **Two variants, no payload.** `Codified` deliberately does not carry its
-/// source: a practice written down from standing doctrine is meaningful without
-/// naming a document, so "codified without a source" is not an illegal state and
-/// there is nothing for a payload to make unrepresentable. Where the source
-/// matters it is already in the rule's `incident` prose. A `PortedFrom(source)`
-/// variant was considered and deferred — it is a third modelled fact with its
-/// own argument, and adding it later is additive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// **`Codified` deliberately does not carry a source**: a practice written down
+/// from standing doctrine is meaningful without naming a document, so "codified
+/// without a source" is not an illegal state and there is nothing for a payload
+/// to make unrepresentable. Where the source matters it is already in the rule's
+/// `incident` prose.
+///
+/// **`Mandated` does carry its approval, and that is the point.** An
+/// organisation's control-framework requirements are not corrections: they have
+/// no incident and were never mined. Their provenance is the sign-off, so the
+/// approval is the variant's *payload* rather than a field beside it — which
+/// makes both halves unrepresentable at once. A mandate with no approval cannot
+/// be constructed, and an approval attached to a mined or codified rule cannot
+/// be written down at all. The alternative, an `Option<Approval>` field on
+/// `Rule`, makes both illegal states representable and turns the invariant into
+/// a check somebody has to remember at every construction site.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Origin {
     /// Written because something actually went wrong: there is a specific,
     /// dated failure behind it. These are the rules the error loop produced.
@@ -29,29 +120,68 @@ pub enum Origin {
     /// single incident — the `incident` field records when and from where it
     /// was codified, not a failure it retired.
     Codified,
+    /// Required by an organisation's control framework and signed off, rather
+    /// than learned from anything. Carries the approval that is its provenance.
+    Mandated(Approval),
 }
 
-/// The `origin` field held a value that is not a known origin.
+/// Why an `origin` field (with or without its `approval` table) did not describe
+/// a valid origin.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("`origin` has unknown value `{0}` (expected mined | codified)")]
-pub struct UnknownOrigin(String);
+pub enum OriginError {
+    /// The `origin` field held a value that is not a known origin.
+    #[error("`origin` has unknown value `{0}` (expected mined | codified | mandated)")]
+    Unknown(String),
+    /// `origin = "mandated"` with no `approval` table. A mandate with no signer
+    /// is the unenforced guarantee this field exists to prevent, so it is a
+    /// parse error rather than a defaulted blank.
+    #[error("`origin = \"mandated\"` requires an `approval` table (by, date, control)")]
+    MandateWithoutApproval,
+    /// An `approval` table on a rule that is not mandated. Refused rather than
+    /// ignored: a silently dropped approval reads, to the next person, as a
+    /// rule that was signed off when it was not.
+    #[error("`approval` is only valid with `origin = \"mandated\"` (got `{0}`)")]
+    ApprovalWithoutMandate(String),
+}
 
 impl Origin {
-    /// Parse the neutral format's `origin` value.
-    pub fn parse(s: &str) -> Result<Self, UnknownOrigin> {
-        match s.trim() {
-            "mined" => Ok(Origin::Mined),
-            "codified" => Ok(Origin::Codified),
-            other => Err(UnknownOrigin(other.to_owned())),
+    /// Parse the neutral format's `origin` value **together with** its optional
+    /// `approval` table — one perimeter that sees both halves, so the
+    /// mandate-approval correspondence is settled where the evidence is rather
+    /// than re-checked later by something holding only one of them.
+    pub fn parse(s: &str, approval: Option<Approval>) -> Result<Self, OriginError> {
+        let kind = s.trim();
+        match (kind, approval) {
+            ("mined", None) => Ok(Origin::Mined),
+            ("codified", None) => Ok(Origin::Codified),
+            ("mandated", Some(approval)) => Ok(Origin::Mandated(approval)),
+            ("mandated", None) => Err(OriginError::MandateWithoutApproval),
+            ("mined" | "codified", Some(_)) => {
+                Err(OriginError::ApprovalWithoutMandate(kind.to_owned()))
+            }
+            (other, _) => Err(OriginError::Unknown(other.to_owned())),
         }
     }
 
-    /// The neutral format's spelling, and the inverse of [`Origin::parse`].
+    /// The neutral format's spelling. The inverse of [`Origin::parse`] for the
+    /// payload-free variants; `Mandated` also needs its `approval` table, which
+    /// the serializer writes beside this value.
     #[must_use]
-    pub fn as_str(self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Origin::Mined => "mined",
             Origin::Codified => "codified",
+            Origin::Mandated(_) => "mandated",
+        }
+    }
+
+    /// The approval, for a mandated rule; `None` for every other origin — which
+    /// is not a sentinel but the honest reading: only a mandate has a signer.
+    #[must_use]
+    pub fn approval(&self) -> Option<&Approval> {
+        match self {
+            Origin::Mined | Origin::Codified => None,
+            Origin::Mandated(approval) => Some(approval),
         }
     }
 
@@ -61,8 +191,21 @@ impl Origin {
     /// never recurred is evidence of nothing, whereas a `Mined` rule that has
     /// never recurred is a rule that may well be working.
     #[must_use]
-    pub fn is_mined(self) -> bool {
+    pub fn is_mined(&self) -> bool {
         matches!(self, Origin::Mined)
+    }
+
+    /// Whether this rule was mandated rather than learned.
+    ///
+    /// A mandate is **outside** the recurrence statistics entirely, in both
+    /// directions. It cannot be recurrence evidence, because nothing was mined;
+    /// and it must not count as *inert* either, because inert means "authored
+    /// and never fired" — a judgement about a rule that was supposed to be
+    /// evidence. Counting mandates in either number swamps the only figure that
+    /// says whether prose is holding, with rules that were never about that.
+    #[must_use]
+    pub fn is_mandated(&self) -> bool {
+        matches!(self, Origin::Mandated(_))
     }
 }
 
@@ -70,31 +213,94 @@ impl Origin {
 mod tests {
     use super::*;
 
+    fn approval() -> Approval {
+        Approval::new(
+            Approver::parse("the change board").expect("non-empty approver"),
+            Date::parse("2026-07-11").expect("valid date"),
+            ControlRef::parse("AC-6(9)").expect("non-empty control"),
+        )
+    }
+
     #[test]
     fn parses_both_spellings() {
-        assert_eq!(Origin::parse("mined"), Ok(Origin::Mined));
-        assert_eq!(Origin::parse("codified"), Ok(Origin::Codified));
+        assert_eq!(Origin::parse("mined", None), Ok(Origin::Mined));
+        assert_eq!(Origin::parse("codified", None), Ok(Origin::Codified));
     }
 
     #[test]
     fn trims_before_matching() {
-        assert_eq!(Origin::parse("  codified  "), Ok(Origin::Codified));
+        assert_eq!(Origin::parse("  codified  ", None), Ok(Origin::Codified));
+    }
+
+    #[test]
+    fn a_mandate_parses_with_its_approval() {
+        assert_eq!(
+            Origin::parse("mandated", Some(approval())),
+            Ok(Origin::Mandated(approval()))
+        );
+    }
+
+    // The two halves of "required when and only when". Neither is a warning and
+    // neither is silently dropped: a mandate with no signer is the unenforced
+    // guarantee the field exists to prevent, and a dropped approval reads to the
+    // next person as a rule that was signed off when it was not.
+    #[test]
+    fn a_mandate_without_an_approval_is_refused() {
+        assert_eq!(
+            Origin::parse("mandated", None),
+            Err(OriginError::MandateWithoutApproval)
+        );
+    }
+
+    #[test]
+    fn an_approval_without_a_mandate_is_refused_and_names_the_origin() {
+        assert_eq!(
+            Origin::parse("mined", Some(approval())),
+            Err(OriginError::ApprovalWithoutMandate("mined".to_owned()))
+        );
+        assert_eq!(
+            Origin::parse("codified", Some(approval())),
+            Err(OriginError::ApprovalWithoutMandate("codified".to_owned()))
+        );
+    }
+
+    #[test]
+    fn a_mandate_is_neither_mined_nor_inert_material() {
+        let mandated = Origin::Mandated(approval());
+        assert!(!mandated.is_mined());
+        assert!(mandated.is_mandated());
+        assert!(!Origin::Mined.is_mandated());
+        assert!(!Origin::Codified.is_mandated());
+    }
+
+    #[test]
+    fn only_a_mandate_has_an_approval() {
+        assert!(Origin::Mandated(approval()).approval().is_some());
+        assert!(Origin::Mined.approval().is_none());
+        assert!(Origin::Codified.approval().is_none());
     }
 
     // The error names the offending value and the alternatives, so a typo in a
     // rule file reports what to write rather than only that it was wrong.
     #[test]
     fn an_unknown_value_is_named() {
-        let err = Origin::parse("invented").expect_err("not an origin");
+        let err = Origin::parse("invented", None).expect_err("not an origin");
         let text = err.to_string();
         assert!(text.contains("invented"), "{text}");
-        assert!(text.contains("mined | codified"), "{text}");
+        assert!(text.contains("mined | codified | mandated"), "{text}");
     }
 
     #[test]
     fn as_str_round_trips_through_parse() {
-        for origin in [Origin::Mined, Origin::Codified] {
-            assert_eq!(Origin::parse(origin.as_str()), Ok(origin));
+        for origin in [
+            Origin::Mined,
+            Origin::Codified,
+            Origin::Mandated(approval()),
+        ] {
+            // The approval travels beside the spelling, which is exactly how the
+            // serializer writes it: `origin = "mandated"` then the table.
+            let approval = origin.approval().cloned(); // allow:clone: the round trip needs an owned approval to hand back to `parse`, and the original must stay for the comparison
+            assert_eq!(Origin::parse(origin.as_str(), approval), Ok(origin));
         }
     }
 

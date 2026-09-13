@@ -116,6 +116,7 @@ impl HomeSlug {
     pub fn of(home: &Home) -> Self {
         let slug = match home {
             Home::Global => "global".to_owned(),
+            Home::Org { name } => format!("org-{}", slugify(name.as_str())),
             Home::Domain { name } => format!("domain-{}", slugify(name.as_str())),
             Home::Project { path } => format!("project-{}", slugify(path.as_str())),
         };
@@ -242,7 +243,12 @@ impl LoadSemantics {
     #[must_use]
     pub fn for_home(home: &Home) -> Self {
         match home {
-            Home::Global | Home::Project { .. } => LoadSemantics::Always,
+            // An organisation's own principles bind every language and every
+            // tree inside it, so the load model is `Global`'s rather than a
+            // domain's: there is no file extension that means "this belongs to
+            // the company", and `OnRequest` would make the layer a corporation
+            // fills the one layer nothing loads.
+            Home::Global | Home::Org { .. } | Home::Project { .. } => LoadSemantics::Always,
             Home::Domain { name } => match Globs::new(domain_globs(name.as_str())) {
                 Some(globs) => LoadSemantics::WhenReading(globs),
                 None => LoadSemantics::OnRequest,
@@ -279,8 +285,12 @@ fn domain_globs(name: &str) -> Vec<String> {
 pub(crate) fn home_rank(home: &Home) -> u8 {
     match home {
         Home::Global => 0,
-        Home::Domain { .. } => 1,
-        Home::Project { .. } => 2,
+        // Between global and domain: an organisation's principles are narrower
+        // than everyone's and broader than one language's, and a reader should
+        // meet them before the language-specific rules that sit inside them.
+        Home::Org { .. } => 1,
+        Home::Domain { .. } => 2,
+        Home::Project { .. } => 3,
     }
 }
 

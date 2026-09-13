@@ -7,7 +7,8 @@ about the first thing a reader checks.
 | | |
 |---|---|
 | **Shipped 2026-09-13 (A1, `3798521`)** | §2's `applies_to` and the `ScopeTag` type, with `--scope` on `build`, `verify` and `list`. Enforced by `tests/scope_filter.rs` and four properties in `tests/properties.rs`; FEATURES carries both rows |
-| **Not built** | `Home::Org`, `Origin::Mandated` and `approval` (§2, §7); `Authority` and `adopt` (§3); `contribute` (§4); `report` and the aggregate (§5, §9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
+| **Shipped 2026-09-13 (A2)** | §2's `Home::Org`, §7's `Origin::Mandated` and its `approval` block, and the federation exclusion as an exhaustive match — enforced by `tests/federation_exclusion.rs` and a compile-fail pin |
+| **Not built** | `Authority` and `adopt` (§3); `contribute` (§4); `report` and the aggregate (§5, §9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
 
 The rest is filed so the design is written down rather than re-invented, on the same footing as
 [`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried open
@@ -555,10 +556,13 @@ invent it twice* that actually holds.
 
 ## 13. Definition of done, for the phases still to come
 
-All five per `CLAUDE.md`. Check 2 especially: `Authority`, `Home::Org` and `Origin::Mandated`
-each touch parse, serialize, lint and every emitter — and **the emitted tree must not change for
-any of the 52 existing rules**. That round-trip assertion is what proves the corpus was not
-disturbed, exactly as it did for `recurrences`, and exactly as it did for `applies_to`, which was
+All five per `CLAUDE.md`. Check 2 especially: `Authority` touches parse, serialize, lint and every
+emitter — and **the emitted tree must not change for any of the 52 existing rules**. That
+round-trip assertion is what proves the corpus was not disturbed, exactly as it did for
+`recurrences`, exactly as it did again for `Home::Org` and `Origin::Mandated` in A2 (where the
+compiler enumerated the six emitter sites that had to decide about the new home, and the lint
+summary stayed byte-identical because the corpus holds no mandate), and exactly as it did for
+`applies_to`, which was
 the fourth field to arrive under it and the first of these phases to ship.
 
 `contribute`, `report` and `adopt` write no instruction layer and must not be reachable from

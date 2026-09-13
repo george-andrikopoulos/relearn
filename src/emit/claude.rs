@@ -152,6 +152,10 @@ fn description_lead(home: &Home) -> String {
         Home::Global => {
             "Engineering discipline that applies to every project and language.".to_owned()
         }
+        Home::Org { name } => format!(
+            "Engineering discipline that applies across {}.",
+            name.as_str()
+        ),
         Home::Domain { name } => {
             format!("Engineering discipline for working in {}.", name.as_str())
         }
@@ -203,6 +207,7 @@ fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
 fn home_label(home: &Home) -> String {
     match home {
         Home::Global => "global".to_owned(),
+        Home::Org { name } => format!("org: {}", name.as_str()),
         Home::Domain { name } => format!("domain: {}", name.as_str()),
         Home::Project { path } => format!("project: {}", path.as_str()),
     }
