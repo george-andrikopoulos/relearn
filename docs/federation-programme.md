@@ -58,7 +58,17 @@ rejected alternatives, and that is George's call, not a step in the phase.
 
 ---
 
-## PHASE 0 — repair the design document. No code. **← next**
+## PHASE 0 — repair the design document. No code. **— DONE 2026-09-13**
+
+> **Closed.** 0.1 and 0.2 resolved and recorded as two decisions-log entries with their rejected
+> alternatives; 0.3 was already closed before this document was filed. **Two further false
+> statements were found in the design document while repairing it and are fixed in the same
+> commit** — they are the same class as 0.1 and inside this phase's remit, not new work:
+> the status banner still read *"Nothing in this file is implemented"* after A1 shipped
+> `applies_to`, and invariant 1 named `Audience::Everything` as what holds it, a type that was
+> never built. An *"Enforced by"* pointing at a plan is the failure `FEATURES.md` exists to
+> prevent, arriving in the design document instead. Line numbers below are as they were before
+> the repair; the paragraph now begins *"An invocation names the audience it wants"* at line 153.
 
 Two contradictions are live in `docs/federated-relearn.md` today, and the document is what every
 later session reads. Fix the source before building from it.

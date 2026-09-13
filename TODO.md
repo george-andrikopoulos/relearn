@@ -323,16 +323,21 @@ wrong named in advance. It does not restate the design; `docs/federated-relearn.
 and the programme is wrong where the two disagree.
 
 - [x] **A1 — `applies_to`: home is not scope.** Shipped 2026-09-13 (`3798521`); see below.
-- [ ] **Phase 0 — repair the design document (no code). NEXT, and it needs two decisions first.**
-  - [ ] **0.1** `docs/federated-relearn.md:134` says an install declares its scopes *in config*,
-        which contradicts §1's invariant 3 (no ambient state) and, since A1, describes a mechanism
-        that does not exist while contradicting one that does. The remaining question is not
-        "flag or config" — the shipped code answers that — but whether an install config ever
-        arrives and under what argument.
-  - [ ] **0.2** §5's rotating `install` pseudonym must persist between runs to *replace* rather
-        than duplicate a report, and anything persisting per-machine is what invariant 3 forbids.
-        Two resolutions keep `tests/solo_mode.rs` green: the human passes it on the command line,
-        or it lives inside the cloned aggregate repository.
+- [x] **Phase 0 — repair the design document (no code). Done 2026-09-13.**
+  - [x] **0.1** The config sentence in §2 is gone: an invocation names its audience on the command
+        line, and **a config file is refused rather than deferred**, with the condition that would
+        reopen it recorded in the decisions log (an install needing the same scope set every time
+        — at which point the argument is made against invariant 3 explicitly and
+        `tests/solo_mode.rs` changes in the same commit).
+  - [x] **0.2** The install pseudonym lives **inside the cloned aggregate repository**, never on
+        the machine: `reports/<install-id>.toml` is its own name, the clone is a path given on the
+        command line, and `solo_mode.rs` needs no exemption. Rejected: a home dotfile (breaks
+        invariant 3), typing the id each run (a typo silently forks one install into two and
+        inflates every count), a machine fingerprint (derivable is re-derivable).
+  - [x] **Found while repairing, fixed in the same commit:** the status banner still said
+        *"Nothing in this file is implemented"* after A1 shipped, and invariant 1 named
+        `Audience::Everything` — a type that was never built — as what held it. Same class as 0.1;
+        an enforcing artefact that points at a plan is what `FEATURES.md` exists to prevent.
   - [x] ~~0.3 `copilot-pack/README.md` is stale~~ — **already closed**; measured before filing
         (52 rules / 746 lines claimed, 746 lines and 52 `^## ` headings actual, layers 27/18/7
         matching `relearn list --home`). Its counts remain hand-written with nothing checking

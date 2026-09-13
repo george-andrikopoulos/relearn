@@ -1,13 +1,20 @@
 # Federated relearn — design
 
-**Status: design note only. Deliberately NOT built.** Nothing in this file is implemented:
-there is no `applies_to` field, no `Authority`, no `Home::Org`, no `Origin::Mandated`, and
-no `contribute`, `report` or `adopt` command. It is filed so the design is written down
-rather than re-invented, on the same footing as
-[`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried
-open were **answered on 13 September 2026** and §12 now records the decisions with their
-whys; two of them moved the design rather than merely filling a blank, and §5 and §8 carry
-the edits. §13 records what the definition of done would demand if it is ever built.
+**Status: a design, now partly built.** One phase has shipped and the rest has not, and this
+line says which — a document that still claimed "nothing here is implemented" would be lying
+about the first thing a reader checks.
+
+| | |
+|---|---|
+| **Shipped 2026-09-13 (A1, `3798521`)** | §2's `applies_to` and the `ScopeTag` type, with `--scope` on `build`, `verify` and `list`. Enforced by `tests/scope_filter.rs` and four properties in `tests/properties.rs`; FEATURES carries both rows |
+| **Not built** | `Home::Org`, `Origin::Mandated` and `approval` (§2, §7); `Authority` and `adopt` (§3); `contribute` (§4); `report` and the aggregate (§5, §9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
+
+The rest is filed so the design is written down rather than re-invented, on the same footing as
+[`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried open
+were **answered on 13 September 2026** and §12 now records the decisions with their whys; two of
+them moved the design rather than merely filling a blank, and §5 and §8 carry the edits. §13
+records what the definition of done demands of the phases still to come.
+[`federation-programme.md`](federation-programme.md) sequences them, one per session.
 
 ### One home, many caches, and a signal that travels · v2, 13 September 2026
 
@@ -73,11 +80,21 @@ never a dependency of the compiler.
 Four invariants, and each names what holds it rather than promising it:
 
 1. **No configuration is required, and its absence is never a filter.** A rule with `applies_to`
-   emits everywhere when the install has declared no scopes. Scope filtering narrows only when
-   somebody asked for it, and a narrowed build reports what it withheld — a rule dropped in
-   silence is a lost correction, which is the failure the whole project exists to prevent.
-   *Held by:* `Audience::Everything` as the constructed default, and the emission round-trip over
-   the 52 rules (§13).
+   emits everywhere when the invocation asked for no audience, and an unscoped rule emits under
+   every audience. Narrowing happens only when somebody asks for it, and an audience no rule
+   declares is a loud error rather than a tree quietly missing every scoped rule — a rule dropped
+   in silence is a lost correction, which is the failure the whole project exists to prevent.
+   *Held by:* `Rule::serves`, which carries both defaults where no caller can reimplement them,
+   plus `narrowing_never_touches_an_unscoped_rule` and
+   `no_audience_emits_exactly_what_an_unnarrowed_build_emits` over generated libraries, and
+   `CliError::UnknownScope` for the loud half.
+
+   > **Repaired 2026-09-13 (Phase 0).** This read *"Held by: `Audience::Everything` as the
+   > constructed default"* — a type that was never built, named as an enforcing artefact before
+   > the phase ran. A1 held the invariant differently and better, in a method on `Rule` rather
+   > than a wrapper type around the audience. An *"Enforced by"* pointing at a plan is the failure
+   > `FEATURES.md` exists to prevent, and it had reached the design document instead
+   > (`[R:guarantee-needs-a-reader]`).
 2. **The tool never speaks to a network.** Contribution and reporting are a person running `git`,
    not a client calling a server, which is exactly why §9's aggregate is a repository rather than
    a service. *Held by:* `tests/solo_mode.rs` — no socket, no spawned process, no networking or
@@ -87,7 +104,9 @@ Four invariants, and each names what holds it rather than promising it:
    corpus compile differently in two places. *Held by:* `tests/solo_mode.rs`.
 4. **Every federated field is optional, and absence is today's behaviour exactly.** `applies_to`,
    `Authority`, `approval`: a solo corpus that never adopts anything never meets any of them, and
-   no existing rule file needs editing. *Held by:* the round-trip assertion in §13.
+   no existing rule file needs editing. *Held by:* the round-trip assertion in §13 — which for
+   `applies_to` is no longer a promise: `tests/corpus.rs` round-trips all 52 rules byte-identically
+   and `relearn verify` was green on the committed tree the day A1 landed.
 
 The reason to write this down as invariants rather than intent: every federated feature is a
 standing reason to acquire an account, a client, a config file, a cache directory — each
@@ -131,10 +150,18 @@ applies_to = ["rust", "java"]
 One file, one tag, one incident, one owner — P2 untouched — compiled into both language layers.
 Low-latency knowledge accumulates once and both languages inherit it.
 
-An install declares its own scopes in config (`scopes = ["rust", "low-latency"]`) and emission
-filters on the intersection. **Absent `applies_to` means today's behaviour exactly**, so no rule
-file needs editing — the same migration shape as `recurrences` and the same round-trip assertion
-over the existing 52 proves it.
+An invocation names the audience it wants — `relearn build --scope rust --scope low-latency`,
+repeatable, composing with `--home` — and emission filters on the intersection. **Absent
+`applies_to` means today's behaviour exactly**, so no rule file needs editing; the same migration
+shape as `recurrences`, and the same round-trip assertion over the existing 52 proves it.
+
+> **Repaired 2026-09-13 (Phase 0.1).** This paragraph read *"An install declares its own scopes in
+> config (`scopes = [...]`)"* — a per-machine file that makes the same corpus compile differently
+> in two places, which is exactly what §1's invariant 3 forbids and `tests/solo_mode.rs` fails on.
+> The contradiction was written into the document by the later addition of §1, and by the time
+> A1 shipped the flag the sentence was describing a mechanism that does not exist while
+> contradicting one that does. **A config file is not deferred, it is refused**: the decisions log
+> (2026-09-13) carries the argument and the condition that would reopen it.
 
 ### The org layer
 
@@ -203,6 +230,7 @@ Separate flow, separate file, separate privacy model.
 ```toml
 schema    = 1
 install   = "7f3c9a1e"     # rotating pseudonym; regenerable; not a person
+                           # lives in the cloned aggregate repo, never on the machine — see below
 generated = "2026-09"      # month, never a day
 
 [[observation]]
@@ -214,6 +242,17 @@ control     = "type"        # type | property-test | unit-test | gate | hook —
 ```
 
 Absent: title, incident, body, path, name, repository, language, day-level dates.
+
+**Where the pseudonym lives, and why it is not a dotfile (Phase 0.2, 2026-09-13).** The id has to
+survive between runs or a second report *adds* an install rather than replacing one, and the
+aggregate counts one person twice. Anything surviving between runs on the machine is the
+per-machine state §1's invariant 3 forbids, so it lives **inside the cloned aggregate repository**
+— `reports/<install-id>.toml` is its own name, and the clone is a path the human passes on the
+command line. `report` reads the id from the report file already in the clone and writes a new one
+only when there is none; there is nothing to read on the machine, so `tests/solo_mode.rs` stays
+green with no exemption. Delete the clone and the pseudonym is gone, which is the mental model a
+person already has for a clone. The cost is stated rather than hidden: the pseudonym is exactly as
+private as the clone, so a shared or backed-up checkout shares it.
 
 **Dates coarsen to the month as a privacy decision, not a formatting one.** In a team of eight,
 *"someone hit this on 28 August"* identifies a person to anyone who was in the room.
@@ -514,12 +553,13 @@ invent it twice* that actually holds.
 
 ---
 
-## 13. Definition of done, when this is built
+## 13. Definition of done, for the phases still to come
 
-All five per `CLAUDE.md`. Check 2 especially: `applies_to`, `Authority`, `Home::Org` and
-`Origin::Mandated` all touch parse, serialize, lint and every emitter — and **the emitted tree
-must not change for any of the 52 existing rules**. That round-trip assertion is what proves the
-corpus was not disturbed, exactly as it did for `recurrences`.
+All five per `CLAUDE.md`. Check 2 especially: `Authority`, `Home::Org` and `Origin::Mandated`
+each touch parse, serialize, lint and every emitter — and **the emitted tree must not change for
+any of the 52 existing rules**. That round-trip assertion is what proves the corpus was not
+disturbed, exactly as it did for `recurrences`, and exactly as it did for `applies_to`, which was
+the fourth field to arrive under it and the first of these phases to ship.
 
 `contribute`, `report` and `adopt` write no instruction layer and must not be reachable from
 `build`.
@@ -528,7 +568,9 @@ corpus was not disturbed, exactly as it did for `recurrences`.
 artifacts to name when the FEATURES rows are written.** `Control` is a sealed enum with no
 free-text variant (§12.4) — the leak is unrepresentable, not forbidden. A recurrence count
 serializes as a bucket, so there is no path that emits an exact integer (§12.3). `Scope` parses
-at the perimeter and `ScopeNearDuplicate` extends `Finding` (§12.5). `CachedRuleRetiredUpstream`
+at the perimeter — **shipped as `ScopeTag` in A1**, while `ScopeNearDuplicate` has not been built
+and waits for a second scope to exist, since a drift detector over an empty vocabulary arrives
+already green (§12.5). `CachedRuleRetiredUpstream`
 is a Warning and cannot suppress emission, because only a local `Status` reaches
 `Status::emittability` (§12.6). The one answer that is *not* a type is §12.2's governance split,
 and it is written down precisely because nothing can check it — the half that can be checked, the
