@@ -367,7 +367,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }
@@ -392,7 +392,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             Vec::new(),
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }

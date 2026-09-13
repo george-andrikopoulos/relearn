@@ -161,7 +161,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty"),
             Vec::new(),
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }

@@ -67,7 +67,7 @@ fn a_cached_rule_cannot_be_minted_editable() {
 
 #[test]
 fn a_local_rule_and_an_adopted_one_are_both_editable() {
-    let local = rule("R:l", Authority::Local);
+    let local = rule("R:l", Authority::local());
     let adopted = rule(
         "R:a",
         Authority::adopted(
@@ -94,7 +94,7 @@ fn writing_a_cached_rule_is_impossible_and_nothing_reaches_disk() {
     assert!(EditableRule::of(&cached).is_err());
     // And the writer, reached with a *local* rule, does write — so the test
     // above is measuring the refusal rather than a writer that never works.
-    let local = rule("R:l", Authority::Local);
+    let local = rule("R:l", Authority::local());
     let editable = EditableRule::of(&local).expect("a local rule is editable");
     let written = fsio::write_rule(dir.path(), &editable).expect("the write succeeds");
     assert!(written.exists());
@@ -107,7 +107,7 @@ fn writing_a_cached_rule_is_impossible_and_nothing_reaches_disk() {
 #[test]
 fn a_written_rule_round_trips() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let local = rule("R:l", Authority::Local);
+    let local = rule("R:l", Authority::local());
     let editable = EditableRule::of(&local).expect("a local rule is editable");
     let path = fsio::write_rule(dir.path(), &editable).expect("the write succeeds");
 
@@ -122,7 +122,7 @@ fn a_written_rule_round_trips() {
 #[test]
 fn writing_refuses_to_clobber_a_file_that_is_not_the_same_rule() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let local = rule("R:l", Authority::Local);
+    let local = rule("R:l", Authority::local());
     let editable = EditableRule::of(&local).expect("a local rule is editable");
     std::fs::write(dir.path().join("l.md"), "not a rule at all\n").expect("write the decoy");
 
@@ -168,7 +168,41 @@ fn a_cache_can_always_say_whether_it_is_behind() {
     assert!(!cached.is_behind(Version::new(3)));
     assert!(!cached.is_behind(Version::new(2)));
     // A local rule is behind nothing: there is no upstream to be behind.
-    assert!(!Authority::Local.is_behind(Version::new(99)));
+    assert!(!Authority::local().is_behind(Version::new(99)));
+    // **Including a numbered one.** A home that states which revision it is —
+    // what a published rule in an upstream corpus does — is still the source,
+    // and a document elsewhere claiming a higher number is the stale one. The
+    // two accessors answer different questions on purpose: `version()` says
+    // which revision this document *is*, `is_behind` says whether it trails
+    // someone else's.
+    let published = Authority::local_at(Version::new(2));
+    assert_eq!(published.version(), Some(Version::new(2)));
+    assert!(!published.is_behind(Version::new(9)));
+}
+
+/// A published rule states its revision in the one field that already means
+/// "which revision is this document" — so a cached copy and the home it came
+/// from are compared through one field, never two spellings of one fact.
+#[test]
+fn a_published_rule_states_which_revision_it_is() {
+    let doc = relearn::rule::to_document(&rule("R:p", Authority::local_at(Version::new(7))));
+    assert!(doc.contains("kind = \"local\""), "{doc}");
+    assert!(doc.contains("version = 7"), "{doc}");
+
+    let reparsed = parse_document(&doc).expect("a numbered local rule round-trips");
+    assert_eq!(
+        reparsed.authority(),
+        &Authority::local_at(Version::new(7)),
+        "the revision must survive the round trip, or a cache of it can never be told it is stale"
+    );
+}
+
+/// An **unnumbered** local rule still renders no authority line at all, which
+/// is why no committed rule file needed editing when the field arrived.
+#[test]
+fn an_unnumbered_local_rule_renders_no_authority_line() {
+    let doc = relearn::rule::to_document(&rule("R:u", Authority::local()));
+    assert!(!doc.contains("authority"), "{doc}");
 }
 
 // ── adopt keeps the provenance ──────────────────────────────────────────────
@@ -206,7 +240,7 @@ fn adopting_records_what_it_was_forked_from_and_when() {
 #[test]
 fn only_a_cached_rule_can_be_adopted() {
     assert!(
-        Authority::Local
+        Authority::local()
             .adopt(Date::parse("2026-09-14").expect("valid date"))
             .is_err()
     );

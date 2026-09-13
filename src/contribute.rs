@@ -161,7 +161,7 @@ impl<'a> Contribution<'a> {
             self.body.clone(), // allow:clone: same
             Vec::new(),
             self.applies_to.to_vec(),
-            Authority::Local,
+            Authority::local(),
             None,
         );
         to_document(&rule)

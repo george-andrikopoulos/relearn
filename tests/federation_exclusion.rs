@@ -42,7 +42,7 @@ fn rule(tag: &str, home: Home, origin: Origin) -> Rule {
         Body::parse("The body.").expect("non-empty body"),
         Vec::new(),
         Vec::new(),
-        Authority::Local,
+        Authority::local(),
         None,
     )
 }

@@ -153,7 +153,7 @@ fn a_local_only_rule_is_never_reported() {
             "R:local",
             Home::global(),
             Origin::Mined,
-            Authority::Local,
+            Authority::local(),
             Status::active(),
             &["2026-08-24"],
         ),

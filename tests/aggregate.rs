@@ -45,9 +45,14 @@ fn installs_reporting(n: usize, rule: &str) -> Vec<String> {
         .collect()
 }
 
+/// The month a rendered document says it covers. It is a property of the
+/// document rather than of the rows, which is why it arrives at render time.
+fn month() -> Month {
+    Month::parse("2026-09").expect("a well-formed month")
+}
+
 fn aggregate_of(reports: &[String]) -> Aggregate {
-    let month = Month::parse("2026-09").expect("a well-formed month");
-    Aggregate::of(reports.iter().map(String::as_str), month).expect("well-formed reports")
+    Aggregate::of(reports.iter().map(String::as_str)).expect("well-formed reports")
 }
 
 // ── the k-floor ─────────────────────────────────────────────────────────────
@@ -64,7 +69,7 @@ fn below_the_floor_a_rule_does_not_appear_at_all() {
             "{n} install(s) is below the floor of {K_ANONYMITY_FLOOR}"
         );
         assert!(
-            !aggregate.to_toml().contains("R:x"),
+            !aggregate.to_toml(month()).contains("R:x"),
             "the tag leaked while its count was withheld"
         );
     }
@@ -75,7 +80,7 @@ fn at_the_floor_the_rule_publishes() {
     let aggregate = aggregate_of(&installs_reporting(K_ANONYMITY_FLOOR, "R:x"));
     assert_eq!(aggregate.rows().len(), 1);
     assert_eq!(aggregate.rows()[0].installs(), K_ANONYMITY_FLOOR);
-    assert!(aggregate.to_toml().contains("R:x"));
+    assert!(aggregate.to_toml(month()).contains("R:x"));
 }
 
 /// **The reader is told how much was withheld, without being told what.** An
@@ -89,7 +94,7 @@ fn the_suppressed_count_is_published_but_never_the_tags() {
     let aggregate = aggregate_of(&reports);
 
     assert_eq!(aggregate.suppressed(), 1);
-    let text = aggregate.to_toml();
+    let text = aggregate.to_toml(month());
     assert!(text.contains("suppressed"), "{text}");
     assert!(
         !text.contains("R:too-few"),
@@ -117,7 +122,7 @@ fn one_install_cannot_reach_the_floor_by_repetition() {
 #[test]
 fn both_confounds_print_beside_the_numbers() {
     let aggregate = aggregate_of(&installs_reporting(K_ANONYMITY_FLOOR, "R:x"));
-    let text = aggregate.to_toml();
+    let text = aggregate.to_toml(month());
 
     assert!(
         text.contains("diligence"),
@@ -136,7 +141,7 @@ fn both_confounds_print_beside_the_numbers() {
 fn an_empty_aggregate_still_carries_its_confounds() {
     let aggregate = aggregate_of(&[]);
     assert!(aggregate.rows().is_empty());
-    let text = aggregate.to_toml();
+    let text = aggregate.to_toml(month());
     assert!(text.contains("diligence"), "{text}");
     assert!(text.contains("published a rule for"), "{text}");
 }
@@ -165,7 +170,7 @@ fn a_row_carries_the_distribution_and_the_control_kinds_seen() {
 /// nothing here adds a day back.
 #[test]
 fn no_day_level_date_appears_anywhere_in_an_aggregate() {
-    let text = aggregate_of(&installs_reporting(K_ANONYMITY_FLOOR, "R:x")).to_toml();
+    let text = aggregate_of(&installs_reporting(K_ANONYMITY_FLOOR, "R:x")).to_toml(month());
     let day_shaped = text
         .split(|c: char| !(c.is_ascii_digit() || c == '-'))
         .any(|token| {
@@ -183,9 +188,8 @@ fn no_day_level_date_appears_anywhere_in_an_aggregate() {
 #[test]
 fn an_unknown_schema_version_is_refused() {
     let future = "schema = 2\ninstall = \"7f3c9a1e\"\ngenerated = \"2026-09\"\n";
-    let month = Month::parse("2026-09").expect("valid month");
     assert!(matches!(
-        Aggregate::of([future].into_iter(), month),
+        Aggregate::of([future].into_iter()),
         Err(AggregateError::UnknownSchema { .. })
     ));
 }
@@ -193,8 +197,7 @@ fn an_unknown_schema_version_is_refused() {
 #[test]
 fn a_malformed_install_id_is_refused() {
     let bad = "schema = 1\ninstall = \"george-laptop\"\ngenerated = \"2026-09\"\n";
-    let month = Month::parse("2026-09").expect("valid month");
-    assert!(Aggregate::of([bad].into_iter(), month).is_err());
+    assert!(Aggregate::of([bad].into_iter()).is_err());
 }
 
 // ── the aggregate is never authoritative ────────────────────────────────────

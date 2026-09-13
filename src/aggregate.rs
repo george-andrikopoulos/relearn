@@ -172,9 +172,15 @@ impl Row {
 }
 
 /// Everything the aggregate publishes.
+///
+/// **No generation month is held here, because it is not a property of the
+/// data.** It is a property of the document a job publishes, so
+/// [`Aggregate::to_toml`] takes it — given on the command line, never clocked,
+/// like every other date this tool handles. The reader that consumes the rows
+/// without publishing anything (the poke, inside `lint`) then needs no date at
+/// all, rather than being handed an invented one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Aggregate {
-    generated: Month,
     rows: Vec<Row>,
     suppressed: usize,
     installs: usize,
@@ -187,10 +193,7 @@ impl Aggregate {
     /// because one install reporting the same rule ten times is the obvious way
     /// to fake a population, and a floor that counted reports would be no floor
     /// at all.
-    pub fn of<'a>(
-        reports: impl Iterator<Item = &'a str>,
-        generated: Month,
-    ) -> Result<Self, AggregateError> {
+    pub fn of<'a>(reports: impl Iterator<Item = &'a str>) -> Result<Self, AggregateError> {
         let mut seen: Heard = BTreeMap::new();
         let mut installs: BTreeSet<String> = BTreeSet::new();
 
@@ -244,12 +247,16 @@ impl Aggregate {
                 installs,
                 distribution,
                 controls: controls.into_iter().collect(),
-                latest: latest.unwrap_or(generated),
+                // A row exists only because at least `K_ANONYMITY_FLOOR`
+                // installs reported it, and every observation carries a month,
+                // so the fold above ran at least five times. No fallback date
+                // is needed and none is invented.
+                latest: latest
+                    .expect("a published row has at least one install, each with a month"),
             });
         }
 
         Ok(Aggregate {
-            generated,
             rows,
             suppressed,
             installs: installs.len(),
@@ -278,12 +285,17 @@ impl Aggregate {
         self.installs
     }
 
-    /// Render the document a scheduled job commits.
+    /// Render the document a scheduled job commits, covering `generated`.
+    ///
+    /// The month is taken here rather than held on the aggregate because it
+    /// describes the *document*, not the data: the same rows rendered next
+    /// month are the same rows. It is given on the command line, never read
+    /// from a clock.
     ///
     /// The confounds are written by this function with no condition attached,
     /// so there is no invocation of it that omits them.
     #[must_use]
-    pub fn to_toml(&self) -> String {
+    pub fn to_toml(&self, generated: Month) -> String {
         let mut out = String::new();
         for line in CONFOUNDS {
             for wrapped in wrap(line, 76) {
@@ -292,7 +304,7 @@ impl Aggregate {
             out.push_str("#\n");
         }
         let _ = writeln!(out, "schema     = {SCHEMA}");
-        let _ = writeln!(out, "generated  = \"{}\"", self.generated);
+        let _ = writeln!(out, "generated  = \"{}\"", generated);
         let _ = writeln!(out, "k_floor    = {K_ANONYMITY_FLOOR}");
         let _ = writeln!(out, "installs   = {}", self.installs);
         let _ = writeln!(
@@ -360,9 +372,8 @@ mod tests {
         let text = "schema = 1\ninstall = \"7f3c9a1e\"\ngenerated = \"2026-09\"\n\n\
                     [[observation]]\nrule = \"R:x\"\nrecurrences = \"7\"\n\
                     latest = \"2026-08\"\nstatus = \"active\"\n";
-        let month = Month::parse("2026-09").expect("valid month");
         assert_eq!(
-            Aggregate::of([text].into_iter(), month),
+            Aggregate::of([text].into_iter()),
             Err(AggregateError::UnknownBucket("7".to_owned()))
         );
     }

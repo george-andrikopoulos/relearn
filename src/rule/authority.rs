@@ -81,7 +81,24 @@ impl std::fmt::Display for Version {
 pub enum Authority {
     /// This install is the rule's home. The source of truth, and editable. The
     /// default, and what every rule written before this field existed is.
-    Local,
+    Local {
+        /// Which revision of this tag the document is, if its author has
+        /// numbered one.
+        ///
+        /// **The same field a cache carries, answering the same question**:
+        /// *which revision of this tag is this document?* A cache answers it
+        /// about a copy; a home answers it about the original. It lives inside
+        /// the authority rather than as a second field beside it because a
+        /// cached file would otherwise carry the number twice — once as the
+        /// revision it is, once as the revision it holds — and two spellings of
+        /// one fact is the drift this repository refuses everywhere else.
+        ///
+        /// `None` is a real state rather than a zero: a rule nobody has
+        /// published has no revision, which is every rule in this corpus.
+        /// Absent, no cache of it can ever be told it is stale, and the poke
+        /// says nothing rather than guessing at one.
+        version: Option<Version>,
+    },
     /// A fork taken deliberately: editable, and it remembers what it came from.
     Adopted {
         /// The upstream it was forked from.
@@ -122,6 +139,24 @@ pub enum AdoptError {
 }
 
 impl Authority {
+    /// This install's own rule, with no revision recorded — what every rule
+    /// file that says nothing about authority is, and what every rule in this
+    /// corpus is.
+    #[must_use]
+    pub fn local() -> Self {
+        Authority::Local { version: None }
+    }
+
+    /// This install's own rule at a stated revision: what a published rule in
+    /// an upstream corpus looks like, and the only thing a cache of it can be
+    /// compared against.
+    #[must_use]
+    pub fn local_at(version: Version) -> Self {
+        Authority::Local {
+            version: Some(version),
+        }
+    }
+
     /// A cache of an upstream rule.
     #[must_use]
     pub fn cached(from: SourceId, version: Version, pulled: Date) -> Self {
@@ -151,16 +186,22 @@ impl Authority {
     #[must_use]
     pub fn is_editable(&self) -> bool {
         match self {
-            Authority::Local | Authority::Adopted { .. } => true,
+            Authority::Local { .. } | Authority::Adopted { .. } => true,
             Authority::Cached { .. } => false,
         }
     }
 
-    /// The upstream revision this authority refers to, if any.
+    /// Which revision of the tag this document is, if one is recorded.
+    ///
+    /// One question for all three variants — *which revision is this?* — so
+    /// code comparing two documents of one tag never has to know what kind of
+    /// authority each carries. [`Authority::is_behind`] asks the **different**
+    /// question, and it is the one that must treat a home differently from a
+    /// copy.
     #[must_use]
     pub fn version(&self) -> Option<Version> {
         match self {
-            Authority::Local => None,
+            Authority::Local { version } => *version,
             Authority::Adopted { version, .. } | Authority::Cached { version, .. } => {
                 Some(*version)
             }
@@ -176,7 +217,18 @@ impl Authority {
     /// A `Local` rule is behind nothing — there is no upstream for it to trail.
     #[must_use]
     pub fn is_behind(&self, upstream: Version) -> bool {
-        self.version().is_some_and(|held| held < upstream)
+        // An exhaustive match rather than a read through `version()`, because
+        // the two questions genuinely diverge for a home: `version()` says
+        // which revision this document *is*, and a home at revision 3 facing a
+        // document claiming 4 is not behind — it is the source, and the other
+        // document is the stale one. Reading the revision through the other
+        // accessor would make a home trail its own caches.
+        match self {
+            Authority::Local { .. } => false,
+            Authority::Adopted { version, .. } | Authority::Cached { version, .. } => {
+                *version < upstream
+            }
+        }
     }
 
     /// Take a deliberate fork of a cached rule: the result is editable and
@@ -188,7 +240,7 @@ impl Authority {
     /// second fork that did not happen.
     pub fn adopt(&self, on: Date) -> Result<Authority, AdoptError> {
         match self {
-            Authority::Local => Err(AdoptError::AlreadyLocal),
+            Authority::Local { .. } => Err(AdoptError::AlreadyLocal),
             Authority::Adopted { from, version, .. } => Err(AdoptError::AlreadyAdopted {
                 from: from.as_str().to_owned(),
                 version: *version,
@@ -273,7 +325,7 @@ mod tests {
 
     #[test]
     fn only_a_cache_is_uneditable() {
-        assert!(Authority::Local.is_editable());
+        assert!(Authority::local().is_editable());
         assert!(
             Authority::adopted(
                 source(),
@@ -288,7 +340,7 @@ mod tests {
 
     #[test]
     fn a_local_authority_holds_no_version() {
-        assert_eq!(Authority::Local.version(), None);
+        assert_eq!(Authority::local().version(), None);
         assert_eq!(
             Authority::cached(source(), Version::new(9), date("2026-09-13")).version(),
             Some(Version::new(9))
@@ -316,7 +368,7 @@ mod tests {
     #[test]
     fn adopting_a_local_rule_is_refused() {
         assert_eq!(
-            Authority::Local.adopt(date("2026-09-14")),
+            Authority::local().adopt(date("2026-09-14")),
             Err(AdoptError::AlreadyLocal)
         );
     }

@@ -78,7 +78,7 @@ fn arb_authority() -> impl Strategy<Value = Authority> {
         )
     };
     prop_oneof![
-        Just(Authority::Local),
+        Just(Authority::local()),
         upstream().prop_map(|(from, version, pulled)| Authority::cached(from, version, pulled)),
         (upstream(), arb_date()).prop_map(|((from, version, pulled), adopted)| {
             Authority::adopted(from, version, pulled, adopted)
@@ -179,7 +179,7 @@ fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
                     Body::parse("body").expect("non-empty body"),
                     Vec::new(),
                     Vec::new(),
-                    Authority::Local,
+                    Authority::local(),
                     None,
                 ));
             }
@@ -223,7 +223,7 @@ fn arb_library_recurring() -> impl Strategy<Value = Library<Validated>> {
                 Body::parse("body").expect("non-empty body"),
                 recurrences,
                 Vec::new(),
-                Authority::Local,
+                Authority::local(),
                 None,
             ));
         }
@@ -274,7 +274,7 @@ fn arb_library() -> impl Strategy<Value = Library<Validated>> {
                 Body::parse("body").expect("non-empty body"),
                 Vec::new(),
                 Vec::new(),
-                Authority::Local,
+                Authority::local(),
                 None,
             ));
         }
@@ -329,7 +329,7 @@ fn arb_library_scoped() -> impl Strategy<Value = Library<Validated>> {
                     Body::parse("body").expect("non-empty body"),
                     Vec::new(),
                     applies_to,
-                    Authority::Local,
+                    Authority::local(),
                     None,
                 ));
             }
@@ -377,7 +377,7 @@ proptest! {
             Body::parse("body").expect("non-empty body"),
             Vec::new(),
             scopes.clone(),
-            Authority::Local,
+            Authority::local(),
             None,
         );
         let doc = to_document(&rule);
@@ -456,7 +456,7 @@ proptest! {
                     r.body().clone(),
                     r.recurrences().to_vec(),
                     Vec::new(),
-                    Authority::Local,
+                    Authority::local(),
                     None,
                 ))
                 .collect(),
@@ -492,7 +492,7 @@ proptest! {
             rule.body().clone(),
             rule.recurrences().to_vec(),
             rule.applies_to().to_vec(),
-            Authority::Local,
+            Authority::local(),
             None,
         );
         let without = Library::from_rules(vec![localised]).validate().expect("one tag validates");

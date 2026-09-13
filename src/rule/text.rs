@@ -39,6 +39,24 @@ impl ErrorClass {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// The key two rules are considered to describe the *same* class by.
+    ///
+    /// One definition, because there are now two readers — the linter's
+    /// overlapping-scope check and the poke's reactive trigger — and two
+    /// spellings of "the same class" would eventually disagree about a rule
+    /// that one of them flags and the other does not.
+    ///
+    /// **It is a literal, case-folded comparison, and that is weak on
+    /// purpose.** Two rules can describe one class in different words and
+    /// never meet here; nothing short of judgement closes that, and a fuzzy
+    /// key dressed up as certainty would be worse than an honest miss. The
+    /// failure is therefore under-matching — a poke that does not fire, never
+    /// one that fires about an unrelated rule.
+    #[must_use]
+    pub fn match_key(&self) -> String {
+        self.0.to_lowercase()
+    }
 }
 
 /// The triggering incident: what happened, and when, that produced the rule.

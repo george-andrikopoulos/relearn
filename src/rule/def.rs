@@ -357,7 +357,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }
@@ -385,7 +385,7 @@ mod tests {
                 .iter()
                 .map(|n| ScopeTag::parse(*n).expect("valid scope"))
                 .collect(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }

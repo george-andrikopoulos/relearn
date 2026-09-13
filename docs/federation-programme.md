@@ -269,7 +269,7 @@ the k-floor and the confound sentence printing beside the numbers.
 
 ---
 
-## PHASE C2 — the poke, inside `lint`
+## PHASE C2 — the poke, inside `lint` — **SHIPPED 2026-09-13**
 
 **Adds:** the four triggers from §6, with the reactive one on by default and broadcast capped.
 

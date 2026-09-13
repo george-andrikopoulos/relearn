@@ -49,7 +49,17 @@ It is the reference implementation of the error loop described in *Tuning the St
   takes an `EditableRule` witness whose only constructor refuses a cache, so a write path added
   later cannot reach the filesystem without asking. Editing a cache is a silent fork — the edit
   succeeds and nothing records the divergence. `adopt` is the loud one, and it remembers what it
-  forked from. `Version` is totally ordered so "is this cache stale?" always has an answer.
+  forked from. `Version` is totally ordered so "is this cache stale?" always has an answer — and
+  the other half of that question is `Authority::Local`'s optional revision, which is how a
+  published rule says which revision it *is*. One field, one meaning, so a cached file never
+  carries the number twice; absent, no cache of it can be told it is stale and nothing guesses.
+- **A poke is news, never a verdict.** The federation's signal is surfaced inside `lint`, carries
+  no severity, and is printed after the exit code has been decided — a signal from strangers that
+  could fail CI would have made federation required. One trigger is reactive (a rule fired *here*,
+  and upstream covers that class) and is never capped; the other three are broadcast, capped at a
+  number the operator passes, and two of them are off until named. No clone, no pokes, and no
+  warning about their absence. `build` cannot reach the module at all, asserted by reading the
+  emitters' source: `lint` reports and `build` emits.
 - **A mandate carries its approval, and is not evidence.** `Origin::Mandated(Approval)` makes a
   mandate with no signer and an approval on a mined rule both unconstructible, and mandated rules
   are held out of the recurrence statistics entirely — they were never mined, and they are not
@@ -86,6 +96,7 @@ bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `
 relearn build --targets claude,cursor,copilot,agents   # compile rules to all targets
 relearn check                                          # validate library, no output written
 relearn list --home global                             # inspect
+relearn lint --upstream <clone>                        # findings, then the federation's pokes
 ```
 
 ## Definition of done — runs on EVERY feature or fix
@@ -143,6 +154,7 @@ Before writing an incident, ask: **which repository's detector covers the file I
 
 - `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and CI runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
 - `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; CI verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
+- `docs/session-start-poke.md` — the `SessionStart` hook snippet for the poke, **deliberately not installed**: anything under `~/.claude` edits the layer loaded into every session on the machine, and no gate in this repository could see it.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.
 - `FEATURES.md` — the regression ledger; every feature names the artifact that enforces it.
 - `TODO.md` — open work, including every `NOTHING YET — exposed` gap from FEATURES.md.

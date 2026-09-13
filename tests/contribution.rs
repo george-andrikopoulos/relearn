@@ -57,7 +57,7 @@ fn contributable() -> Rule {
     rule_with(
         Home::global(),
         Origin::Mined,
-        Authority::Local,
+        Authority::local(),
         Some(PUBLISHED),
         Vec::new(),
     )
@@ -99,7 +99,7 @@ fn recurrence_incidents_never_travel() {
     let rule = rule_with(
         Home::global(),
         Origin::Mined,
-        Authority::Local,
+        Authority::local(),
         Some(PUBLISHED),
         vec![Recurrence::new(
             Date::parse("2026-09-05").expect("valid date"),
@@ -127,7 +127,7 @@ fn a_withheld_home_cannot_be_contributed() {
         let rule = rule_with(
             home,
             Origin::Mined,
-            Authority::Local,
+            Authority::local(),
             Some(PUBLISHED),
             Vec::new(),
         );
@@ -146,7 +146,7 @@ fn a_rule_with_no_published_incident_cannot_be_contributed() {
     let rule = rule_with(
         Home::global(),
         Origin::Mined,
-        Authority::Local,
+        Authority::local(),
         None,
         Vec::new(),
     );
@@ -206,7 +206,7 @@ fn a_mandated_rule_cannot_be_contributed() {
             Date::parse("2026-07-11").expect("valid date"),
             ControlRef::parse("AC-6(9)").expect("non-empty control"),
         )),
-        Authority::Local,
+        Authority::local(),
         Some(PUBLISHED),
         Vec::new(),
     );
@@ -230,6 +230,6 @@ fn a_contribution_parses_as_a_rule_whose_incident_is_the_published_one() {
     let reparsed = relearn::rule::parse_document(&document).expect("a contribution is a rule");
     assert_eq!(reparsed.incident().as_str(), PUBLISHED);
     assert_eq!(reparsed.tag(), rule.tag());
-    assert_eq!(reparsed.authority(), &Authority::Local);
+    assert_eq!(reparsed.authority(), &Authority::local());
     assert!(reparsed.recurrences().is_empty());
 }

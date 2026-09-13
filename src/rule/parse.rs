@@ -53,6 +53,21 @@ pub enum ParseError {
     /// `authority.version` was outside the range a revision number can hold.
     #[error("`authority.version` is {0}, outside the range of a revision number")]
     VersionOutOfRange(i64),
+    /// A field was present that the authority's `kind` has no meaning for —
+    /// a copy's provenance (`from`, `pulled`, `adopted`) under `kind =
+    /// "local"`.
+    ///
+    /// Refused rather than ignored. A field the parser drops reads back, to
+    /// the next person, as a fact it accepted: a file saying it is this
+    /// install's own rule *and* naming where it was pulled from has said two
+    /// contradictory things, and silence picks one of them without saying so.
+    #[error("`{context}` has no field `{field}` — that belongs to a cached or adopted rule")]
+    UnexpectedField {
+        /// Which authority kind was being read.
+        context: &'static str,
+        /// The field that has no meaning there.
+        field: &'static str,
+    },
     /// The `status` table carried an unrecognised `kind`.
     #[error("`status` has unknown kind `{0}` (expected active | graduated | attic)")]
     UnknownStatusKind(String),
@@ -254,7 +269,7 @@ impl RawRule {
         // this install's own, and a cache must say it is one.
         let authority = match self.authority {
             Some(raw) => raw.into_authority()?,
-            None => Authority::Local,
+            None => Authority::local(),
         };
         // Authored only when a rule is being prepared for contribution, which is
         // almost never — and never derived from `incident`, which is the whole
@@ -300,10 +315,43 @@ fn parse_scopes(raw: Vec<String>) -> Result<Vec<ScopeTag>, ParseError> {
     Ok(scopes)
 }
 
+/// The range check the wide parse exists for: a revision is a `u32`, and a file
+/// holding `-1` or `5_000_000_000` must say so rather than read as a syntax
+/// error (`[R:parse-wide-then-range-check]`).
+///
+/// One function, read by every authority kind, so a revision cannot be
+/// range-checked in one arm and taken on trust in another.
+fn revision(version: i64) -> Result<Version, ParseError> {
+    u32::try_from(version)
+        .map(Version::new)
+        .map_err(|_| ParseError::VersionOutOfRange(version))
+}
+
 impl RawAuthority {
     fn into_authority(self) -> Result<Authority, ParseError> {
         match self.kind.as_str() {
-            "local" => Ok(Authority::Local),
+            "local" => {
+                // A home may state which revision it is, and nothing else: a
+                // source, a pull date and an adoption date are a *copy's*
+                // provenance. Refused rather than ignored, for the reason
+                // `UnexpectedField` records.
+                for (field, present) in [
+                    ("from", self.from.is_some()),
+                    ("pulled", self.pulled.is_some()),
+                    ("adopted", self.adopted.is_some()),
+                ] {
+                    if present {
+                        return Err(ParseError::UnexpectedField {
+                            context: "authority local",
+                            field,
+                        });
+                    }
+                }
+                match self.version {
+                    None => Ok(Authority::local()),
+                    Some(version) => Ok(Authority::local_at(revision(version)?)),
+                }
+            }
             "cached" => {
                 let (from, version, pulled) = self.upstream("authority cached")?;
                 Ok(Authority::cached(from, version, pulled))
@@ -343,12 +391,7 @@ impl RawAuthority {
             context,
             field: "version",
         })?;
-        // The range check the wide parse exists for: a revision is a `u32`, and
-        // a file holding -1 or 5_000_000_000 must say so rather than read as a
-        // syntax error.
-        let version = u32::try_from(version)
-            .map(Version::new)
-            .map_err(|_| ParseError::VersionOutOfRange(version))?;
+        let version = revision(version)?;
         let pulled = self.pulled.as_ref().ok_or(ParseError::MissingField {
             context,
             field: "pulled",
@@ -855,7 +898,7 @@ Parse into a type wide enough to represent the out-of-range value.
     #[test]
     fn a_rule_without_an_authority_is_local_and_editable() {
         let rule = parse_document(DOC).expect("valid document parses");
-        assert_eq!(rule.authority(), &Authority::Local);
+        assert_eq!(rule.authority(), &Authority::local());
         assert!(rule.is_editable());
     }
 
@@ -864,6 +907,52 @@ Parse into a type wide enough to represent the out-of-range value.
             "incident = \"i\"\n",
             &format!("incident = \"i\"\nauthority = {table}\n"),
         )
+    }
+
+    /// A home may state which revision it is, and the parser **keeps** it. It
+    /// used to read the field and throw it away, which is the shape of defect
+    /// `UnexpectedField` exists for: a number written down, accepted, and
+    /// silently absent from everything downstream.
+    #[test]
+    fn a_local_authority_keeps_its_revision() {
+        let doc = with_authority("{ kind = \"local\", version = 4 }");
+        let rule = parse_document(&doc).expect("a numbered local authority parses");
+        assert_eq!(rule.authority(), &Authority::local_at(Version::new(4)));
+        assert!(rule.is_editable(), "a home is still this install's own");
+    }
+
+    /// A copy's provenance under `kind = "local"` is two contradictory
+    /// statements in one table. Refused rather than ignored.
+    #[test]
+    fn a_local_authority_carrying_a_copys_provenance_is_refused() {
+        for field in [
+            "from = \"upstream\"",
+            "pulled = \"2026-09-10\"",
+            "adopted = \"2026-09-14\"",
+        ] {
+            let doc = with_authority(&format!("{{ kind = \"local\", {field} }}"));
+            assert!(
+                matches!(
+                    parse_document(&doc),
+                    Err(ParseError::UnexpectedField {
+                        context: "authority local",
+                        ..
+                    })
+                ),
+                "a local authority accepted {field}"
+            );
+        }
+    }
+
+    /// The wide parse reaches the local arm too, through the one range check
+    /// every kind reads — never a second copy that could be forgotten.
+    #[test]
+    fn a_local_revision_out_of_range_says_so() {
+        let doc = with_authority("{ kind = \"local\", version = -1 }");
+        assert!(matches!(
+            parse_document(&doc),
+            Err(ParseError::VersionOutOfRange(-1))
+        ));
     }
 
     #[test]

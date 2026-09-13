@@ -85,6 +85,15 @@ relearn aggregate --clone ../aggregate --generated 2026-09 --confirm
 # dangling references). Writes nothing; non-zero exit if any are found.
 relearn lint --rules ./rules
 
+# The same, plus the federation's pokes read out of a clone of an aggregate
+# repository: a rule that fired here and is already covered upstream (on), a
+# cache behind its upstream revision (on), a contributed rule serving your
+# audience (off), a rule many installs report and you do not hold (off).
+# Pokes carry no severity and never change the exit code. Without --upstream
+# there are none, and nothing is said about their absence.
+relearn lint --rules ./rules --upstream ../aggregate
+relearn lint --rules ./rules --upstream ../aggregate --poke high-recurrence --poke-cap 5
+
 # Verify the generated files under --out match what build would write now.
 # Reads only; non-zero exit if any file is missing, hand-edited, or stale.
 # Use it in CI to keep the committed generated tree in sync with the rules.

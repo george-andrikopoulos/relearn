@@ -95,7 +95,7 @@ mod tests {
             Body::parse(body).expect("non-empty body"),
             Vec::new(),
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }
@@ -178,7 +178,7 @@ mod tests {
             Body::parse(body).expect("non-empty body"),
             Vec::new(),
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }

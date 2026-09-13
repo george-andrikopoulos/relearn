@@ -40,6 +40,7 @@ use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
 use crate::lint;
+use crate::poke::{self, BroadcastCap, Reach, Trigger, UnknownTrigger};
 use crate::report::{InstallId, InstallIdError, K_ANONYMITY_FLOOR, Month, MonthError, Report};
 use crate::rule::{
     AdoptError, CachedIsNotEditable, Date, DateError, EditableRule, RuleTag, RuleTagError,
@@ -221,6 +222,11 @@ enum Command {
     },
     /// Report advisory lint findings (overlapping scope, home-slug collisions,
     /// dangling references). Writes nothing; exits non-zero if any are found.
+    ///
+    /// With `--upstream`, also prints the federation's **pokes** — what the
+    /// corpus knows that this install might want to. A poke has no severity and
+    /// never changes the exit code: it is news from elsewhere, and a signal
+    /// that can fail a run has made federation required.
     Lint {
         /// Directory of `*.md` rule files.
         #[arg(long, default_value = "rules")]
@@ -229,6 +235,23 @@ enum Command {
         /// printed — they are made non-fatal, never hidden.
         #[arg(long, value_enum, default_value_t = DenyLevel::Warning)]
         deny: DenyLevel,
+        /// Path to a clone of the aggregate repository, to be poked from:
+        /// `rules/*.md` is the upstream corpus, `reports/*.toml` the
+        /// recurrence signal. **Without it there are no pokes at all**, and no
+        /// warning about their absence — a solo install is the product, and a
+        /// nag is a requirement with better manners.
+        #[arg(long)]
+        upstream: Option<PathBuf>,
+        /// Which poke triggers to run; repeatable. Naming any **replaces** the
+        /// default set (`class-covered`, `cache-behind`) rather than adding to
+        /// it, so one flag says exactly what will fire.
+        #[arg(long)]
+        poke: Vec<String>,
+        /// How many broadcast pokes one run may print. Reactive pokes are not
+        /// capped: they follow evidence recorded here. `0` turns broadcast off
+        /// entirely.
+        #[arg(long)]
+        poke_cap: Option<usize>,
     },
     /// Verify that the generated files under `--out` match what `build` would
     /// write from the current rules. Reads only, writes nothing; exits non-zero
@@ -481,6 +504,22 @@ pub enum CliError {
         /// Every scope the library does declare, sorted and deduplicated.
         known: Vec<String>,
     },
+    /// `--poke` or `--poke-cap` was given without `--upstream`.
+    ///
+    /// Refused rather than ignored. There is nothing to poke from without a
+    /// clone, so the flag would do nothing — and a flag that silently does
+    /// nothing reads, to whoever wrote the command, as a feature that ran.
+    #[error(
+        "--poke and --poke-cap need --upstream: a poke is read out of a clone of the aggregate \
+         repository, and there is nothing to read without one"
+    )]
+    PokeWithoutUpstream,
+    /// `--poke` named a trigger that does not exist.
+    ///
+    /// Not `#[from]`, for the same reason [`CliError::Scope`] is not: the
+    /// derived source would print the same sentence twice.
+    #[error("--poke: {0}")]
+    PokeTrigger(UnknownTrigger),
 }
 
 /// Render the declared-scope list for [`CliError::UnknownScope`].
@@ -555,7 +594,13 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             generated,
             confirm,
         } => aggregate(&clone, &generated, confirm),
-        Command::Lint { rules, deny } => lint_rules(&rules, deny),
+        Command::Lint {
+            rules,
+            deny,
+            upstream,
+            poke,
+            poke_cap,
+        } => lint_rules(&rules, deny, upstream.as_deref(), &poke, poke_cap),
         Command::Verify {
             rules,
             out,
@@ -911,6 +956,46 @@ fn report(
     Ok(ExitCode::SUCCESS)
 }
 
+/// Every report document in a clone's `reports/` directory, in path order.
+///
+/// **One reader, two callers** — the `aggregate` recompute and the poke — so
+/// the two can never disagree about which files count or what a missing
+/// directory means. A clone with no `reports/` yet is an empty list rather than
+/// an error: an aggregate nobody has reported into is a real state.
+///
+/// Sorted, so the same reports always produce the same document: a job that
+/// committed a different byte order every run would make every recompute look
+/// like a change.
+fn read_reports(reports_dir: &Path) -> Result<Vec<String>, CliError> {
+    let mut documents: Vec<String> = Vec::new();
+    match std::fs::read_dir(reports_dir) {
+        Ok(entries) => {
+            let mut paths: Vec<PathBuf> = entries
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| p.extension().is_some_and(|e| e == "toml"))
+                .collect();
+            paths.sort();
+            for path in paths {
+                documents.push(std::fs::read_to_string(&path).map_err(|source| {
+                    CliError::ContributionWrite {
+                        path: path.clone(), // allow:clone: the error owns the path for its diagnostic on the failure path
+                        source,
+                    }
+                })?);
+            }
+        }
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(CliError::ContributionWrite {
+                path: reports_dir.to_path_buf(),
+                source,
+            });
+        }
+    }
+    Ok(documents)
+}
+
 /// The pseudonym already in the clone, if there is one.
 ///
 /// A report file's **name** is the id, which is why it can be recovered without
@@ -965,41 +1050,11 @@ fn existing_install_id(reports_dir: &Path) -> Result<Option<InstallId>, CliError
 /// carries its confounds, which is exactly when they matter most.
 fn aggregate(clone: &Path, generated: &str, confirm: bool) -> Result<ExitCode, CliError> {
     let generated = Month::parse(generated).map_err(CliError::ReportMonth)?;
-    let reports_dir = clone.join("reports");
+    let documents = read_reports(&clone.join("reports"))?;
 
-    let mut documents: Vec<String> = Vec::new();
-    match std::fs::read_dir(&reports_dir) {
-        Ok(entries) => {
-            let mut paths: Vec<PathBuf> = entries
-                .flatten()
-                .map(|e| e.path())
-                .filter(|p| p.extension().is_some_and(|e| e == "toml"))
-                .collect();
-            // Sorted, so the same reports always produce the same document: a
-            // job that committed a different byte order every run would make
-            // every recompute look like a change.
-            paths.sort();
-            for path in paths {
-                documents.push(std::fs::read_to_string(&path).map_err(|source| {
-                    CliError::ContributionWrite {
-                        path: path.clone(), // allow:clone: the error owns the path for its diagnostic on the failure path
-                        source,
-                    }
-                })?);
-            }
-        }
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
-        Err(source) => {
-            return Err(CliError::ContributionWrite {
-                path: reports_dir,
-                source,
-            });
-        }
-    }
-
-    let aggregate = Aggregate::of(documents.iter().map(String::as_str), generated)
-        .map_err(CliError::Aggregate)?;
-    let document = aggregate.to_toml();
+    let aggregate =
+        Aggregate::of(documents.iter().map(String::as_str)).map_err(CliError::Aggregate)?;
+    let document = aggregate.to_toml(generated);
     println!("{document}");
     println!(
         "{} rule(s) published from {} install(s); {} withheld below the floor of {}.",
@@ -1057,7 +1112,35 @@ fn list(rules: &Path, home: Option<&str>, scope: &[String]) -> Result<(), CliErr
 /// `lint`: load, validate, and report advisory findings. Writes nothing; exits
 /// non-zero if any finding is reported so CI can catch a regression, but never
 /// treats a finding as an error (findings are input to a human decision).
-fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
+fn lint_rules(
+    rules: &Path,
+    deny: DenyLevel,
+    upstream: Option<&Path>,
+    triggers: &[String],
+    cap: Option<usize>,
+) -> Result<ExitCode, CliError> {
+    // Both argument checks happen **before** any work, so a mistyped flag
+    // fails on the flag rather than after a full lint has printed — the same
+    // reason `build` rejects an unknown scope before it writes anything.
+    //
+    // A poke flag with no clone to read is a flag that does nothing, and a
+    // silently inert flag reads as a feature that ran. Refused rather than
+    // ignored, for the same reason a dropped field is a parse error.
+    if upstream.is_none() && (!triggers.is_empty() || cap.is_some()) {
+        return Err(CliError::PokeWithoutUpstream);
+    }
+    let enabled: Vec<Trigger> = if triggers.is_empty() {
+        Trigger::defaults()
+    } else {
+        // Naming any trigger **replaces** the default set rather than adding to
+        // it, so one flag says exactly what will fire.
+        triggers
+            .iter()
+            .map(|t| Trigger::parse(t).map_err(CliError::PokeTrigger))
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    let cap = cap.map_or(BroadcastCap::DEFAULT, BroadcastCap::new);
+
     let validated = fsio::load_rules(rules)?.validate()?;
     let findings = lint::lint(&validated);
     let t = lint::tally(&validated);
@@ -1081,15 +1164,13 @@ fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
             )
         }
     );
-    if findings.is_empty() {
-        println!("ok: no lint findings");
-        println!("{summary}");
-        return Ok(ExitCode::SUCCESS);
-    }
     // Every finding is printed, whatever the threshold. `--deny` decides what
     // is *fatal*, never what is visible: a finding suppressed from the output
     // would be a check whose verdict never reaches the reader, which is the
     // failure `[R:verdict-survives-the-channel]` names.
+    if findings.is_empty() {
+        println!("ok: no lint findings");
+    }
     for finding in &findings {
         println!("{}: {finding}", finding.severity().label());
     }
@@ -1102,19 +1183,85 @@ fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
     // The two-number summary: the recurrence count alone is gameable through
     // under-reporting, so it is never shown without its counter (P5).
     println!("{summary}");
-    // The threshold is named in the summary so a reader of a green log can see
-    // *why* a printed warning did not fail the run, rather than having to know
-    // the flag's default to interpret the outcome.
-    println!(
-        "{} finding(s), {actionable} fatal at --deny {}",
-        findings.len(),
-        deny.threshold().label()
-    );
+    if !findings.is_empty() {
+        // The threshold is named in the summary so a reader of a green log can
+        // see *why* a printed warning did not fail the run, rather than having
+        // to know the flag's default to interpret the outcome.
+        println!(
+            "{} finding(s), {actionable} fatal at --deny {}",
+            findings.len(),
+            deny.threshold().label()
+        );
+    }
+
+    // **After the verdict, and unable to change it.** The exit code below is
+    // computed from findings alone; nothing a clone contains can reach it.
+    if let Some(clone) = upstream {
+        print_pokes(clone, &validated, &enabled, cap)?;
+    }
+
     if actionable > 0 {
         Ok(ExitCode::FAILURE)
     } else {
         Ok(ExitCode::SUCCESS)
     }
+}
+
+/// Read the clone, work out what the corpus has to say, and print it.
+///
+/// **The only place `lint` reads anything but its own rules.** Failures here
+/// are failures of the *read* — a clone that is not one, a rule file upstream
+/// that does not parse, a report that does not — and they are errors rather
+/// than warnings for the reason every read in this tool is: a poke silently
+/// missing because half the clone could not be parsed is worse than no poke.
+fn print_pokes(
+    clone: &Path,
+    local: &Library<Validated>,
+    enabled: &[Trigger],
+    cap: BroadcastCap,
+) -> Result<(), CliError> {
+    let upstream = load_upstream_rules(&clone.join("rules"))?;
+    // Recomputed from the reports rather than read from a committed
+    // `aggregate.toml`: nothing verifies that a published aggregate matches the
+    // reports beside it, and the recompute needs no second parser to drift.
+    let reports = read_reports(&clone.join("reports"))?;
+    let aggregate =
+        Aggregate::of(reports.iter().map(String::as_str)).map_err(CliError::Aggregate)?;
+
+    let pokes = poke::pokes(local, &upstream, &aggregate, enabled, cap);
+    if pokes.is_empty() {
+        return Ok(());
+    }
+    for p in pokes.shown() {
+        let reach = match p.reach() {
+            Reach::Reactive => "reactive",
+            Reach::Broadcast => "broadcast",
+        };
+        println!("poke [{reach}]: {p}");
+    }
+    if pokes.withheld() > 0 {
+        // The cap publishes what it held back, for the same reason the
+        // aggregate publishes its suppressed count: a throttled run must not
+        // read as a quiet one.
+        println!(
+            "{} more broadcast poke(s) withheld by --poke-cap {}",
+            pokes.withheld(),
+            pokes.cap().get()
+        );
+    }
+    println!("Pokes are news, not findings: none of them changed the exit code above.");
+    Ok(())
+}
+
+/// The upstream corpus in a clone. A clone with no `rules/` yet is an **empty**
+/// corpus rather than an error — an aggregate repository nobody has contributed
+/// to is a real state, and the same forgiveness `aggregate` already shows a
+/// missing `reports/`.
+fn load_upstream_rules(dir: &Path) -> Result<Library<Validated>, CliError> {
+    if !dir.exists() {
+        return Ok(Library::new().validate()?);
+    }
+    Ok(fsio::load_rules(dir)?.validate()?)
 }
 
 /// Print an error and its source chain to stderr.

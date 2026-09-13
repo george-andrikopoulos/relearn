@@ -22,7 +22,7 @@ fn rule(tag: &str, home: Home, error_class: &str, body: &str) -> Rule {
         Body::parse(body).expect("non-empty body"),
         Vec::new(),
         Vec::new(),
-        Authority::Local,
+        Authority::local(),
         None,
     )
 }
@@ -51,7 +51,7 @@ fn atticked(tag: &str) -> Rule {
         Body::parse("Body.").expect("non-empty body"),
         Vec::new(),
         Vec::new(),
-        Authority::Local,
+        Authority::local(),
         None,
     )
 }
@@ -235,7 +235,7 @@ fn a_tag_cited_twice_in_the_body_yields_one_finding() {
         Body::parse("This builds on R:ghost, and again on R:ghost.").expect("non-empty body"),
         Vec::new(),
         Vec::new(),
-        Authority::Local,
+        Authority::local(),
         None,
     )]);
     let dangling: Vec<_> = lint(&lib)
@@ -332,7 +332,7 @@ fn rule_with_incident(tag: &str, incident: &str, body: &str) -> Rule {
         Body::parse(body).expect("non-empty body"),
         Vec::new(),
         Vec::new(),
-        Authority::Local,
+        Authority::local(),
         None,
     )
 }
@@ -394,7 +394,7 @@ fn recurred(tag: &str, status: Status, dates: &[&str]) -> Rule {
             })
             .collect(),
         Vec::new(),
-        Authority::Local,
+        Authority::local(),
         None,
     )
 }
@@ -509,7 +509,7 @@ fn with_origin(tag: &str, origin: Origin, status: Status, dates: &[&str]) -> Rul
             })
             .collect(),
         Vec::new(),
-        Authority::Local,
+        Authority::local(),
         None,
     )
 }
@@ -530,10 +530,21 @@ fn a_recurrence_after_graduation_is_an_error() {
         graduated_on("2026-07-21"),
         &["2026-08-24"],
     )]);
-    let finding = lint(&lib)
+    // **Exactly one**, and the count is the assertion. From 2026-08-16 until
+    // 2026-09-13 `lint` ran this check twice and pushed both results, so every
+    // such finding printed twice — invisible, because this corpus holds no
+    // graduated rule that has recurred and every test here asked only whether
+    // the finding was *present*. A regression pin, which is what a unit test is
+    // for (`rust-typedd`'s third layer).
+    let raised: Vec<Finding> = lint(&lib)
         .into_iter()
-        .find(|f| matches!(f, Finding::RecurrenceAfterGraduation { .. }))
-        .expect("the finding is raised");
+        .filter(|f| matches!(f, Finding::RecurrenceAfterGraduation { .. }))
+        .collect();
+    assert_eq!(raised.len(), 1, "{raised:?}");
+    let finding = raised
+        .into_iter()
+        .next()
+        .expect("exactly one, just counted");
     assert_eq!(finding.severity(), Severity::Error);
     match finding {
         Finding::RecurrenceAfterGraduation {

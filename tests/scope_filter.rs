@@ -48,7 +48,7 @@ fn rule(tag: &str, home: Home, applies_to: &[&str]) -> Rule {
         Body::parse("The body.").expect("non-empty body"),
         Vec::new(),
         scopes(applies_to),
-        Authority::Local,
+        Authority::local(),
         None,
     )
 }

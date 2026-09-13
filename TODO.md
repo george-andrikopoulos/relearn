@@ -322,6 +322,9 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
 wrong named in advance. It does not restate the design; `docs/federated-relearn.md` is the source
 and the programme is wrong where the two disagree.
 
+- [x] **Every phase A1 → C2 has shipped**, one per session, each with its own section below.
+      What the programme sequences is done; what it does not settle is the question it
+      says to answer *before* B1 and which is still open — see the item below.
 - [x] **A1 — `applies_to`: home is not scope.** Shipped 2026-09-13 (`3798521`); see below.
 - [x] **Phase 0 — repair the design document (no code). Done 2026-09-13.**
   - [x] **0.1** The config sentence in §2 is gone: an invocation names its audience on the command
@@ -344,6 +347,76 @@ and the programme is wrong where the two disagree.
         them: that exposure stands and is the real lesson of the item.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
+
+## Phase C2 — the poke, inside `lint` (shipped 2026-09-13)
+
+§6's four triggers, the reactive one uncapped and on, broadcast capped at a number the
+operator passes. Emission unchanged for all 52 rules (`verify`: 63 generated files up to
+date) — no emitter reads the poke, and a test reads their source to keep it so.
+
+- [x] The default table is `Trigger::on_by_default`, one exhaustive match and nowhere
+      else, asserted with data present for **all four** triggers so the two that stay
+      quiet are making a decision rather than finding nothing.
+- [x] The cap reaches broadcast only, because `Reach` is a property of the trigger rather
+      than a `bool` where the cap is applied — and withheld pokes publish their count.
+- [x] **A poke can never change a verdict.** No severity, printed after the exit code is
+      decided, asserted through the real binary twice (with and without a clone) and in
+      both directions (a failing lint still fails when poked).
+- [x] `lint` reports and `build` emits: a source-level scan, the same shape as the
+      aggregate's.
+- [x] No `SessionStart` hook installed. The snippet is `docs/session-start-poke.md` and
+      stays there.
+- [x] The k-floor reaches the poke by construction — the population trigger reads the
+      aggregate's rows, so there is no second policy to keep in step.
+- [x] The one model change the phase forced: `Authority::Local { version: Option<Version> }`,
+      so an upstream rule can say which revision it is. Same field as a cache's, so a
+      cached file never carries the number twice.
+- [x] **Found while building, fixed and pinned:** `lint` had called
+      `recurrence_after_graduation` twice since 2026-08-16 and pushed both results, so
+      every such finding printed twice. Invisible — this corpus holds no graduated rule
+      that has recurred, and every test asked only whether the finding was *present*. The
+      pin asserts the count, and was probed both ways.
+- [x] **Also found:** the parser read `authority.version` for `kind = "local"` and threw
+      it away. A copy's provenance under a local authority is now `UnexpectedField`
+      rather than a silent drop.
+
+Carried, not decided here:
+
+- [ ] **"New to you" means "absent here", and nothing else.** There is no record of what
+      an install has already been shown, because keeping one would be the per-machine
+      state invariant 3 forbids — so a contribution poke dismissed today returns
+      tomorrow. It is the honest reading and it is also why that trigger is off by
+      default; whether a *dismissal* is worth per-clone state (in the clone, as with the
+      pseudonym) is a real question this phase did not open.
+- [ ] **An install's audience is whatever its own corpus declares, so an install that
+      declares no scope matches every upstream rule.** `Rule::serves` reads an empty
+      audience as "no filter", which is A1's safety default doing exactly what it should
+      — and it means `--poke contributed` on an unscoped corpus is maximally loud. Loud
+      rather than wrong, capped, and off by default. A `--scope` flag on `lint` would
+      narrow it and was not added: it is a second way to say what an install is.
+- [ ] **The reactive trigger matches error-class text literally** (case-folded), through
+      the one `ErrorClass::match_key` the linter also reads. Two rules describing one
+      class in different words never meet. Nothing short of judgement closes that, and a
+      fuzzy key dressed as certainty would be worse; the failure is under-matching, never
+      a poke about an unrelated rule.
+- [ ] **`contribute` neither requires nor bumps a revision.** A rule contributed today
+      publishes with no `version`, so no cache of it can ever be told it is stale — the
+      stale-cache trigger is real and has nothing to read. Closing it is a new refusal in
+      B2's one constructor, which is a change to a shipped phase. **George's call.**
+- [ ] **No rule in this corpus is a cache, and none is numbered**, so no trigger can fire
+      against this repository's own library. Every behavioural test is synthetic, plus a
+      hand-built clone run against the real 52 rules. The first real signal needs the
+      second install — the question the programme says to answer before B1.
+- [ ] **The cap's default of 3 is still a judgement**, exposed as a flag and published in
+      `BroadcastCap::DEFAULT`, but a number somebody chose. §6 asked for it to be
+      settable rather than for a particular value; there is no config file to hold one
+      and there must not be, so a flag with a default is as far as this goes.
+- [ ] **Nothing invokes `lint --upstream`.** FEATURES claims a command, and CI runs
+      `lint` without a clone because there is no corpus to clone. The invocation half of
+      that row is honestly absent, not quietly assumed.
+- [ ] **Two stray tracked files, `src/cli.rs.tmp` and `src/fsio.rs.tmp`**, noticed while
+      working and left alone: they are committed detritus, not C2's business, and
+      deleting tracked files is not something to do in passing.
 
 ## Phase C1 — the aggregate (shipped 2026-09-13)
 

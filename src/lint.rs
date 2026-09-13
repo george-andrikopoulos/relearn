@@ -202,7 +202,6 @@ pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
     findings.extend(reference_checks(library));
     findings.extend(unheld_recurrences(library));
     findings.extend(recurrence_after_graduation(library));
-    findings.extend(recurrence_after_graduation(library));
     // Most-severe first; a stable sort keeps each check's own deterministic
     // order within a severity.
     findings.sort_by_key(|finding| std::cmp::Reverse(finding.severity()));
@@ -213,7 +212,7 @@ pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
 fn overlapping_scope(library: &Library<Validated>) -> Vec<Finding> {
     let mut by_class: BTreeMap<String, (String, Vec<RuleTag>)> = BTreeMap::new();
     for rule in library.rules() {
-        let key = rule.error_class().as_str().to_lowercase();
+        let key = rule.error_class().match_key();
         let entry = by_class
             .entry(key)
             .or_insert_with(|| (rule.error_class().as_str().to_owned(), Vec::new()));

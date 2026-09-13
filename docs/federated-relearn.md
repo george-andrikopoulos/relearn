@@ -306,6 +306,14 @@ row *"is useful only while it embarrasses someone"* — twenty of them and reade
 the column. A poke that fires weekly trains people to dismiss the one that mattered. Cap the
 broadcast pokes per run and make the cap a number in the config, not a judgement in the code.
 
+*Amended in implementation, 2026-09-13 (C2).* **"A number in the config" is a flag**, because
+Phase 0 refused a configuration file outright and invariant 3 forbids one: the cap is
+`--poke-cap`, its default is the published constant `BroadcastCap::DEFAULT`, and zero is a real
+setting that turns broadcast off while leaving the reactive trigger alone. The sentence's point —
+that the cap is a number the operator sets rather than a judgement buried in the code — is kept;
+only the place it is set has moved, because the place this document named does not exist and must
+not. The rest of the table shipped as written.
+
 **Surface it in `relearn lint`.** It already exists, and it already runs on every change in CI —
 so it is an invocation actually on the path, which is the author's own sharpest criticism of the
 enforced-by column: it records enforcement, never invocation. A separate `relearn news` command

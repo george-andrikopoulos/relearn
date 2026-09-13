@@ -111,15 +111,23 @@ fn approval_line(approval: &Approval) -> String {
     )
 }
 
-/// The `authority = { ... }` line, or `None` for a local rule.
+/// The `authority = { ... }` line, or `None` for a local rule with no revision.
 ///
-/// `Local` renders nothing rather than `kind = "local"`: the overwhelmingly
-/// common case is a rule this install owns, and a line every file carries is a
-/// line no reader reads. The parser's default closes the loop — absent is
-/// `Local`, and the round trip is exact in both directions.
+/// An unnumbered `Local` renders nothing rather than `kind = "local"`: the
+/// overwhelmingly common case is a rule this install owns, and a line every
+/// file carries is a line no reader reads. The parser's default closes the
+/// loop — absent is `Local` with no revision, and the round trip is exact in
+/// both directions. A **numbered** local rule does render, because the number
+/// is the only thing a cache of it can be compared against and dropping it
+/// would make every such cache permanently un-stale.
 fn authority_line(authority: &Authority) -> Option<String> {
     match authority {
-        Authority::Local => None,
+        Authority::Local { version: None } => None,
+        Authority::Local {
+            version: Some(version),
+        } => Some(format!(
+            "authority = {{ kind = \"local\", version = {version} }}\n"
+        )),
         Authority::Cached {
             from,
             version,
@@ -215,7 +223,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }
@@ -240,7 +248,7 @@ mod tests {
             Body::parse(body).expect("non-empty body"),
             Vec::new(),
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }
@@ -351,7 +359,7 @@ mod tests {
                 .iter()
                 .map(|s| ScopeTag::parse(*s).expect("valid scope"))
                 .collect(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }
@@ -421,7 +429,7 @@ mod tests {
             Body::parse("Do the mandated thing.").expect("non-empty body"),
             Vec::new(),
             Vec::new(),
-            Authority::Local,
+            Authority::local(),
             None,
         )
     }
@@ -488,7 +496,7 @@ mod tests {
     /// rule file needed editing, and the reason absent can safely mean local.
     #[test]
     fn a_local_rule_renders_no_authority_line() {
-        let doc = to_document(&rule_under(Authority::Local));
+        let doc = to_document(&rule_under(Authority::local()));
         assert!(!doc.contains("authority"), "{doc}");
     }
 
