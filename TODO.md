@@ -617,9 +617,11 @@ Carried, not decided here:
 - [ ] **Nothing invokes `lint --upstream`.** FEATURES claims a command, and CI runs
       `lint` without a clone because there is no corpus to clone. The invocation half of
       that row is honestly absent, not quietly assumed.
-- [ ] **Two stray tracked files, `src/cli.rs.tmp` and `src/fsio.rs.tmp`**, noticed while
-      working and left alone: they are committed detritus, not C2's business, and
-      deleting tracked files is not something to do in passing.
+- [x] **Two stray tracked files, `src/cli.rs.tmp` and `src/fsio.rs.tmp`** — removed
+      2026-09-13, once measured rather than assumed: both were **zero bytes**, added by
+      accident in `a1d7a23` and tracked since. Noticed at the start of the session and left
+      alone twice, because deleting tracked files on a guess is not a thing to do in passing;
+      measuring them first made it a one-line decision with nothing to lose.
 
 ## Phase C1 — the aggregate (shipped 2026-09-13)
 
