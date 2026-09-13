@@ -228,7 +228,7 @@ the fact that publication writes a file and does not transmit it.
 
 ---
 
-## PHASE B3 — `report`. Anonymous, always.
+## PHASE B3 — `report` — **SHIPPED 2026-09-13**
 
 **Adds:** an anonymous recurrence report: upstream tags, counts as buckets, month-level dates,
 status and control kind. Nothing else.

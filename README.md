@@ -65,6 +65,14 @@ relearn adopt --rules ./rules --tag R:some-rule --on 2026-09-13
 relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256
 relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --confirm
 
+# Write this install's anonymous recurrence report into a cloned aggregate
+# repository. An upstream tag, a bucketed count, a month, a status kind, a
+# control kind — nothing else, and no day-level date anywhere. The pseudonym
+# lives in the clone (reports/<install-id>.toml IS the id), never on this
+# machine, so --install is needed once and read from the clone after that.
+relearn report --rules ./rules --aggregate ../aggregate --generated 2026-09 --install 7f3c9a1e
+relearn report --rules ./rules --aggregate ../aggregate --generated 2026-10 --confirm
+
 # Report advisory findings (overlapping scope, home-slug collisions,
 # dangling references). Writes nothing; non-zero exit if any are found.
 relearn lint --rules ./rules

@@ -345,6 +345,40 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## Phase B3 — `report` (shipped 2026-09-13)
+
+Anonymous, always. Five fields per observation and a pseudonym that never touches the machine.
+Emission unchanged for all 52 rules (`verify` green).
+
+- [x] `Observation` **is** the field list (five fields, so a sixth cannot be added in a renderer)
+      and `Month` has no day field, so no edit or formatting slip can reintroduce one.
+- [x] The whole-document day-level-date scan, which is the failure mode the programme calls real
+      and easy to miss.
+- [x] Four reporting conditions, two of them earlier phases consuming themselves: A2's federation
+      exclusion in its second flow, and B1's `Authority` answering "is this tag upstream?".
+- [x] `Bucket` and `K_ANONYMITY_FLOOR` as published constants a reader can check.
+- [x] `Control` sealed at five values — `gate:internal-payments-lint` publishes `gate`.
+- [x] **Phase 0.2 resolved in code**: the pseudonym is the filename in the cloned aggregate
+      repository, `--install` needed once, a conflicting id refused, several reports an error.
+
+Carried, not decided here:
+
+- [ ] **The `1` bucket publishes an exact count, and the programme warns against exactly that.**
+      §12.3 and §5 specify `1 | 2-4 | 5-9 | 10+`; the programme says "a bucket of 1–1 is not a
+      bucket" and that boundaries leak exact counts at small n. The design wins where the two
+      disagree, so `1` ships — but the k-floor protects the *aggregate*, while a raw report sits
+      in public git history where `recurrences = "1"` is exact. Merging into `1-4` closes it and
+      is a one-line change. **George's call.**
+- [ ] **Three of eight graduations in this corpus name two control kinds** (`test:… + gate:…`).
+      The field is single-valued, so those report no control rather than a chosen one. Honest,
+      and it drops the signal for 37% of graduated rules.
+- [ ] **The report carries no day-level date; the commit that publishes it does.** The command
+      says so in its own output because no artefact here can prevent it.
+- [ ] **A contributed rule's recurrences are unreportable.** Reportability is read from
+      `Authority`, so a rule you wrote, contributed upstream and still own locally stays `Local`
+      and is never reported. Under-reporting is the safe direction — it publishes nothing — but
+      it is a gap, and closing it needs a way to say "this local rule is also upstream".
+
 ## Phase B2 — `contribute` (shipped 2026-09-13)
 
 The projection that cannot hold the raw incident, the matcher that runs where the human is, and a

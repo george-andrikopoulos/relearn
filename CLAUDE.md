@@ -30,6 +30,10 @@ It is the reference implementation of the error loop described in *Tuning the St
   its federation behaviour is a compile error. A filter in one publishing path compiles perfectly
   while a second path publishes everything. `Project` is withheld too — its home carries a
   filesystem path, which is a private identifier.
+- **A recurrence report is anonymous, always.** `Observation` is the field list — five fields, so a
+  sixth cannot be added in a renderer — and `Month` has no day field, so a day-level date cannot
+  be reintroduced by an edit. Only an upstream tag is reportable: a local-only tag is a private
+  name. The pseudonym lives in the cloned aggregate repository, never on the machine.
 - **The raw `incident` cannot reach a contribution.** `Contribution` is a projection that never
   borrows `incident` or the recurrences — not stripped, never held — and what travels is
   `published_incident`, a separate authored field of its own type. Nothing derives one from the

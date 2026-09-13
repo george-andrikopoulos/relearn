@@ -28,5 +28,6 @@ pub mod emit;
 pub mod fsio;
 pub mod library;
 pub mod lint;
+pub mod report;
 pub mod rule;
 pub mod scrub;

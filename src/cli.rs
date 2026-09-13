@@ -39,6 +39,7 @@ use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
 use crate::lint;
+use crate::report::{InstallId, InstallIdError, K_ANONYMITY_FLOOR, Month, MonthError, Report};
 use crate::rule::{
     AdoptError, CachedIsNotEditable, Date, DateError, EditableRule, RuleTag, RuleTagError,
     ScopeTag, ScopeTagError,
@@ -160,6 +161,37 @@ enum Command {
         /// Write the file. Without it, the contribution is printed and nothing
         /// is written — two steps, so the text is read before it exists
         /// anywhere a `git push` could reach.
+        #[arg(long)]
+        confirm: bool,
+    },
+    /// Write this install's **anonymous** recurrence report into a cloned
+    /// aggregate repository.
+    ///
+    /// An upstream tag, a bucketed count, a month, a status kind and a control
+    /// kind. Nothing else — no title, no incident, no body, no path, no name,
+    /// no day-level date. Prints what would go and writes only on `--confirm`;
+    /// transmits nothing, because publishing it is a pull request you open.
+    Report {
+        /// Directory of `*.md` rule files.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+        /// Path to your clone of the aggregate repository. **The pseudonym
+        /// lives here**, in `reports/<install-id>.toml`, never on the machine:
+        /// nothing in a home directory, nothing in the environment. Delete the
+        /// clone and the pseudonym is gone.
+        #[arg(long)]
+        aggregate: PathBuf,
+        /// The month this report covers, `YYYY-MM`. Given rather than read from
+        /// a clock, like every other date this tool handles.
+        #[arg(long)]
+        generated: String,
+        /// The pseudonym to use, **required only the first time**: after that it
+        /// is read from the report already in the clone, so it is typed once
+        /// rather than every run — a mistyped id on a later run would fork one
+        /// install's history into two and inflate every count it appears in.
+        #[arg(long)]
+        install: Option<String>,
+        /// Write the report into the clone. Without it, nothing is written.
         #[arg(long)]
         confirm: bool,
     },
@@ -316,6 +348,47 @@ pub enum CliError {
     /// Writing a rule file failed.
     #[error(transparent)]
     RuleWrite(#[from] RuleWriteError),
+    /// `report --generated` was not a well-formed `YYYY-MM`.
+    #[error("--generated: {0}")]
+    ReportMonth(MonthError),
+    /// `report --install` was not a well-formed pseudonym.
+    #[error("--install: {0}")]
+    InstallId(InstallIdError),
+    /// The clone holds no report yet and no pseudonym was given.
+    ///
+    /// Required only the first time: after that the clone remembers, which is
+    /// what keeps a mistyped id from forking one install's history into two.
+    #[error(
+        "this clone holds no report yet — pass --install <eight hex characters> once, \
+         and it will be read from the clone from then on"
+    )]
+    NoInstallId,
+    /// `--install` disagreed with the pseudonym already in the clone.
+    ///
+    /// Refused rather than honoured: silently switching pseudonyms is how one
+    /// install becomes two in the aggregate, inflating every count it appears
+    /// in — the confound §8 already warns about, manufactured by a typo.
+    #[error(
+        "this clone already reports as {found}, but --install says {given} — \
+         refusing to switch pseudonyms, which would count one install as two"
+    )]
+    InstallIdConflict {
+        /// The pseudonym found in the clone.
+        found: String,
+        /// The pseudonym given on the command line.
+        given: String,
+    },
+    /// The clone holds several reports, so which install this is cannot be read
+    /// from it. Two pseudonyms in one clone means two installs sharing it, and
+    /// picking one would attribute this install's recurrences to the other.
+    #[error(
+        "this clone holds {count} reports, so it cannot say which install this is — \
+         use one clone per install"
+    )]
+    SeveralInstallIds {
+        /// How many were found.
+        count: usize,
+    },
     /// The banned-terms list could not be read.
     #[error("--terms {path:?}: {source}")]
     TermsUnreadable {
@@ -400,7 +473,7 @@ pub fn run() -> ExitCode {
     match dispatch(cli.command) {
         Ok(code) => code,
         Err(err) => {
-            report(&err);
+            report_error(&err);
             ExitCode::FAILURE
         }
     }
@@ -439,6 +512,13 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             out,
             confirm,
         } => contribute(&rules, &tag, &terms, &out, confirm),
+        Command::Report {
+            rules,
+            aggregate,
+            generated,
+            install,
+            confirm,
+        } => report(&rules, &aggregate, &generated, install.as_deref(), confirm),
         Command::Lint { rules, deny } => lint_rules(&rules, deny),
         Command::Verify {
             rules,
@@ -723,6 +803,118 @@ fn contribute(
     Ok(ExitCode::SUCCESS)
 }
 
+/// `report`: build this install's anonymous recurrence report, show it, and
+/// write it into the clone only on `--confirm`.
+///
+/// **Where the pseudonym comes from is Phase 0.2's decision, implemented here.**
+/// It lives in the cloned aggregate repository — `reports/<install-id>.toml` is
+/// its own name — so nothing is read from a home directory or an environment
+/// variable, and `tests/solo_mode.rs` needs no exemption. A clone that already
+/// holds a report supplies the id, which is why `--install` is required only the
+/// first time: typed once, a mistyped id is harmless; typed every run, it
+/// silently forks one install's history into two and inflates every count it
+/// appears in.
+fn report(
+    rules: &Path,
+    aggregate: &Path,
+    generated: &str,
+    install: Option<&str>,
+    confirm: bool,
+) -> Result<ExitCode, CliError> {
+    let generated = Month::parse(generated).map_err(CliError::ReportMonth)?;
+    let reports_dir = aggregate.join("reports");
+
+    let existing = existing_install_id(&reports_dir)?;
+    let install = match (existing, install) {
+        // The clone remembers. A conflicting `--install` is refused rather than
+        // honoured: silently switching pseudonyms is how one install becomes
+        // two in the aggregate.
+        (Some(found), Some(given)) if found.as_str() != given => {
+            return Err(CliError::InstallIdConflict {
+                found: found.as_str().to_owned(),
+                given: given.to_owned(),
+            });
+        }
+        (Some(found), _) => found,
+        (None, Some(given)) => InstallId::parse(given).map_err(CliError::InstallId)?,
+        (None, None) => return Err(CliError::NoInstallId),
+    };
+
+    let library = fsio::load_rules(rules)?.validate()?;
+    let report = Report::of(&library, install, generated);
+    let document = report.to_toml();
+
+    println!("{document}");
+    println!(
+        "{} observation(s). Nothing else leaves: no title, no incident, no body, no path, \
+         no name, no day-level date.\n\
+         The aggregate publishes no count until {} distinct installs have reported it.",
+        report.observations().len(),
+        K_ANONYMITY_FLOOR
+    );
+
+    if !confirm {
+        println!("Nothing written. Re-run with --confirm to write it into the clone.");
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    std::fs::create_dir_all(&reports_dir).map_err(|source| CliError::ContributionWrite {
+        path: reports_dir.clone(), // allow:clone: the error owns the path for its diagnostic, and the write below needs the directory again
+        source,
+    })?;
+    let path = reports_dir.join(format!("{}.toml", report.install().as_str()));
+    std::fs::write(&path, &document).map_err(|source| CliError::ContributionWrite {
+        path: path.clone(), // allow:clone: as above — the success line prints the path the error would have owned
+        source,
+    })?;
+    println!(
+        "written to {} — nothing has been transmitted. Publishing it is a pull request you open, \
+         and note that the commit itself records a day-level date even though this file does not.",
+        path.display()
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+/// The pseudonym already in the clone, if there is one.
+///
+/// A report file's **name** is the id, which is why it can be recovered without
+/// parsing the file: `reports/7f3c9a1e.toml`. More than one is an error rather
+/// than a guess — two pseudonyms in one clone means two installs sharing it, and
+/// picking one would attribute this install's recurrences to the other.
+fn existing_install_id(reports_dir: &Path) -> Result<Option<InstallId>, CliError> {
+    let entries = match std::fs::read_dir(reports_dir) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(source) => {
+            return Err(CliError::ContributionWrite {
+                path: reports_dir.to_path_buf(),
+                source,
+            });
+        }
+    };
+
+    let mut found: Vec<InstallId> = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "toml")
+            && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            && let Ok(id) = InstallId::parse(stem)
+        {
+            found.push(id);
+        }
+    }
+    found.sort();
+    found.dedup();
+
+    match found.as_slice() {
+        [] => Ok(None),
+        [only] => Ok(Some(only.clone())), // allow:clone: the caller owns the id for the life of the command; the vector is dropped here
+        several => Err(CliError::SeveralInstallIds {
+            count: several.len(),
+        }),
+    }
+}
+
 /// `list`: print each rule as `tag  [home-slug]  title`, optionally filtered.
 ///
 /// Deliberately **not** using [`restrict_to_scopes`]: an audience no rule
@@ -818,7 +1010,7 @@ fn lint_rules(rules: &Path, deny: DenyLevel) -> Result<ExitCode, CliError> {
 }
 
 /// Print an error and its source chain to stderr.
-fn report(err: &CliError) {
+fn report_error(err: &CliError) {
     eprintln!("error: {err}");
     let mut source = std::error::Error::source(err);
     while let Some(cause) = source {
