@@ -35,7 +35,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::aggregate::{Aggregate, AggregateError};
-use crate::contribute::{Contribution, NotContributable};
+use crate::contribute::{Contribution, NotContributable, NotSuperseding, SupersedingVersion};
 use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
@@ -574,6 +574,11 @@ pub enum CliError {
     /// says which of the four it was and what to do instead.
     #[error(transparent)]
     NotPullable(NotPullable),
+    /// The revision asked for does not supersede what the destination already
+    /// publishes. Carries both numbers, because a contributor told only
+    /// "refused" has to go and look up the one the tool has just read.
+    #[error(transparent)]
+    NotSuperseding(NotSuperseding),
     /// `--poke` named a trigger that does not exist.
     ///
     /// Not `#[from]`, for the same reason [`CliError::Scope`] is not: the
@@ -946,6 +951,30 @@ fn pull(
     Ok(ExitCode::SUCCESS)
 }
 
+/// The revision the shared corpus already publishes for `tag`, if it holds it.
+///
+/// **Reads one file and asks one question.** A destination that holds nothing
+/// for this tag publishes nothing, and so does one holding a file that does not
+/// parse or parses to a different tag — the second is somebody else's file, and
+/// refusing it is the write guard's job rather than this one's. An existing rule
+/// with no revision also answers `None`: it was published before revisions were
+/// required, so any revision supersedes it.
+fn published_revision(out: &Path, tag: &RuleTag) -> Result<Option<Version>, CliError> {
+    let path = out.join(format!("{}.md", tag.body()));
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(source) => return Err(CliError::ContributionWrite { path, source }),
+    };
+    let Ok(published) = crate::rule::parse_document(&text) else {
+        return Ok(None);
+    };
+    if published.tag() != tag {
+        return Ok(None);
+    }
+    Ok(published.authority().version())
+}
+
 /// `contribute`: show exactly what would leave, and write it only on `--confirm`.
 ///
 /// Order matters and is deliberate. The projection is built first, so the four
@@ -1004,6 +1033,15 @@ fn contribute(
         }
     }
 
+    // **What is already published there decides whether this revision is
+    // legal.** The destination is read, never guessed: a republication that
+    // does not go forwards makes every cache of this rule read as newer than
+    // upstream, and `cache-behind` would never notice because the comparison is
+    // exactly what has been corrupted. `contribute` reads its destination for
+    // this one question and for nothing else.
+    let published = published_revision(out, &tag)?;
+    let version = SupersedingVersion::of(version, published).map_err(CliError::NotSuperseding)?;
+
     println!("{}", contribution.what_would_leave(version));
 
     if !confirm {
@@ -1020,13 +1058,10 @@ fn contribute(
         path: out.to_path_buf(),
         source,
     })?;
-    let path = out.join(format!("{}.md", tag.body()));
-    std::fs::write(&path, contribution.to_document(version)).map_err(|source| {
-        CliError::ContributionWrite {
-            path: path.clone(), // allow:clone: the error owns the path for its diagnostic, and the success line below prints it
-            source,
-        }
-    })?;
+    // Through the guard, like every other rule-file write. From B2 until
+    // 2026-09-13 this was a bare `fs::write` with no check at all — publishing
+    // over an existing rule destroyed it silently.
+    let path = fsio::write_contribution(out, &tag, &contribution.to_document(version))?;
     println!(
         "written to {} — nothing has been transmitted; publishing it is a pull request you open yourself",
         path.display()

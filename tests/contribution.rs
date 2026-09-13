@@ -18,7 +18,7 @@
 //! contributor's judgement — §12.2 of the design puts the scrub on the person
 //! for a reason no gate changes.
 
-use relearn::contribute::{Contribution, NotContributable};
+use relearn::contribute::{Contribution, NotContributable, SupersedingVersion};
 use relearn::rule::{
     Approval, Approver, Authority, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin,
     PublishedIncident, Recurrence, Rule, RuleTag, SourceId, Status, Title, Version,
@@ -72,7 +72,7 @@ fn contributable() -> Rule {
 fn the_raw_incident_is_nowhere_in_what_would_leave() {
     let rule = contributable();
     let contribution = Contribution::of(&rule).expect("a global mined rule is contributable");
-    let document = contribution.to_document(Version::new(1));
+    let document = contribution.to_document(first(1));
 
     assert!(
         !document.contains(RAW),
@@ -108,7 +108,7 @@ fn recurrence_incidents_never_travel() {
     );
     let document = Contribution::of(&rule)
         .expect("contributable")
-        .to_document(Version::new(1));
+        .to_document(first(1));
     assert!(!document.contains("George"), "{document}");
     assert!(!document.contains("recurrence"), "{document}");
 }
@@ -225,7 +225,7 @@ fn a_contribution_parses_as_a_rule_whose_incident_is_the_published_one() {
     let rule = contributable();
     let document = Contribution::of(&rule)
         .expect("contributable")
-        .to_document(Version::new(1));
+        .to_document(first(1));
 
     let reparsed = relearn::rule::parse_document(&document).expect("a contribution is a rule");
     assert_eq!(reparsed.incident().as_str(), PUBLISHED);
@@ -236,4 +236,71 @@ fn a_contribution_parses_as_a_rule_whose_incident_is_the_published_one() {
     // than accept a copy whose staleness signal is dead on arrival.
     assert_eq!(reparsed.authority(), &Authority::local_at(Version::new(1)));
     assert!(reparsed.recurrences().is_empty());
+}
+
+// ── a republication must supersede what is already there ────────────────────
+
+/// **A first publication supersedes nothing**, so any revision will do. The
+/// destination is empty, and there is no number to be greater than.
+#[test]
+fn a_first_publication_supersedes_nothing() {
+    assert_eq!(
+        SupersedingVersion::of(Version::new(1), None)
+            .expect("nothing is published yet")
+            .get(),
+        Version::new(1)
+    );
+    assert_eq!(
+        SupersedingVersion::of(Version::new(97), None)
+            .expect("a first publication may start anywhere")
+            .get(),
+        Version::new(97)
+    );
+}
+
+/// **Republishing must go forwards.** A revision that does not supersede what is
+/// already on the drive makes every cache of that rule read as newer than
+/// upstream — and `cache-behind` compares numbers, so nothing would ever
+/// notice. The type refuses it rather than a call site checking for it.
+#[test]
+fn a_republication_below_or_equal_to_what_is_published_is_refused() {
+    for proposed in [1_u32, 2, 3] {
+        let refused = SupersedingVersion::of(Version::new(proposed), Some(Version::new(3)))
+            .expect_err("a revision at or below the published one does not supersede it");
+        // The error carries **both** numbers, because a contributor told only
+        // "refused" has to go and look up what is already published — and the
+        // number they need is the one the tool just read.
+        assert_eq!(refused.proposed(), Version::new(proposed));
+        assert_eq!(refused.published(), Version::new(3));
+        assert!(
+            refused.to_string().contains(&format!("{proposed}"))
+                && refused.to_string().contains('3'),
+            "the message names both revisions: {refused}"
+        );
+    }
+    assert_eq!(
+        SupersedingVersion::of(Version::new(4), Some(Version::new(3)))
+            .expect("4 supersedes 3")
+            .get(),
+        Version::new(4)
+    );
+}
+
+/// The only way to render a contribution is with a version that has been through
+/// that check — so "published a revision that goes backwards" is not a mistake
+/// the renderer can make, it is a document that cannot be built.
+#[test]
+fn a_contribution_can_only_be_rendered_with_a_superseding_version() {
+    let rule = contributable();
+    let contribution = Contribution::of(&rule).expect("contributable");
+    let version =
+        SupersedingVersion::of(Version::new(5), Some(Version::new(4))).expect("5 supersedes 4");
+    let document = contribution.to_document(version);
+    assert!(document.contains("version = 5"), "{document}");
+}
+
+/// A first publication of revision `n`: nothing is published yet, so it
+/// supersedes nothing and any number is legal.
+fn first(n: u32) -> SupersedingVersion {
+    SupersedingVersion::of(Version::new(n), None).expect("a first publication supersedes nothing")
 }

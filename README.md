@@ -64,7 +64,10 @@ relearn adopt --rules ./rules --tag R:some-rule --on 2026-09-13
 # required, because a scrub that can run disarmed is not a scrub.
 # --version says which revision of the rule you are publishing. Required: a
 # cache records the revision it holds, so a rule published without one could
-# never be told it is stale, and `pull` refuses it outright.
+# never be told it is stale, and `pull` refuses it outright. Republishing must
+# go FORWARDS — a revision at or below the one already published is refused,
+# because every existing cache would otherwise read as newer than upstream and
+# nothing would notice.
 relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --version 1
 relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --version 1 --confirm
 

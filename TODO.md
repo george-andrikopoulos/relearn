@@ -375,11 +375,16 @@ rather than a flag.
 
 Carried:
 
-- [ ] **Nothing checks that a published revision is greater than the last one published.** A
-      contributor can publish revision 2 after revision 7, and every cache of it will then read
-      as newer than upstream. Checking it means reading what is already on the drive and
-      comparing — cheap, and not done here because the refusal belongs with a decision about
-      whether `contribute` may read its destination at all, which it currently never does.
+- [x] **A published revision must supersede the one already there** — closed 2026-09-13 by
+      `SupersedingVersion`, a witness `to_document` takes instead of a bare `Version`, so a
+      backwards republication is a document that cannot be built rather than a check somebody
+      performs. `contribute` now reads its destination for that one question.
+- [x] **Found while closing it: `contribute` had no write guard at all.** A bare `fs::write`
+      since B2 — publishing over an existing rule destroyed it silently, whether it was an
+      older revision of the same rule or somebody else's rule at the same path. It survived
+      because it was the only rule-file writer with no sibling to compare against; `write_cache`
+      arriving made two that guarded and one that did not. All three now share one
+      `guarded_write`.
 - [ ] **`pull` takes one tag at a time.** Deliberate — §10's "no silent adoption" means a rule
       arrives because somebody asked for it — but an install adopting a corpus of fifty rules
       will type fifty commands. A `--all` that names what it would take, and still requires

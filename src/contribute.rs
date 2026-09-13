@@ -64,6 +64,72 @@ pub enum NotContributable {
     IsMandated,
 }
 
+/// A proposed revision does not supersede what is already published.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error(
+    "revision {proposed} does not supersede the {published} already published: a republication \
+     must go forwards, or every cache of this rule reads as newer than upstream and nothing \
+     notices, because staleness is decided by comparing these two numbers"
+)]
+pub struct NotSuperseding {
+    proposed: Version,
+    published: Version,
+}
+
+impl NotSuperseding {
+    /// The revision that was asked for.
+    #[must_use]
+    pub fn proposed(self) -> Version {
+        self.proposed
+    }
+
+    /// The revision already on the destination.
+    #[must_use]
+    pub fn published(self) -> Version {
+        self.published
+    }
+}
+
+/// A revision that supersedes whatever is already published under its tag.
+///
+/// **The witness that makes a backwards republication unrenderable**, rather
+/// than a check somebody performs before calling the renderer. `to_document`
+/// takes one of these and nothing else, so "published a revision that goes
+/// backwards" is not a mistake a call site can make — it is a document that
+/// cannot be built.
+///
+/// The failure it closes is silent in both directions at once. A cache records
+/// the revision it holds and `cache-behind` decides staleness by comparing
+/// numbers, so republishing at or below the published revision makes every
+/// existing cache read as *newer than upstream* — and nothing anywhere notices,
+/// because the comparison is exactly what has been corrupted.
+///
+/// A first publication supersedes nothing, so any revision is valid for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SupersedingVersion(Version);
+
+impl SupersedingVersion {
+    /// Mint the witness, or refuse because `proposed` does not go forwards.
+    ///
+    /// `published` is whatever revision the destination already holds under
+    /// this tag — `None` when nothing is published there yet.
+    pub fn of(proposed: Version, published: Option<Version>) -> Result<Self, NotSuperseding> {
+        match published {
+            Some(published) if proposed <= published => Err(NotSuperseding {
+                proposed,
+                published,
+            }),
+            _ => Ok(SupersedingVersion(proposed)),
+        }
+    }
+
+    /// The revision, which the witness proves goes forwards.
+    #[must_use]
+    pub fn get(self) -> Version {
+        self.0
+    }
+}
+
 /// A rule as it would leave the machine.
 ///
 /// Holds **only** publishable fields, by reference. There is no `incident` here
@@ -152,7 +218,7 @@ impl<'a> Contribution<'a> {
     /// unnumbered upstream rule outright rather than accepting a copy whose
     /// staleness signal is dead.
     #[must_use]
-    pub fn to_document(self, version: Version) -> String {
+    pub fn to_document(self, version: SupersedingVersion) -> String {
         // The published incident is a *witness of a different type*, so putting
         // it where the incident goes is an explicit re-parse rather than an
         // accident of shape. It cannot fail: non-empty is non-empty.
@@ -171,7 +237,7 @@ impl<'a> Contribution<'a> {
             self.body.clone(), // allow:clone: same
             Vec::new(),
             self.applies_to.to_vec(),
-            Authority::local_at(version),
+            Authority::local_at(version.get()),
             None,
         );
         to_document(&rule)
@@ -184,7 +250,7 @@ impl<'a> Contribution<'a> {
     /// reader would skim. The one thing this adds is the reminder that the
     /// matcher cannot read for judgement.
     #[must_use]
-    pub fn what_would_leave(self, version: Version) -> String {
+    pub fn what_would_leave(self, version: SupersedingVersion) -> String {
         let mut out = String::new();
         let _ = writeln!(
             out,

@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 
 use crate::emit::{OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
-use crate::rule::{EditableRule, ParseError, PulledRule, parse_document, to_document};
+use crate::rule::{EditableRule, ParseError, PulledRule, RuleTag, parse_document, to_document};
 
 /// The opening of the generated-by comment. Its presence in an existing file is
 /// how the overwrite guard tells "relearn wrote this" from "a human wrote this":
@@ -183,16 +183,34 @@ pub enum RuleWriteError {
 #[must_use = "the write result reports failure (clobber refusal, I/O); ignoring it discards that"]
 pub fn write_rule(rules_dir: &Path, rule: &EditableRule<'_>) -> Result<PathBuf, RuleWriteError> {
     let rule = rule.rule();
-    let path = rules_dir.join(format!("{}.md", rule.tag().body()));
+    guarded_write(rules_dir, rule.tag(), &to_document(rule))
+}
+
+/// Write `document` as the file for `tag` under `dir`, refusing to clobber a
+/// file that is not that rule.
+///
+/// **One guard, three writers.** `write_rule`, [`write_cache`] and
+/// [`write_contribution`] differ entirely in *who may call them* — that is what
+/// their witnesses decide — and not at all in what they do to the filesystem.
+/// Three copies of this would be three chances for one of them to lose the
+/// refusal, which is how `contribute` came to have no guard at all between B2
+/// and the day a second writer made the omission visible.
+///
+/// The refusal is about the **path**, not about authority: a target that does
+/// not parse, or parses to a different tag, is somebody else's file. No witness
+/// can know that, because a witness is minted from rules and this is a fact
+/// about a directory.
+fn guarded_write(dir: &Path, tag: &RuleTag, document: &str) -> Result<PathBuf, RuleWriteError> {
+    let path = dir.join(format!("{}.md", tag.body()));
 
     match fs::read_to_string(&path) {
         Ok(existing) => {
             let same_rule = parse_document(&existing)
-                .is_ok_and(|existing| existing.tag().as_str() == rule.tag().as_str());
+                .is_ok_and(|existing| existing.tag().as_str() == tag.as_str());
             if !same_rule {
                 return Err(RuleWriteError::WouldClobberUnrelated {
                     path,
-                    tag: rule.tag().as_str().to_owned(),
+                    tag: tag.as_str().to_owned(),
                 });
             }
         }
@@ -200,11 +218,33 @@ pub fn write_rule(rules_dir: &Path, rule: &EditableRule<'_>) -> Result<PathBuf, 
         Err(source) => return Err(RuleWriteError::Io { path, source }),
     }
 
-    fs::write(&path, to_document(rule)).map_err(|source| RuleWriteError::Io {
+    fs::write(&path, document).map_err(|source| RuleWriteError::Io {
         path: path.clone(), // allow:clone: the error owns the path for the diagnostic, and the success path returns it
         source,
     })?;
     Ok(path)
+}
+
+/// Write a contribution document into the shared corpus at `out_dir`.
+///
+/// **The third rule-file writer, and until now the only one with no guard at
+/// all.** From B2 until 2026-09-13 `contribute` wrote with a bare `fs::write`:
+/// publishing over an existing rule of the same tag destroyed it silently, and
+/// nothing said so. It went unnoticed because it was the only writer that could
+/// not be compared against a sibling — the moment `write_cache` arrived, there
+/// were two that guarded and one that did not.
+///
+/// It takes the rendered document rather than a rule, because a contribution
+/// *is* a projection: the thing being written was never a `Rule` this install
+/// holds, and reconstructing one to satisfy a signature would put the raw
+/// incident back within reach of the type that exists to keep it away.
+#[must_use = "the write result reports failure (clobber refusal, I/O); ignoring it discards that"]
+pub fn write_contribution(
+    out_dir: &Path,
+    tag: &RuleTag,
+    document: &str,
+) -> Result<PathBuf, RuleWriteError> {
+    guarded_write(out_dir, tag, document)
 }
 
 /// Write a pulled rule into `rules_dir` as a cache, named by its tag body.
@@ -227,28 +267,7 @@ pub fn write_rule(rules_dir: &Path, rule: &EditableRule<'_>) -> Result<PathBuf, 
 #[must_use = "the write result reports failure (clobber refusal, I/O); ignoring it discards that"]
 pub fn write_cache(rules_dir: &Path, pulled: &PulledRule) -> Result<PathBuf, RuleWriteError> {
     let rule = pulled.rule();
-    let path = rules_dir.join(format!("{}.md", rule.tag().body()));
-
-    match fs::read_to_string(&path) {
-        Ok(existing) => {
-            let same_rule = parse_document(&existing)
-                .is_ok_and(|existing| existing.tag().as_str() == rule.tag().as_str());
-            if !same_rule {
-                return Err(RuleWriteError::WouldClobberUnrelated {
-                    path,
-                    tag: rule.tag().as_str().to_owned(),
-                });
-            }
-        }
-        Err(source) if source.kind() == ErrorKind::NotFound => {}
-        Err(source) => return Err(RuleWriteError::Io { path, source }),
-    }
-
-    fs::write(&path, to_document(rule)).map_err(|source| RuleWriteError::Io {
-        path: path.clone(), // allow:clone: the error owns the path for the diagnostic, and the success path returns it
-        source,
-    })?;
-    Ok(path)
+    guarded_write(rules_dir, rule.tag(), &to_document(rule))
 }
 
 /// Write every emitted file under `out_dir`, each with its generated-by header
