@@ -7,6 +7,10 @@ created = "2026-07-16"
 origin = "mined"
 status = { kind = "active" }
 incident = "project-discipline (2026-07-16): the default-hygiene list still named a stale .zed/tasks.json entry after the workflow had moved on, and Claude scaffolded mesh-watchdog from that stale list. Fix: replaced it with the actually-observed hygiene set (README/FEATURES/ARCHITECTURE). Retagged on 2026-08-16: the tag it previously carried had been independently assigned on 2026-08-11 to a different rule (verify internal references after restructuring), and the tag-uniqueness invariant made the collision a hard build failure."
+
+[[recurrence]]
+date = "2026-09-13"
+incident = "relearn, in the same session that built a gate for this exact class. `tests/pack_counts.rs` was added to read the pack READMEs' hand-written counts -- and FEATURES.md's copilot-pack row went on saying 'Nothing checks those numbers against the library, so they can go stale without failing CI', made false by the change shipped beside it, in the file whose whole job is to be the behaviour contract. Found by grepping for count claims outside the packs, which also turned up the claude-pack row still naming four skills and 24 global rules against five and 27. The fix was not to reset the numbers: the live counts now have one home, the checked pack README, and FEATURES points at it."
 +++
 
 When you change a process, format, or artifact, update every checked-in description of it -- list, example, doc snippet -- in the same change. A doc that lags the code it describes is worse than no doc: a reader trusts it and acts on stale guidance. The behavior contract and its examples are only load-bearing if they are true.

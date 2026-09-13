@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Update the doc in the same change as the thing it describes [R:doc-currency]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-13.
+
 When you change a process, format, or artifact, update every checked-in description of it -- list, example, doc snippet -- in the same change. A doc that lags the code it describes is worse than no doc: a reader trusts it and acts on stale guidance. The behavior contract and its examples are only load-bearing if they are true.
 
 Not to be confused with R:revision-integrity, the sibling on a document's
@@ -20,4 +22,4 @@ this rule used to carry -- and a real citation would have dangled. It was ported
 into this library on 2026-08-25, so the citation above is now a live reference
 and this paragraph is the record of why it was not one before.
 
-<!-- relearn:generated v0.1.0 sha256=bcdb09c935da3b874ae73cf745437e1e3913b04df43bc5e7146e5d71e8258407 rules=R:doc-currency -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=83e1e8d9bc702bc327de5e0811900d4490776e5430b0db2d9c4050da0b612f82 rules=R:doc-currency -- DO NOT EDIT; regenerate with `relearn build` -->

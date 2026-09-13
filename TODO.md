@@ -350,6 +350,37 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## The counting gate caught its author (2026-09-13)
+
+`tests/pack_counts.rs` shipped, and within the hour `[R:doc-currency]` fired twice in the
+file the gate was recorded in.
+
+- [x] **FEATURES.md's copilot-pack row still said "Nothing checks those numbers against the
+      library"** — made false by the change that shipped beside it, in the document whose
+      whole job is to be the behaviour contract. Repaired, and the row now names the gate.
+- [x] **FEATURES.md's claude-pack row said "four skills: `global` 24 rules"** against five
+      skills and twenty-seven. Repaired by **removing the counts**, not by resetting them: the
+      live numbers have one home, the checked pack README, and the row points at it.
+- [x] **Recorded as a recurrence on `[R:doc-currency]`**, which is what the corpus is for. It
+      was `active` with no recurrences; it now carries one, and `lint` reports a third unheld
+      recurrence as a result. That is the honest reading, not a regression.
+- [x] **The gate caught the drift its own recurrence caused.** Recording the recurrence added
+      two lines to `copilot-instructions.md`; `tests/pack_counts.rs` failed naming the file,
+      the line and both numbers, and the README was corrected. The loop ran end to end inside
+      one change.
+- [x] **The row describing the gate had restated the counts too**, which would have been the
+      third occurrence. It now describes them instead of quoting them.
+
+Carried:
+
+- [ ] **The copilot pack README's *prose* is still hand-authored and unread**: named rule
+      tags, the "Two rules describe an enforcement…" paragraph, and the per-home alternatives
+      in the install prompt. Sentences rather than counts, and the gate reads counts.
+- [ ] **Dated historical counts stay** — FEATURES' "Corpus at 2026-09-06: 46 rules", the
+      design document's "State when written: 52 rules", the decisions-log rows quoting what a
+      README said at the time. Each is true as written, and a gate that failed them would be
+      demanding that history be rewritten. They are tagged with their date and now say so.
+
 ## Phase C2 — the poke, inside `lint` (shipped 2026-09-13)
 
 §6's four triggers, the reactive one uncapped and on, broadcast capped at a number the
