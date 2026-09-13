@@ -345,6 +345,33 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## Phase C1 — the aggregate (shipped 2026-09-13)
+
+A repository, not a service: `relearn aggregate` is the recompute a scheduled job runs over the
+reports in a clone. Emission unchanged for all 52 rules.
+
+- [x] The k-floor applied where the counts are, reading the **same constant** the producer does;
+      below it a rule does not appear at all, tag included.
+- [x] The floor counts distinct installs, so repetition cannot fake a population.
+- [x] The suppressed **count** publishes; the suppressed **tags** do not.
+- [x] Both confounds as a `const`, written unconditionally — including in an empty aggregate.
+- [x] `no_emitter_or_build_path_reads_the_aggregate`, probed both ways. Its first version matched
+      the English word and failed on `home_skill_aggregates_its_rules_sorted_by_tag`.
+- [x] Strict parsing of untrusted reports: unknown schema, unknown bucket, malformed pseudonym.
+
+Carried, not decided here:
+
+- [ ] **No scheduled job exists.** The command is here; the cron or CI entry belongs to the
+      aggregate repository, which does not exist yet. FEATURES claims a command, not a schedule.
+- [ ] **An aggregate reveals its own population size** (`installs = N`) and the number of
+      suppressed rules. Both are deliberate — a reader cannot weigh a figure without them — but
+      they are exact counts, and the same argument that bucketed recurrences could be made about
+      them at small N.
+- [ ] **Nothing verifies that a published `aggregate.toml` matches the reports beside it.** A
+      committed aggregate could be hand-edited and the repository would not object; `relearn
+      aggregate` recomputes, but nothing compares. The `verify`-shaped gate for the aggregate
+      repository is C1-adjacent work that phase did not do.
+
 ## Phase B3 — `report` (shipped 2026-09-13)
 
 Anonymous, always. Five fields per observation and a pseudonym that never touches the machine.

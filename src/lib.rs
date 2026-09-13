@@ -22,6 +22,7 @@
 //! Nothing here is implemented yet — this is the scaffold. Implementation
 //! begins with the types (TODO.md Phase A), never with an emitter.
 
+pub mod aggregate;
 pub mod cli;
 pub mod contribute;
 pub mod emit;

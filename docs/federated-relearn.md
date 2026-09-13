@@ -11,7 +11,8 @@ about the first thing a reader checks.
 | **Shipped 2026-09-13 (B1)** | §3's `Authority` and `adopt`, with the cached-rule refusal as a witness type at the write boundary and a compile-fail pin |
 | **Shipped 2026-09-13 (B2)** | §4's `contribute`, as a projection that never holds the raw incident, plus the banned-terms matcher over one string |
 | **Shipped 2026-09-13 (B3)** | §5's `report` — five fields, bucketed counts, a day-free `Month` type, and the pseudonym living in the clone (§0.2 resolved in code). The aggregate itself (§9) is not built |
-| **Not built** | the aggregate (§9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
+| **Shipped 2026-09-13 (C1)** | §9's recompute, as `relearn aggregate`: the k-floor applied from the same constant the producer reads, both §8 confounds written unconditionally, and a source-level check that no build depends on an aggregate. The aggregate **repository** does not exist yet — this is the command a job would run |
+| **Not built** | the aggregate repository and its scheduled job (§9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
 
 The rest is filed so the design is written down rather than re-invented, on the same footing as
 [`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried open

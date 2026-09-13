@@ -34,6 +34,7 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+use crate::aggregate::{Aggregate, AggregateError};
 use crate::contribute::{Contribution, NotContributable};
 use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
@@ -195,6 +196,29 @@ enum Command {
         #[arg(long)]
         confirm: bool,
     },
+    /// Recompute an aggregate from the reports in a cloned aggregate repository.
+    ///
+    /// **The scheduled job's command, and it reads only the clone.** No network,
+    /// no fetch: reports arrive as pull requests, a job runs this over them, and
+    /// the result is committed. Applies the k-floor — a rule below it does not
+    /// appear at all, tag included — and prints both confounds beside the
+    /// numbers, always.
+    ///
+    /// Nothing a `build` does depends on the result. An aggregate is never
+    /// authoritative, and `tests/aggregate.rs` reads the emitters' source to
+    /// make sure it stays that way.
+    Aggregate {
+        /// Path to the clone holding `reports/*.toml`.
+        #[arg(long)]
+        clone: PathBuf,
+        /// The month the aggregate covers, `YYYY-MM`. Given, never clocked.
+        #[arg(long)]
+        generated: String,
+        /// Write `aggregate.toml` into the clone. Without it, nothing is
+        /// written — the same two steps as `report` and `contribute`.
+        #[arg(long)]
+        confirm: bool,
+    },
     /// Report advisory lint findings (overlapping scope, home-slug collisions,
     /// dangling references). Writes nothing; exits non-zero if any are found.
     Lint {
@@ -348,6 +372,13 @@ pub enum CliError {
     /// Writing a rule file failed.
     #[error(transparent)]
     RuleWrite(#[from] RuleWriteError),
+    /// A report in the clone could not be read into the aggregate.
+    ///
+    /// Reports come from strangers, so this is a refusal rather than a skip: an
+    /// aggregate that ignored what it could not parse would publish a count
+    /// quietly missing whoever wrote it.
+    #[error(transparent)]
+    Aggregate(AggregateError),
     /// `report --generated` was not a well-formed `YYYY-MM`.
     #[error("--generated: {0}")]
     ReportMonth(MonthError),
@@ -519,6 +550,11 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             install,
             confirm,
         } => report(&rules, &aggregate, &generated, install.as_deref(), confirm),
+        Command::Aggregate {
+            clone,
+            generated,
+            confirm,
+        } => aggregate(&clone, &generated, confirm),
         Command::Lint { rules, deny } => lint_rules(&rules, deny),
         Command::Verify {
             rules,
@@ -913,6 +949,78 @@ fn existing_install_id(reports_dir: &Path) -> Result<Option<InstallId>, CliError
             count: several.len(),
         }),
     }
+}
+
+/// `aggregate`: recompute from the reports in a clone, show the result, and
+/// write it only on `--confirm`.
+///
+/// **Reads the clone and nothing else.** There is no fetch here and there must
+/// never be one: reports arrive as pull requests, which is what makes
+/// publication deliberate by construction and every byte that ever crossed
+/// auditable in public history. `tests/solo_mode.rs` is what keeps the "for
+/// convenience" version from appearing later.
+///
+/// A clone with no `reports/` directory is an empty aggregate rather than an
+/// error — an aggregate nobody has reported into is a real state, and it still
+/// carries its confounds, which is exactly when they matter most.
+fn aggregate(clone: &Path, generated: &str, confirm: bool) -> Result<ExitCode, CliError> {
+    let generated = Month::parse(generated).map_err(CliError::ReportMonth)?;
+    let reports_dir = clone.join("reports");
+
+    let mut documents: Vec<String> = Vec::new();
+    match std::fs::read_dir(&reports_dir) {
+        Ok(entries) => {
+            let mut paths: Vec<PathBuf> = entries
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| p.extension().is_some_and(|e| e == "toml"))
+                .collect();
+            // Sorted, so the same reports always produce the same document: a
+            // job that committed a different byte order every run would make
+            // every recompute look like a change.
+            paths.sort();
+            for path in paths {
+                documents.push(std::fs::read_to_string(&path).map_err(|source| {
+                    CliError::ContributionWrite {
+                        path: path.clone(), // allow:clone: the error owns the path for its diagnostic on the failure path
+                        source,
+                    }
+                })?);
+            }
+        }
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(CliError::ContributionWrite {
+                path: reports_dir,
+                source,
+            });
+        }
+    }
+
+    let aggregate = Aggregate::of(documents.iter().map(String::as_str), generated)
+        .map_err(CliError::Aggregate)?;
+    let document = aggregate.to_toml();
+    println!("{document}");
+    println!(
+        "{} rule(s) published from {} install(s); {} withheld below the floor of {}.",
+        aggregate.rows().len(),
+        aggregate.installs(),
+        aggregate.suppressed(),
+        K_ANONYMITY_FLOOR
+    );
+
+    if !confirm {
+        println!("Nothing written. Re-run with --confirm to write aggregate.toml into the clone.");
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    let path = clone.join("aggregate.toml");
+    std::fs::write(&path, &document).map_err(|source| CliError::ContributionWrite {
+        path: path.clone(), // allow:clone: as above — the success line prints the path the error would have owned
+        source,
+    })?;
+    println!("written to {}", path.display());
+    Ok(ExitCode::SUCCESS)
 }
 
 /// `list`: print each rule as `tag  [home-slug]  title`, optionally filtered.

@@ -73,6 +73,14 @@ relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --co
 relearn report --rules ./rules --aggregate ../aggregate --generated 2026-09 --install 7f3c9a1e
 relearn report --rules ./rules --aggregate ../aggregate --generated 2026-10 --confirm
 
+# Recompute the aggregate from the reports in a clone — the command a
+# scheduled job runs. Reads the clone and nothing else: reports arrive as pull
+# requests, never over a network. Applies the k-anonymity floor (a rule below
+# it does not appear at all, tag included) and prints both confounds beside
+# the numbers, always.
+relearn aggregate --clone ../aggregate --generated 2026-09
+relearn aggregate --clone ../aggregate --generated 2026-09 --confirm
+
 # Report advisory findings (overlapping scope, home-slug collisions,
 # dangling references). Writes nothing; non-zero exit if any are found.
 relearn lint --rules ./rules

@@ -30,6 +30,11 @@ It is the reference implementation of the error loop described in *Tuning the St
   its federation behaviour is a compile error. A filter in one publishing path compiles perfectly
   while a second path publishes everything. `Project` is withheld too — its home carries a
   filesystem path, which is a private identifier.
+- **An aggregate is never authoritative, and it prints its own confounds.** No build behaves
+  differently for having seen one — asserted by reading the emitters' source, because nothing else
+  can see a build that quietly consults a downloaded file. The k-floor is applied where the counts
+  are, from the same constant the producer reads, and below it a rule does not appear at all: the
+  tag points at the same person as the count.
 - **A recurrence report is anonymous, always.** `Observation` is the field list — five fields, so a
   sixth cannot be added in a renderer — and `Month` has no day field, so a day-level date cannot
   be reintroduced by an edit. Only an upstream tag is reportable: a local-only tag is a private
