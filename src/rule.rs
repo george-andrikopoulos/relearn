@@ -33,7 +33,10 @@ mod status;
 mod tag;
 mod text;
 
-pub use authority::{AdoptError, Authority, CachedIsNotEditable, EditableRule, SourceId, Version};
+pub use authority::{
+    AdoptError, Authority, CachedIsNotEditable, EditableRule, NotPullable, PulledRule, SourceId,
+    Version,
+};
 pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};
 pub use home::{DomainName, Federation, Home, OrgName, ProjectPath};

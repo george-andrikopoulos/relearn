@@ -300,6 +300,123 @@ impl<'a> EditableRule<'a> {
     }
 }
 
+/// Why a rule cannot be pulled into this install as a cache.
+///
+/// Every variant is a refusal rather than a transformation, for the same reason
+/// [`NotContributable`](crate::contribute::NotContributable)'s are: a pull that
+/// "did its best" would leave a file that looks like a cache of something and
+/// is not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum NotPullable {
+    /// The upstream rule declares no revision, so no cache of it could ever be
+    /// told it is stale.
+    #[error(
+        "this upstream rule declares no revision — a cache of it could never be told it is \
+         stale, so it is refused at the door rather than months later. Ask upstream to \
+         publish it with `authority = {{ kind = \"local\", version = N }}`"
+    )]
+    NoUpstreamVersion,
+    /// The rule's home never leaves a machine, so it never arrives on one.
+    #[error(
+        "this rule's home never leaves a machine, so it cannot arrive on one either: a \
+         project home names somebody else's filesystem path, and an org layer is an \
+         organisation's own"
+    )]
+    HomeIsWithheld,
+    /// A rule with this tag is already here, and it is this install's own.
+    #[error(
+        "a rule with this tag is already here and it is yours — pulling would replace \
+         hand-authored source with a stranger's copy. Re-home or rename one of them"
+    )]
+    WouldClobberLocal,
+    /// A rule with this tag is already here, and it is a deliberate fork.
+    #[error(
+        "a rule with this tag is already here and it is a fork you took deliberately — \
+         pulling would discard both your change and the provenance of what it was forked \
+         from. Drop the fork first if you want upstream's copy back"
+    )]
+    WouldClobberFork,
+}
+
+/// A rule that may be written into this install **as a cache**.
+///
+/// **The second witness, and the reason it is a second one.** `EditableRule`
+/// gates the path that writes a rule this install owns, and its constructor
+/// refuses a cache — which is precisely what a pull must write. Giving
+/// `write_rule` a flag to skip that check would make "edit a cache in place"
+/// reachable by passing `true`, and that state is the one B1 spent a phase
+/// making unconstructible. So there are two witnesses and two write paths:
+/// [`EditableRule`] for source you maintain, `PulledRule` for a copy you do
+/// not, and neither can be minted for the other's subject.
+///
+/// It owns its rule rather than borrowing one, because the cached rule **does
+/// not exist yet** when the witness is minted: this constructor is the single
+/// place a cache is ever constructed, so there is no second site to keep in
+/// step with it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PulledRule(Rule);
+
+impl PulledRule {
+    /// Mint the witness: take `upstream`'s rule, re-home nothing, and record
+    /// what it is a copy of, at which revision, and when.
+    ///
+    /// `existing` is whatever this install already holds under that tag, which
+    /// is what the two clobber refusals read. `None` means the tag is new here.
+    ///
+    /// The four refusals are asked **here, once**, at the only place a cache
+    /// can come into existence — so a caller holding one of these has already
+    /// passed all of them and `fsio` re-checks nothing.
+    pub fn of(
+        upstream: &Rule,
+        existing: Option<&Rule>,
+        from: SourceId,
+        pulled: Date,
+    ) -> Result<Self, NotPullable> {
+        match upstream.home().federation() {
+            super::Federation::Publishable => {}
+            super::Federation::Withheld => return Err(NotPullable::HomeIsWithheld),
+        }
+        let version = upstream
+            .authority()
+            .version()
+            .ok_or(NotPullable::NoUpstreamVersion)?;
+        if let Some(existing) = existing {
+            match existing.authority() {
+                Authority::Cached { .. } => {}
+                Authority::Local { .. } => return Err(NotPullable::WouldClobberLocal),
+                Authority::Adopted { .. } => return Err(NotPullable::WouldClobberFork),
+            }
+        }
+
+        Ok(PulledRule(Rule::new(
+            upstream.tag().clone(), // allow:clone: the cache owns every field, and the upstream document it was read from is left intact for the caller to print
+            upstream.title().clone(), // allow:clone: same
+            upstream.error_class().clone(), // allow:clone: same
+            upstream.home().clone(), // allow:clone: same — the cache keeps the home it arrived with, which is what lets it emit like a local rule
+            upstream.created(),
+            upstream.origin().clone(),   // allow:clone: same
+            upstream.status().clone(),   // allow:clone: same
+            upstream.incident().clone(), // allow:clone: same — upstream's `incident` is already a published account; the raw one never left their machine
+            upstream.body().clone(),     // allow:clone: same
+            // **No recurrences.** Upstream's history of its own rule is theirs;
+            // this install has not seen this rule fire even once, and copying
+            // their count would fabricate local evidence.
+            Vec::new(),
+            upstream.applies_to().to_vec(), // allow:clone: same
+            Authority::cached(from, version, pulled),
+            // Not carried: a published incident is what upstream wrote *to
+            // publish with*, and this install has nothing to publish.
+            None,
+        )))
+    }
+
+    /// The cache this pull would write.
+    #[must_use]
+    pub fn rule(&self) -> &Rule {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

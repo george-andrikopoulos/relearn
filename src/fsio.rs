@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 
 use crate::emit::{OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
-use crate::rule::{EditableRule, ParseError, parse_document, to_document};
+use crate::rule::{EditableRule, ParseError, PulledRule, parse_document, to_document};
 
 /// The opening of the generated-by comment. Its presence in an existing file is
 /// how the overwrite guard tells "relearn wrote this" from "a human wrote this":
@@ -164,12 +164,17 @@ pub enum RuleWriteError {
 
 /// Write one rule back to its file under `rules_dir`, named by its tag body.
 ///
-/// **The only path that writes a rule file, and it takes an [`EditableRule`].**
-/// The witness is minted by a constructor that refuses a cached rule, so a
-/// second write path added later cannot reach the filesystem without asking the
-/// same question — where a check *inside* this function would be satisfied
-/// exactly once and silently absent from the next one. Editing a cache in place
-/// is a silent fork: P2 gone, with no error to read.
+/// **The path that writes a rule this install owns, and it takes an
+/// [`EditableRule`].** The witness is minted by a constructor that refuses a
+/// cached rule, so a write path added later cannot reach the filesystem without
+/// asking the same question — where a check *inside* this function would be
+/// satisfied exactly once and silently absent from the next one. Editing a
+/// cache in place is a silent fork: P2 gone, with no error to read.
+///
+/// There is exactly one other rule-file writer, [`write_cache`], and it is the
+/// mirror of this one: it writes only caches, takes its own witness, and the
+/// two cannot be confused because neither witness can be minted for the other's
+/// subject.
 ///
 /// Returns the path written. Refuses a target that is not the same rule, for the
 /// same reason the emitted tree refuses unversioned content — except that here
@@ -178,6 +183,50 @@ pub enum RuleWriteError {
 #[must_use = "the write result reports failure (clobber refusal, I/O); ignoring it discards that"]
 pub fn write_rule(rules_dir: &Path, rule: &EditableRule<'_>) -> Result<PathBuf, RuleWriteError> {
     let rule = rule.rule();
+    let path = rules_dir.join(format!("{}.md", rule.tag().body()));
+
+    match fs::read_to_string(&path) {
+        Ok(existing) => {
+            let same_rule = parse_document(&existing)
+                .is_ok_and(|existing| existing.tag().as_str() == rule.tag().as_str());
+            if !same_rule {
+                return Err(RuleWriteError::WouldClobberUnrelated {
+                    path,
+                    tag: rule.tag().as_str().to_owned(),
+                });
+            }
+        }
+        Err(source) if source.kind() == ErrorKind::NotFound => {}
+        Err(source) => return Err(RuleWriteError::Io { path, source }),
+    }
+
+    fs::write(&path, to_document(rule)).map_err(|source| RuleWriteError::Io {
+        path: path.clone(), // allow:clone: the error owns the path for the diagnostic, and the success path returns it
+        source,
+    })?;
+    Ok(path)
+}
+
+/// Write a pulled rule into `rules_dir` as a cache, named by its tag body.
+///
+/// **The second write path, and deliberately not a flag on [`write_rule`].**
+/// That one takes an `EditableRule`, whose constructor refuses a cache —
+/// exactly what a pull must write. A flag to skip the refusal would make
+/// "edit a cache in place" reachable by passing `true`, which is the state B1
+/// spent a phase making unconstructible. So the two paths take two witnesses
+/// and neither can be minted for the other's subject: `write_rule` can only
+/// ever write source this install owns, and this can only ever write a copy it
+/// does not.
+///
+/// Whether the target may be replaced was decided when the witness was minted —
+/// `PulledRule::of` refuses a local rule and a deliberate fork — so nothing is
+/// re-asked here. What *is* checked is the same thing `write_rule` checks and
+/// for the same reason: that the file on disk, if any, is the same tag. A path
+/// collision between two different rules is a filesystem fact, not an authority
+/// question, and neither witness can know about it.
+#[must_use = "the write result reports failure (clobber refusal, I/O); ignoring it discards that"]
+pub fn write_cache(rules_dir: &Path, pulled: &PulledRule) -> Result<PathBuf, RuleWriteError> {
+    let rule = pulled.rule();
     let path = rules_dir.join(format!("{}.md", rule.tag().body()));
 
     match fs::read_to_string(&path) {

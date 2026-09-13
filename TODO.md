@@ -350,6 +350,44 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## Multiuser mode: both publisher and cache creator (2026-09-13)
+
+George's call, in three decisions: `contribute` carries a version, the shared corpus lives on a
+common drive both installs can see, and the cache write path gets its own type-level witness
+rather than a flag.
+
+- [x] **`relearn pull`** — the receiving half, and the only thing that creates a cache. Four
+      refusals asked once at the constructor: a withheld home never arrives, an unnumbered
+      upstream rule is refused rather than cached, and pulling over a local rule or a
+      deliberate fork is refused. Re-pulling over a cache is the update path.
+- [x] **`PulledRule`, the second witness.** `write_rule` takes an `EditableRule` that refuses a
+      cache; `write_cache` takes a `PulledRule` that is only ever a cache. Neither can be minted
+      for the other's subject, so "edit a cache in place" stays unconstructible rather than
+      becoming reachable by passing `true`. It **owns** its rule, because the cache does not
+      exist until the witness is minted — one construction site, no second to keep in step.
+- [x] **`contribute --version` is required.** Given on the command line rather than read from the
+      rule, because publication is what assigns it and a fork's authority records the revision it
+      was *forked at*, not the one it is being published as.
+- [x] **Observed end to end through the binary**, two installs and a shared directory: publish at
+      revision 3 → pull → build (the cache emits into the receiving install's global skill) →
+      adopt → pull refused → publish revision 4 → the stale-cache poke fires. The first time any
+      of this has run against something that actually happened rather than a fixture.
+
+Carried:
+
+- [ ] **Nothing checks that a published revision is greater than the last one published.** A
+      contributor can publish revision 2 after revision 7, and every cache of it will then read
+      as newer than upstream. Checking it means reading what is already on the drive and
+      comparing — cheap, and not done here because the refusal belongs with a decision about
+      whether `contribute` may read its destination at all, which it currently never does.
+- [ ] **`pull` takes one tag at a time.** Deliberate — §10's "no silent adoption" means a rule
+      arrives because somebody asked for it — but an install adopting a corpus of fifty rules
+      will type fifty commands. A `--all` that names what it would take, and still requires
+      `--confirm`, is the obvious next shape and was not built on a guess.
+- [ ] **A pulled cache is never refreshed automatically, and nothing lists what is stale.** The
+      `cache-behind` poke reports it one rule at a time inside `lint`; there is no
+      `pull --stale` that acts on what the poke found.
+
 ## The ledger reads its own enforcing artefacts (2026-09-13)
 
 Seventy `Enforced by:` claims, and nothing checked that any of them named something real.

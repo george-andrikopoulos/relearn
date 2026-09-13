@@ -45,9 +45,20 @@ It is the reference implementation of the error loop described in *Tuning the St
   other: an automatic scrubber leaks what it did not recognise and stops people reading the
   output. `contribute` prints and writes nothing without `--confirm`, runs the banned-terms
   matcher over what a contributor authored, and reports a location and a length — never the match.
+- **A rule travels in both directions, and each direction has its own witness.** `contribute`
+  publishes one into a directory both installs can see — a common drive — at a **stated
+  revision**, which is required because a cache records the revision it holds and a publication
+  without one produces a copy that can never be told it is stale. `pull` is the receiving half
+  and the only thing that creates a cache: a rule arrives because somebody asked for it by tag,
+  never by sync, and it keeps the home it arrived with, so it compiles into the receiving
+  install's layer exactly like a local rule. `Home` says which layer; `Authority` says who
+  maintains it; the two are independent and that independence is what makes caching worth doing.
 - **A cached rule is never edited in place.** `Authority::Local | Adopted | Cached`; `fsio::write_rule`
   takes an `EditableRule` witness whose only constructor refuses a cache, so a write path added
-  later cannot reach the filesystem without asking. Editing a cache is a silent fork — the edit
+  later cannot reach the filesystem without asking. The one legitimate writer of a cache,
+  `fsio::write_cache`, therefore takes a **second** witness (`PulledRule`) rather than a flag:
+  neither witness can be minted for the other's subject, so "edit a cache in place" stays
+  unconstructible rather than becoming reachable by passing `true`. Editing a cache is a silent fork — the edit
   succeeds and nothing records the divergence. `adopt` is the loud one, and it remembers what it
   forked from. `Version` is totally ordered so "is this cache stale?" always has an answer — and
   the other half of that question is `Authority::Local`'s optional revision, which is how a

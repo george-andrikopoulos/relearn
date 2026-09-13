@@ -72,7 +72,7 @@ fn contributable() -> Rule {
 fn the_raw_incident_is_nowhere_in_what_would_leave() {
     let rule = contributable();
     let contribution = Contribution::of(&rule).expect("a global mined rule is contributable");
-    let document = contribution.to_document();
+    let document = contribution.to_document(Version::new(1));
 
     assert!(
         !document.contains(RAW),
@@ -108,7 +108,7 @@ fn recurrence_incidents_never_travel() {
     );
     let document = Contribution::of(&rule)
         .expect("contributable")
-        .to_document();
+        .to_document(Version::new(1));
     assert!(!document.contains("George"), "{document}");
     assert!(!document.contains("recurrence"), "{document}");
 }
@@ -225,11 +225,15 @@ fn a_contribution_parses_as_a_rule_whose_incident_is_the_published_one() {
     let rule = contributable();
     let document = Contribution::of(&rule)
         .expect("contributable")
-        .to_document();
+        .to_document(Version::new(1));
 
     let reparsed = relearn::rule::parse_document(&document).expect("a contribution is a rule");
     assert_eq!(reparsed.incident().as_str(), PUBLISHED);
     assert_eq!(reparsed.tag(), rule.tag());
-    assert_eq!(reparsed.authority(), &Authority::local());
+    // **Local at the stated revision**, not unnumbered. Upstream is the home of
+    // what it publishes, and the revision is what every cache of this rule will
+    // be compared against — without it, `pull` refuses the rule outright rather
+    // than accept a copy whose staleness signal is dead on arrival.
+    assert_eq!(reparsed.authority(), &Authority::local_at(Version::new(1)));
     assert!(reparsed.recurrences().is_empty());
 }

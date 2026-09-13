@@ -62,8 +62,21 @@ relearn adopt --rules ./rules --tag R:some-rule --on 2026-09-13
 # `published_incident`, a separate field you write yourself. Prints exactly
 # what would go and writes nothing without --confirm; the term list is
 # required, because a scrub that can run disarmed is not a scrub.
-relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256
-relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --confirm
+# --version says which revision of the rule you are publishing. Required: a
+# cache records the revision it holds, so a rule published without one could
+# never be told it is stale, and `pull` refuses it outright.
+relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --version 1
+relearn contribute --rules ./rules --tag R:some-rule --terms ~/terms.sha256 --version 1 --confirm
+
+# The receiving half, and the only thing that creates a cache. --upstream is a
+# directory both installs can see; nothing is fetched and nothing is synced — a
+# rule arrives because you asked for it by tag. The cache keeps the home it
+# arrived with, so it compiles into your layer like your own rules, and the
+# write path refuses to let you edit it. `adopt` is how you fork it instead.
+relearn pull --rules ./rules --upstream /mnt/shared/corpus --tag R:some-rule \
+    --from shared-drive --on 2026-09-13
+relearn pull --rules ./rules --upstream /mnt/shared/corpus --tag R:some-rule \
+    --from shared-drive --on 2026-09-13 --confirm
 
 # Write this install's anonymous recurrence report into a cloned aggregate
 # repository. An upstream tag, a bucketed count, a month, a status kind, a

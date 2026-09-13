@@ -43,8 +43,9 @@ use crate::lint;
 use crate::poke::{self, BroadcastCap, Reach, Trigger, UnknownTrigger};
 use crate::report::{InstallId, InstallIdError, K_ANONYMITY_FLOOR, Month, MonthError, Report};
 use crate::rule::{
-    AdoptError, CachedIsNotEditable, Date, DateError, EditableRule, RuleTag, RuleTagError,
-    ScopeTag, ScopeTagError,
+    AdoptError, Authority, CachedIsNotEditable, Date, DateError, EditableRule, EmptyText,
+    NotPullable, PulledRule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceId, Version,
+    to_document,
 };
 use crate::scrub::{ScrubError, TermList};
 
@@ -133,6 +134,43 @@ enum Command {
         #[arg(long)]
         on: String,
     },
+    /// Take a copy of an upstream rule into this install, as a cache.
+    ///
+    /// **The receiving half of `contribute`, and the only thing that creates a
+    /// cache.** A cached rule compiles into your instruction layer exactly like
+    /// one of your own — it keeps the home it arrived with — but it is not
+    /// yours to edit: the write path refuses that, and `adopt` is how you take
+    /// a deliberate fork instead.
+    ///
+    /// Nothing is fetched and nothing is synced. `--upstream` is a path on a
+    /// drive both installs can see, given here like every other input, and a
+    /// rule arrives because you asked for it by tag.
+    Pull {
+        /// Directory of `*.md` rule files — where the cache will land.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+        /// Path to the shared corpus: a directory holding `rules/*.md`.
+        #[arg(long)]
+        upstream: PathBuf,
+        /// The rule to take a copy of, e.g. `R:parse-dont-validate`.
+        #[arg(long)]
+        tag: String,
+        /// What to call the upstream this copy came from.
+        ///
+        /// **Named, never located.** The path above says where the corpus sits
+        /// on this machine today; this says whose it is, and it is what the
+        /// cache records — a rule file that travels must not bake in one
+        /// machine's layout.
+        #[arg(long)]
+        from: String,
+        /// The date of the pull, `YYYY-MM-DD`. Given, never read from a clock,
+        /// for the same reason `adopt --on` is.
+        #[arg(long)]
+        on: String,
+        /// Write the cache. Without it, nothing is written.
+        #[arg(long)]
+        confirm: bool,
+    },
     /// Prepare one rule to leave this machine, and show exactly what would go.
     ///
     /// Prints the contribution and writes **nothing** unless `--confirm` is
@@ -157,6 +195,18 @@ enum Command {
         /// consults no ambient state.
         #[arg(long)]
         terms: PathBuf,
+        /// Which revision of this tag you are publishing.
+        ///
+        /// **Required, because a rule published without one can never be told
+        /// it is stale.** A cache records the revision it holds; without a
+        /// revision upstream there is nothing to compare against, `pull`
+        /// refuses the rule outright, and the staleness signal is dead for it
+        /// forever. Given here rather than read from the rule file because
+        /// publication is the act that assigns it — and because a fork's own
+        /// authority records the revision it was *forked at*, which is not the
+        /// revision it is being published as.
+        #[arg(long)]
+        version: u32,
         /// Where to write the contribution. Only used with `--confirm`.
         #[arg(long, default_value = "contributions")]
         out: PathBuf,
@@ -514,6 +564,16 @@ pub enum CliError {
          repository, and there is nothing to read without one"
     )]
     PokeWithoutUpstream,
+    /// `--from` was not a well-formed source identifier.
+    ///
+    /// Not `#[from]`, for the same reason [`CliError::Scope`] is not: the
+    /// derived source would print the same sentence twice.
+    #[error("--from: {0}")]
+    Source(EmptyText),
+    /// The upstream rule cannot be taken as a cache. Carries the refusal, which
+    /// says which of the four it was and what to do instead.
+    #[error(transparent)]
+    NotPullable(NotPullable),
     /// `--poke` named a trigger that does not exist.
     ///
     /// Not `#[from]`, for the same reason [`CliError::Scope`] is not: the
@@ -575,13 +635,22 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             adopt(&rules, &tag, &on)?;
             Ok(ExitCode::SUCCESS)
         }
+        Command::Pull {
+            rules,
+            upstream,
+            tag,
+            from,
+            on,
+            confirm,
+        } => pull(&rules, &upstream, &tag, &from, &on, confirm),
         Command::Contribute {
             rules,
             tag,
             terms,
+            version,
             out,
             confirm,
-        } => contribute(&rules, &tag, &terms, &out, confirm),
+        } => contribute(&rules, &tag, &terms, Version::new(version), &out, confirm),
         Command::Report {
             rules,
             aggregate,
@@ -797,6 +866,86 @@ fn adopt(rules: &Path, tag: &str, on: &str) -> Result<(), CliError> {
     Ok(())
 }
 
+/// `pull`: take a copy of an upstream rule into this install, as a cache.
+///
+/// **The receiving half, and the only thing that creates a cache.** Order is
+/// deliberate, as in `contribute`: the upstream corpus is loaded and validated
+/// first — a shared drive full of rules that do not parse is a broken corpus and
+/// says so, rather than yielding one rule and hiding the rest — then the witness
+/// is minted, which is where all four refusals live, and only then is anything
+/// printed. Nothing is written without `--confirm`.
+///
+/// The local library is loaded to answer one question: *is this tag already
+/// here, and what is it?* That is what separates refreshing a cache from
+/// clobbering your own rule, and `PulledRule::of` is what decides it.
+fn pull(
+    rules: &Path,
+    upstream: &Path,
+    tag: &str,
+    from: &str,
+    on: &str,
+    confirm: bool,
+) -> Result<ExitCode, CliError> {
+    let tag = RuleTag::parse(tag).map_err(CliError::Tag)?;
+    let from = SourceId::parse(from).map_err(CliError::Source)?;
+    let on = Date::parse(on).map_err(CliError::AdoptDate)?;
+
+    let corpus = fsio::load_rules(&upstream.join("rules"))?.validate()?;
+    let upstream_rule = corpus
+        .rules()
+        .iter()
+        .find(|r| r.tag() == &tag)
+        .ok_or_else(|| CliError::NoSuchRule {
+            requested: tag.as_str().to_owned(),
+        })?;
+
+    // A rules directory that does not exist yet is an empty library, not an
+    // error: pulling is a reasonable first thing to do in a fresh install.
+    let held = if rules.exists() {
+        fsio::load_rules(rules)?.validate()?.into_rules()
+    } else {
+        Vec::new()
+    };
+    let existing = held.iter().find(|r| r.tag() == &tag);
+
+    let pulled =
+        PulledRule::of(upstream_rule, existing, from, on).map_err(CliError::NotPullable)?;
+
+    println!("{}", to_document(pulled.rule()));
+    println!(
+        "This is exactly what would land in {}, as a cache: it will compile into your \
+         instruction layer like your own rules, and the write path will refuse to let you \
+         edit it. `adopt` is how you take a deliberate fork instead.",
+        rules.display()
+    );
+
+    if !confirm {
+        println!("Nothing written. Re-run with --confirm to write it.");
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    std::fs::create_dir_all(rules).map_err(|source| CliError::ContributionWrite {
+        path: rules.to_path_buf(),
+        source,
+    })?;
+    let path = fsio::write_cache(rules, &pulled)?;
+    // The revision is read back off the witness rather than off the upstream
+    // rule: what the reader wants to know is what the cache now records, which
+    // is the number `cache-behind` will compare against from here on.
+    let held = match pulled.rule().authority() {
+        Authority::Cached { from, version, .. } => {
+            format!("{} at revision {version}", from.as_str())
+        }
+        other => unreachable!("a pull mints a cache, not {other:?}"),
+    };
+    println!(
+        "pulled {} from {held} — written to {}",
+        tag.as_str(),
+        path.display()
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
 /// `contribute`: show exactly what would leave, and write it only on `--confirm`.
 ///
 /// Order matters and is deliberate. The projection is built first, so the four
@@ -814,6 +963,7 @@ fn contribute(
     rules: &Path,
     tag: &str,
     terms: &Path,
+    version: Version,
     out: &Path,
     confirm: bool,
 ) -> Result<ExitCode, CliError> {
@@ -854,7 +1004,7 @@ fn contribute(
         }
     }
 
-    println!("{}", contribution.what_would_leave());
+    println!("{}", contribution.what_would_leave(version));
 
     if !confirm {
         println!(
@@ -871,7 +1021,7 @@ fn contribute(
         source,
     })?;
     let path = out.join(format!("{}.md", tag.body()));
-    std::fs::write(&path, contribution.to_document()).map_err(|source| {
+    std::fs::write(&path, contribution.to_document(version)).map_err(|source| {
         CliError::ContributionWrite {
             path: path.clone(), // allow:clone: the error owns the path for its diagnostic, and the success line below prints it
             source,

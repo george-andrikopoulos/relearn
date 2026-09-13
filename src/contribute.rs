@@ -22,7 +22,7 @@ use std::fmt::Write as _;
 
 use crate::rule::{
     Authority, Body, Date, ErrorClass, Federation, Home, Origin, PublishedIncident, Rule, RuleTag,
-    ScopeTag, Status, to_document,
+    ScopeTag, Status, Version, to_document,
 };
 
 /// Why a rule may not be contributed.
@@ -139,10 +139,20 @@ impl<'a> Contribution<'a> {
     /// holds: the published incident stands where `incident` goes, there are no
     /// recurrences (this install's history of the rule is its own business, and
     /// anonymous aggregate counts are the report flow's job), and the authority
-    /// is `Local` — upstream is the home of what it publishes, and a local
-    /// fork's provenance is not upstream's concern.
+    /// is `Local` **at the stated revision** — upstream is the home of what it
+    /// publishes, and a local fork's provenance is not upstream's concern.
+    ///
+    /// **The revision is an argument because publication is what assigns it.**
+    /// A rule's own authority cannot supply it: a fork's records the revision
+    /// it was *forked at*, which is a different number from the one it is being
+    /// published as, and publishing a changed rule under a revision that
+    /// already exists upstream would make every cache of it wrong in the one
+    /// direction nobody could detect. Without a revision here, no cache of this
+    /// rule could ever be told it is stale — which is why `pull` refuses an
+    /// unnumbered upstream rule outright rather than accepting a copy whose
+    /// staleness signal is dead.
     #[must_use]
-    pub fn to_document(self) -> String {
+    pub fn to_document(self, version: Version) -> String {
         // The published incident is a *witness of a different type*, so putting
         // it where the incident goes is an explicit re-parse rather than an
         // accident of shape. It cannot fail: non-empty is non-empty.
@@ -161,7 +171,7 @@ impl<'a> Contribution<'a> {
             self.body.clone(), // allow:clone: same
             Vec::new(),
             self.applies_to.to_vec(),
-            Authority::local(),
+            Authority::local_at(version),
             None,
         );
         to_document(&rule)
@@ -174,7 +184,7 @@ impl<'a> Contribution<'a> {
     /// reader would skim. The one thing this adds is the reminder that the
     /// matcher cannot read for judgement.
     #[must_use]
-    pub fn what_would_leave(self) -> String {
+    pub fn what_would_leave(self, version: Version) -> String {
         let mut out = String::new();
         let _ = writeln!(
             out,
@@ -182,7 +192,7 @@ impl<'a> Contribution<'a> {
              The matcher checks for names you have written down. It cannot tell you whether \
              this text identifies a person, a customer or a repository without naming one.\n"
         );
-        out.push_str(&self.to_document());
+        out.push_str(&self.to_document(version));
         out
     }
 }
