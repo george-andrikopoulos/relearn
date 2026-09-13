@@ -300,6 +300,112 @@ impl<'a> EditableRule<'a> {
     }
 }
 
+/// Why a rule this install holds is no longer wanted.
+///
+/// Both are **§12.6's third resolution** — pull, adopt, or drop — reached
+/// deliberately. Neither is ever applied behind anyone's back: an upstream
+/// retirement still only *warns*, and what changed is that the warning now has
+/// a command to act on rather than only a sentence to read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unwanted {
+    /// The shared corpus no longer carries this tag at all.
+    GoneUpstream,
+    /// Upstream retired it to the attic.
+    RetiredUpstream,
+}
+
+impl Unwanted {
+    /// What to tell the reader before they confirm.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Unwanted::GoneUpstream => "gone from the shared corpus",
+            Unwanted::RetiredUpstream => "retired upstream",
+        }
+    }
+}
+
+/// Why a rule cannot be dropped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum NotDroppable {
+    /// It is this install's own rule. Source, and nothing regenerates it.
+    #[error(
+        "this rule is yours — dropping it would delete source that nothing can restore, where \
+         a cache can always be pulled again"
+    )]
+    YoursToKeep,
+    /// It is a fork taken deliberately, which is a change somebody made.
+    #[error(
+        "this rule is a fork you took deliberately — the change in it exists nowhere else, and \
+         a prune must never be the thing that discards it"
+    )]
+    ADeliberateFork,
+    /// Upstream still carries it, live.
+    #[error("upstream still carries this rule and has not retired it — it is not unwanted")]
+    StillWanted,
+}
+
+/// A cached rule that may be removed from this install.
+///
+/// **The third witness, and the one that matters most for being narrow.**
+/// Removal is the only operation here that deletes a file, and it is safe for
+/// exactly one reason: *a cache is regenerable*. Dropping one loses nothing a
+/// `pull` cannot restore. A rule this install owns and a fork it took are
+/// **source** — nothing regenerates either — so the constructor refuses both,
+/// and no amount of editing a caller can reach the delete path with one.
+///
+/// It carries the tag and the reason rather than the rule, because that is all
+/// a removal needs and all a reader needs to weigh it before confirming.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DroppableCache {
+    tag: super::RuleTag,
+    why: Unwanted,
+}
+
+impl DroppableCache {
+    /// Mint the witness, or refuse and say why this rule stays.
+    ///
+    /// `upstream` is what the shared corpus carries under this tag — `None`
+    /// when it carries nothing, which is one of the two reasons a cache becomes
+    /// unwanted.
+    pub fn of(held: &Rule, upstream: Option<&Rule>) -> Result<Self, NotDroppable> {
+        match held.authority() {
+            Authority::Local { .. } => return Err(NotDroppable::YoursToKeep),
+            Authority::Adopted { .. } => return Err(NotDroppable::ADeliberateFork),
+            Authority::Cached { .. } => {}
+        }
+        let why = match upstream {
+            None => Unwanted::GoneUpstream,
+            Some(rule) if matches!(rule.status(), super::Status::Attic { .. }) => {
+                Unwanted::RetiredUpstream
+            }
+            Some(_) => return Err(NotDroppable::StillWanted),
+        };
+        Ok(DroppableCache {
+            tag: held.tag().clone(), // allow:clone: the plan owns what it proposes to remove, and outlives the library borrow it was read from
+            why,
+        })
+    }
+
+    /// The rule to be removed.
+    #[must_use]
+    pub fn tag(&self) -> &super::RuleTag {
+        &self.tag
+    }
+
+    /// Why it is no longer wanted, for the reader who has to confirm it.
+    #[must_use]
+    pub fn why(&self) -> &'static str {
+        self.why.as_str()
+    }
+
+    /// Which of the two reasons it is.
+    #[must_use]
+    pub fn unwanted(&self) -> Unwanted {
+        self.why
+    }
+}
+
 /// Why a rule cannot be pulled into this install as a cache.
 ///
 /// Every variant is a refusal rather than a transformation, for the same reason

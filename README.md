@@ -81,6 +81,17 @@ relearn pull --rules ./rules --upstream /mnt/shared/corpus --tag R:some-rule \
 relearn pull --rules ./rules --upstream /mnt/shared/corpus --tag R:some-rule \
     --from shared-drive --on 2026-09-13 --confirm
 
+# Or work over the whole shared corpus. WITHOUT --confirm this is the status
+# check to run before starting work: what would be taken, what refreshed, what
+# dropped, and everything left alone with the reason — every rule in both
+# corpora named exactly once. --scope narrows what it takes. --prune also
+# removes caches that are gone or retired upstream, and only caches: a cache is
+# regenerable, where a rule you own or a fork you took is source.
+relearn pull --rules ./rules --upstream /mnt/shared/corpus --all \
+    --from shared-drive --on 2026-09-13
+relearn pull --rules ./rules --upstream /mnt/shared/corpus --all --scope rust \
+    --prune --from shared-drive --on 2026-09-13 --confirm
+
 # Write this install's anonymous recurrence report into a cloned aggregate
 # repository. An upstream tag, a bucketed count, a month, a status kind, a
 # control kind — nothing else, and no day-level date anywhere. The pseudonym

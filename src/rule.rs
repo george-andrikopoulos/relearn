@@ -34,8 +34,8 @@ mod tag;
 mod text;
 
 pub use authority::{
-    AdoptError, Authority, CachedIsNotEditable, EditableRule, NotPullable, PulledRule, SourceId,
-    Version,
+    AdoptError, Authority, CachedIsNotEditable, DroppableCache, EditableRule, NotDroppable,
+    NotPullable, PulledRule, SourceId, Unwanted, Version,
 };
 pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};

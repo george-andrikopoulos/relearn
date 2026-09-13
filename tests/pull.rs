@@ -348,3 +348,344 @@ fn pulling_a_tag_the_drive_does_not_have_is_an_error() {
         "the error names the tag that was asked for"
     );
 }
+
+// ── the plan: what --all would take, refresh, drop, and leave alone ──────────
+
+use relearn::pull::{Plan, Prune, Skipped};
+
+fn lib(rules: Vec<Rule>) -> relearn::library::Library<relearn::library::Validated> {
+    relearn::library::Library::from_rules(rules)
+        .validate()
+        .expect("a valid library")
+}
+
+fn retired_upstream(tag: &str, version: u32) -> Rule {
+    let doc = upstream_doc(tag, "{ kind = \"global\" }", Some(version)).replace(
+        "status = { kind = \"active\" }",
+        "status = { kind = \"attic\", reason = \"cold surface\", date = \"2026-09-02\" }",
+    );
+    parse_document(&doc).expect("a retired upstream rule parses")
+}
+
+/// **A plan is a report before it is an action.** Everything `--all` would do,
+/// sorted into what it takes, what it refreshes, and what it leaves alone —
+/// printed with no `--confirm`, which is what makes it the status check to run
+/// before starting work.
+#[test]
+fn a_plan_takes_what_is_new_and_refreshes_what_is_behind() {
+    let local = lib(vec![
+        local("R:held", cached_at(2)),
+        local("R:current", cached_at(7)),
+    ]);
+    let upstream = lib(vec![
+        upstream("R:held", Some(5)),
+        upstream("R:current", Some(7)),
+        upstream("R:new", Some(1)),
+    ]);
+
+    let plan = Plan::of(&local, &upstream, source(), on(), &[], Prune::Keep);
+
+    let taken: Vec<&str> = plan
+        .take()
+        .iter()
+        .map(|p| p.rule().tag().as_str())
+        .collect();
+    assert_eq!(taken, ["R:new"], "a tag this install does not hold");
+
+    let refreshed: Vec<&str> = plan
+        .refresh()
+        .iter()
+        .map(|p| p.rule().tag().as_str())
+        .collect();
+    assert_eq!(refreshed, ["R:held"], "a cache behind upstream");
+
+    assert!(
+        plan.skipped()
+            .iter()
+            .any(|(tag, why)| tag.as_str() == "R:current" && *why == Skipped::AlreadyCurrent),
+        "a cache already at upstream's revision is reported, not silently omitted: {:?}",
+        plan.skipped()
+    );
+}
+
+/// **What it will not touch, and says so.** A rule you own, a fork you took, a
+/// withheld home and an unnumbered upstream rule are each left alone *and
+/// named* — an omission nobody is told about is the failure a plan exists to
+/// prevent.
+#[test]
+fn a_plan_names_everything_it_leaves_alone() {
+    let local = lib(vec![
+        local("R:mine", Authority::local()),
+        local(
+            "R:forked",
+            Authority::adopted(source(), Version::new(1), on(), on()),
+        ),
+    ]);
+    let withheld = parse_document(&upstream_doc(
+        "R:theirs",
+        "{ kind = \"project\", path = \"/somewhere/else\" }",
+        Some(1),
+    ))
+    .expect("parses");
+    let upstream = lib(vec![
+        upstream("R:mine", Some(9)),
+        upstream("R:forked", Some(9)),
+        upstream("R:unnumbered", None),
+        withheld,
+    ]);
+
+    let plan = Plan::of(&local, &upstream, source(), on(), &[], Prune::Keep);
+    assert!(
+        plan.take().is_empty() && plan.refresh().is_empty(),
+        "{plan:?}"
+    );
+
+    let reasons: Vec<(&str, Skipped)> = plan
+        .skipped()
+        .iter()
+        .map(|(tag, why)| (tag.as_str(), *why))
+        .collect();
+    for expected in [
+        ("R:mine", Skipped::YoursToKeep),
+        ("R:forked", Skipped::ADeliberateFork),
+        ("R:unnumbered", Skipped::NoUpstreamVersion),
+        ("R:theirs", Skipped::HomeIsWithheld),
+    ] {
+        assert!(
+            reasons.contains(&expected),
+            "{expected:?} missing from {reasons:?}"
+        );
+    }
+}
+
+/// `--scope` bounds what a bulk pull takes, which is §10's own mechanism for
+/// keeping a local corpus small enough to compile. An **unscoped** upstream
+/// rule serves every audience and is taken regardless — the same safety default
+/// `build --scope` has, where narrowing can never remove a rule that declared
+/// no audience.
+#[test]
+fn an_audience_bounds_what_a_bulk_pull_takes() {
+    let upstream = lib(vec![
+        scoped_upstream("R:rusty", 1, &["rust"]),
+        scoped_upstream("R:javan", 1, &["java"]),
+        upstream("R:everyone", Some(1)),
+    ]);
+    let audience = [relearn::rule::ScopeTag::parse("rust").expect("a valid scope")];
+    let plan = Plan::of(
+        &lib(Vec::new()),
+        &upstream,
+        source(),
+        on(),
+        &audience,
+        Prune::Keep,
+    );
+
+    let mut taken: Vec<&str> = plan
+        .take()
+        .iter()
+        .map(|p| p.rule().tag().as_str())
+        .collect();
+    taken.sort_unstable();
+    assert_eq!(taken, ["R:everyone", "R:rusty"]);
+    assert!(
+        plan.skipped()
+            .iter()
+            .any(|(tag, why)| tag.as_str() == "R:javan" && *why == Skipped::NotInYourAudience)
+    );
+}
+
+// ── dropping the unwanted ───────────────────────────────────────────────────
+
+/// **Only a cache is droppable, and that is the whole safety argument.** A cache
+/// is regenerable — dropping one loses nothing a `pull` cannot restore. A rule
+/// you own and a fork you took are *source*, and nothing regenerates either.
+#[test]
+fn only_a_cache_can_be_dropped() {
+    let gone_upstream = lib(vec![
+        local("R:orphan", cached_at(1)),
+        local("R:mine", Authority::local()),
+        local(
+            "R:forked",
+            Authority::adopted(source(), Version::new(1), on(), on()),
+        ),
+    ]);
+    let plan = Plan::of(
+        &gone_upstream,
+        &lib(Vec::new()),
+        source(),
+        on(),
+        &[],
+        Prune::Drop,
+    );
+
+    let dropped: Vec<&str> = plan.drop().iter().map(|d| d.tag().as_str()).collect();
+    assert_eq!(
+        dropped,
+        ["R:orphan"],
+        "a rule you own and a fork you took are source, and survive a prune"
+    );
+}
+
+/// Two reasons a cache is unwanted, and both are reported as what they are:
+/// the tag is **gone** from the drive, or upstream **retired** it — §12.6's
+/// third resolution, taken deliberately rather than applied behind your back.
+#[test]
+fn a_cache_is_unwanted_when_it_is_gone_or_retired_upstream() {
+    let local = lib(vec![
+        local("R:orphan", cached_at(1)),
+        local("R:retired", cached_at(1)),
+        local("R:live", cached_at(1)),
+    ]);
+    let upstream = lib(vec![
+        retired_upstream("R:retired", 1),
+        upstream("R:live", Some(1)),
+    ]);
+
+    let plan = Plan::of(&local, &upstream, source(), on(), &[], Prune::Drop);
+    let mut dropped: Vec<&str> = plan.drop().iter().map(|d| d.tag().as_str()).collect();
+    dropped.sort_unstable();
+    assert_eq!(dropped, ["R:orphan", "R:retired"]);
+    assert!(
+        plan.drop().iter().any(|d| d.why().contains("gone")),
+        "the reason travels with the decision: {:?}",
+        plan.drop()
+    );
+}
+
+/// **Prune is opt-in, and `Prune::Keep` is the default everywhere.** Dropping is
+/// the one thing here that removes a file, so it never happens because somebody
+/// ran the ordinary command.
+#[test]
+fn nothing_is_dropped_unless_pruning_was_asked_for() {
+    let local = lib(vec![local("R:orphan", cached_at(1))]);
+    let plan = Plan::of(&local, &lib(Vec::new()), source(), on(), &[], Prune::Keep);
+    assert!(plan.drop().is_empty());
+    assert!(
+        plan.skipped()
+            .iter()
+            .any(|(tag, why)| tag.as_str() == "R:orphan" && *why == Skipped::UnwantedButKept),
+        "it is still reported, so the status check tells you what a prune would take: {:?}",
+        plan.skipped()
+    );
+}
+
+/// A cache of `relearn-upstream` at a given revision.
+fn cached_at(revision: u32) -> Authority {
+    Authority::cached(source(), Version::new(revision), on())
+}
+
+/// An upstream rule declaring the audiences it serves.
+fn scoped_upstream(tag: &str, version: u32, scopes: &[&str]) -> Rule {
+    let list: Vec<String> = scopes.iter().map(|s| format!("\"{s}\"")).collect();
+    let doc = upstream_doc(tag, "{ kind = \"global\" }", Some(version)).replace(
+        "created = ",
+        &format!("applies_to = [{}]\ncreated = ", list.join(", ")),
+    );
+    parse_document(&doc).expect("a scoped upstream rule parses")
+}
+
+/// The whole workflow through the real binary: status, apply, converge. **The
+/// second run is the assertion that matters** — a bulk operation that is not
+/// idempotent is one nobody can run twice without reading the output first.
+#[test]
+fn pull_all_takes_refreshes_prunes_and_then_converges() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let drive = dir.path().join("drive");
+    let rules = dir.path().join("rules");
+    fs::create_dir_all(drive.join("rules")).expect("create the drive");
+    fs::create_dir_all(&rules).expect("create the local rules dir");
+
+    fs::write(
+        drive.join("rules").join("new-one.md"),
+        upstream_doc("R:new-one", "{ kind = \"global\" }", Some(1)),
+    )
+    .expect("write");
+    fs::write(
+        drive.join("rules").join("behind.md"),
+        upstream_doc("R:behind", "{ kind = \"global\" }", Some(5)),
+    )
+    .expect("write");
+    fs::write(
+        rules.join("behind.md"),
+        relearn::rule::to_document(&local("R:behind", cached_at(2))),
+    )
+    .expect("write");
+    fs::write(
+        rules.join("orphan.md"),
+        relearn::rule::to_document(&local("R:orphan", cached_at(1))),
+    )
+    .expect("write");
+    fs::write(
+        rules.join("mine.md"),
+        relearn::rule::to_document(&local("R:mine", Authority::local())),
+    )
+    .expect("write");
+
+    let run = |extra: &[&str]| {
+        let mut cmd = relearn();
+        cmd.args(["pull", "--rules"])
+            .arg(&rules)
+            .arg("--upstream")
+            .arg(&drive)
+            .args(["--all", "--from", "drive", "--on", "2026-09-13"]);
+        for arg in extra {
+            cmd.arg(arg);
+        }
+        let out = cmd.output().expect("the binary runs");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+
+    // The status check writes nothing.
+    let status = run(&["--prune"]);
+    assert!(status.contains("take     R:new-one"), "{status}");
+    assert!(status.contains("refresh  R:behind"), "{status}");
+    assert!(status.contains("drop     R:orphan"), "{status}");
+    assert!(status.contains("keep     R:mine"), "{status}");
+    assert!(rules.join("orphan.md").exists(), "nothing written yet");
+
+    run(&["--prune", "--confirm"]);
+    assert!(rules.join("new-one.md").exists());
+    assert!(
+        !rules.join("orphan.md").exists(),
+        "the orphan cache is gone"
+    );
+    assert!(
+        rules.join("mine.md").exists(),
+        "a rule this install owns is source, and survives a prune"
+    );
+    let refreshed = fs::read_to_string(rules.join("behind.md")).expect("read");
+    assert!(refreshed.contains("version = 5"), "{refreshed}");
+
+    // **Twice is the same as once.**
+    let again = run(&["--prune", "--confirm"]);
+    assert!(again.contains("Nothing to do."), "{again}");
+}
+
+/// A command that would do nothing is refused, because to whoever typed it a
+/// silent no-op reads as a command that ran.
+#[test]
+fn pull_with_neither_a_tag_nor_all_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let common = dir.path().join("common-drive");
+    drive(&common, Some(1));
+
+    let out = relearn()
+        .args(["pull", "--rules"])
+        .arg(dir.path().join("rules"))
+        .arg("--upstream")
+        .arg(&common)
+        .args(["--from", "drive", "--on", "2026-09-13"])
+        .output()
+        .expect("the binary runs");
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("--tag") && stderr.contains("--all"),
+        "{stderr}"
+    );
+}

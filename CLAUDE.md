@@ -53,6 +53,15 @@ It is the reference implementation of the error loop described in *Tuning the St
   never by sync, and it keeps the home it arrived with, so it compiles into the receiving
   install's layer exactly like a local rule. `Home` says which layer; `Authority` says who
   maintains it; the two are independent and that independence is what makes caching worth doing.
+  `pull --all` does the same over a whole shared corpus and is **a report before it is an
+  action**: without `--confirm` it is the status check to run before starting work, naming every
+  rule in both corpora exactly once — including what it will not touch, and why.
+- **Only a cache may be deleted, and that is the whole safety argument for `--prune`.** A cache is
+  regenerable, so dropping one loses nothing a later pull cannot restore; a rule this install owns
+  and a fork it took are source that nothing regenerates. `DroppableCache` refuses both, so
+  `fsio::remove_cache` — the only path that deletes a rule file — cannot be reached with source.
+  Dropping is opt-in, an unwanted cache is still reported under the default, and a drop of a rule
+  **retired** upstream says before it happens that it has no inverse.
 - **A cached rule is never edited in place.** `Authority::Local | Adopted | Cached`; `fsio::write_rule`
   takes an `EditableRule` witness whose only constructor refuses a cache, so a write path added
   later cannot reach the filesystem without asking. The one legitimate writer of a cache,

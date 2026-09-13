@@ -385,13 +385,31 @@ Carried:
       because it was the only rule-file writer with no sibling to compare against; `write_cache`
       arriving made two that guarded and one that did not. All three now share one
       `guarded_write`.
-- [ ] **`pull` takes one tag at a time.** Deliberate — §10's "no silent adoption" means a rule
-      arrives because somebody asked for it — but an install adopting a corpus of fifty rules
-      will type fifty commands. A `--all` that names what it would take, and still requires
-      `--confirm`, is the obvious next shape and was not built on a guess.
-- [ ] **A pulled cache is never refreshed automatically, and nothing lists what is stale.** The
-      `cache-behind` poke reports it one rule at a time inside `lint`; there is no
-      `pull --stale` that acts on what the poke found.
+- [x] **`pull --all`, with a plan, an audience and a prune** — George's call, shipped
+      2026-09-13. Without `--confirm` it is the status check to run before starting work:
+      every rule in both corpora named exactly once, including the ones it will not touch
+      and why. `--scope` bounds it (§10's own answer to a corpus too large to compile);
+      `--prune` removes caches that are gone or retired upstream, and **only caches** —
+      `DroppableCache` refuses a rule you own and a fork you took, because a cache is
+      regenerable and source is not. Idempotent: the second run says `Nothing to do.`
+- [x] **The stale-cache poke now has a command to act on.** `cache-behind` still reports one
+      rule at a time inside `lint`; `pull --all` is what refreshes them, and `--prune` is
+      §12.6's third resolution taken deliberately rather than applied behind anyone's back.
+- [x] **Found while building:** a retired upstream rule the install already held was reported
+      twice in one run — *"already at upstream's revision"* and *"unwanted, and kept"*. The
+      attic check had been conditioned on whether the rule was held; it is not.
+
+Carried:
+
+- [ ] **`pull --all` re-reads and re-writes the whole corpus every run.** Fine at fifty rules
+      and pointless at five thousand; nothing here is incremental, and nothing records what
+      was last pulled. The convergence test is what makes the waste safe rather than absent.
+- [x] **A prune on a retirement has no inverse, and now says so before it is taken.** A cache
+      dropped for being *gone* returns if it comes back; one dropped because upstream
+      **retired** the rule cannot be pulled again at all, since `pull` refuses a retired rule
+      — which is what "retired" means. Noticed while writing the carried list, so the plan now
+      counts those drops and names `adopt` as the alternative for anyone holding evidence
+      upstream does not.
 
 ## The ledger reads its own enforcing artefacts (2026-09-13)
 

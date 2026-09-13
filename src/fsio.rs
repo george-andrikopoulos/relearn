@@ -16,7 +16,9 @@ use sha2::{Digest, Sha256};
 
 use crate::emit::{OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
-use crate::rule::{EditableRule, ParseError, PulledRule, RuleTag, parse_document, to_document};
+use crate::rule::{
+    DroppableCache, EditableRule, ParseError, PulledRule, RuleTag, parse_document, to_document,
+};
 
 /// The opening of the generated-by comment. Its presence in an existing file is
 /// how the overwrite guard tells "relearn wrote this" from "a human wrote this":
@@ -171,10 +173,13 @@ pub enum RuleWriteError {
 /// satisfied exactly once and silently absent from the next one. Editing a
 /// cache in place is a silent fork: P2 gone, with no error to read.
 ///
-/// There is exactly one other rule-file writer, [`write_cache`], and it is the
-/// mirror of this one: it writes only caches, takes its own witness, and the
-/// two cannot be confused because neither witness can be minted for the other's
-/// subject.
+/// **Every path that touches a rule file takes a witness, and no two witnesses
+/// overlap.** This one writes source this install owns; [`write_cache`] writes
+/// only a copy it does not; [`remove_cache`] deletes only a copy, because a
+/// cache is regenerable and source is not; [`write_contribution`] writes into
+/// somebody else's corpus and never here. None of them can be called with
+/// another's subject, so the questions "may this be edited", "may this be
+/// replaced" and "may this be deleted" are each asked in exactly one place.
 ///
 /// Returns the path written. Refuses a target that is not the same rule, for the
 /// same reason the emitted tree refuses unversioned content — except that here
@@ -219,6 +224,46 @@ fn guarded_write(dir: &Path, tag: &RuleTag, document: &str) -> Result<PathBuf, R
     }
 
     fs::write(&path, document).map_err(|source| RuleWriteError::Io {
+        path: path.clone(), // allow:clone: the error owns the path for the diagnostic, and the success path returns it
+        source,
+    })?;
+    Ok(path)
+}
+
+/// Remove a cached rule's file from `rules_dir`.
+///
+/// **The only path that deletes a rule file, and it takes a [`DroppableCache`].**
+/// Deleting is safe for exactly one reason — a cache is regenerable, so dropping
+/// one loses nothing a `pull` cannot restore — and the witness is what confines
+/// it to that case: a rule this install owns and a fork it took are source, the
+/// constructor refuses both, and no caller can reach this function with either.
+///
+/// A file that is already gone is **not** an error. The witness was minted from
+/// a library read a moment ago, and a plan acted on twice should converge rather
+/// than fail the second time.
+#[must_use = "the removal result reports failure (a foreign file, I/O); ignoring it discards that"]
+pub fn remove_cache(rules_dir: &Path, cache: &DroppableCache) -> Result<PathBuf, RuleWriteError> {
+    let path = rules_dir.join(format!("{}.md", cache.tag().body()));
+
+    match fs::read_to_string(&path) {
+        // The same path guard the writers use, for the same reason: the file at
+        // this path may not be the rule the witness is about. A witness knows
+        // about rules; only a read knows what is on disk.
+        Ok(existing) => {
+            let same_rule = parse_document(&existing)
+                .is_ok_and(|existing| existing.tag().as_str() == cache.tag().as_str());
+            if !same_rule {
+                return Err(RuleWriteError::WouldClobberUnrelated {
+                    path,
+                    tag: cache.tag().as_str().to_owned(),
+                });
+            }
+        }
+        Err(source) if source.kind() == ErrorKind::NotFound => return Ok(path),
+        Err(source) => return Err(RuleWriteError::Io { path, source }),
+    }
+
+    fs::remove_file(&path).map_err(|source| RuleWriteError::Io {
         path: path.clone(), // allow:clone: the error owns the path for the diagnostic, and the success path returns it
         source,
     })?;

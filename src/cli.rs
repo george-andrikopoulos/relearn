@@ -41,11 +41,12 @@ use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
 use crate::lint;
 use crate::poke::{self, BroadcastCap, Reach, Trigger, UnknownTrigger};
+use crate::pull::{Plan, Prune};
 use crate::report::{InstallId, InstallIdError, K_ANONYMITY_FLOOR, Month, MonthError, Report};
 use crate::rule::{
     AdoptError, Authority, CachedIsNotEditable, Date, DateError, EditableRule, EmptyText,
-    NotPullable, PulledRule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceId, Version,
-    to_document,
+    NotPullable, PulledRule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceId, Unwanted,
+    Version, to_document,
 };
 use crate::scrub::{ScrubError, TermList};
 
@@ -152,9 +153,36 @@ enum Command {
         /// Path to the shared corpus: a directory holding `rules/*.md`.
         #[arg(long)]
         upstream: PathBuf,
-        /// The rule to take a copy of, e.g. `R:parse-dont-validate`.
+        /// The rule to take a copy of, e.g. `R:parse-dont-validate`. Omit it
+        /// and pass `--all` to work over the whole shared corpus instead.
         #[arg(long)]
-        tag: String,
+        tag: Option<String>,
+        /// Work over every rule on the drive rather than one named tag: take
+        /// what this install does not hold, refresh what is behind, and report
+        /// everything left alone with the reason.
+        ///
+        /// **Still asking, not syncing.** Nothing runs on a schedule and
+        /// nothing decides on its own that a rule has become relevant — this is
+        /// a person naming a whole corpus instead of one tag, and it still
+        /// prints first and writes only on `--confirm`. Run it with no
+        /// `--confirm` before starting work and it is a status report.
+        #[arg(long, conflicts_with = "tag")]
+        all: bool,
+        /// Narrow a bulk pull to one audience; repeatable. A rule declaring no
+        /// `applies_to` is taken whatever is asked for — the same safety
+        /// default `build --scope` has, where narrowing can never withhold a
+        /// rule that declared no audience.
+        #[arg(long, requires = "all")]
+        scope: Vec<String>,
+        /// Also remove caches that are **gone or retired upstream**.
+        ///
+        /// Opt-in, because this is the one operation that deletes a file. It is
+        /// safe for exactly one reason: a cache is regenerable, so dropping one
+        /// loses nothing a later pull cannot restore. A rule you own and a fork
+        /// you took are source, and the witness the removal path takes cannot
+        /// be minted for either.
+        #[arg(long, requires = "all")]
+        prune: bool,
         /// What to call the upstream this copy came from.
         ///
         /// **Named, never located.** The path above says where the corpus sits
@@ -574,6 +602,14 @@ pub enum CliError {
     /// says which of the four it was and what to do instead.
     #[error(transparent)]
     NotPullable(NotPullable),
+    /// `pull` was given neither a tag nor `--all`.
+    ///
+    /// Refused rather than treated as a no-op: a command that does nothing
+    /// reads, to whoever typed it, as one that ran.
+    #[error(
+        "pull needs either --tag <tag> for one rule, or --all for the whole shared corpus \n         (with --scope to narrow it and --prune to drop what is gone or retired upstream)"
+    )]
+    PullNeedsATagOrAll,
     /// The revision asked for does not supersede what the destination already
     /// publishes. Carries both numbers, because a contributor told only
     /// "refused" has to go and look up the one the tool has just read.
@@ -644,10 +680,19 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             rules,
             upstream,
             tag,
+            all,
+            scope,
+            prune,
             from,
             on,
             confirm,
-        } => pull(&rules, &upstream, &tag, &from, &on, confirm),
+        } => match (tag, all) {
+            (Some(tag), _) => pull(&rules, &upstream, &tag, &from, &on, confirm),
+            (None, true) => pull_all(&rules, &upstream, &scope, &from, &on, prune, confirm),
+            // Neither is a command that would do nothing, and a command that
+            // does nothing reads to whoever typed it as one that ran.
+            (None, false) => Err(CliError::PullNeedsATagOrAll),
+        },
         Command::Contribute {
             rules,
             tag,
@@ -948,6 +993,110 @@ fn pull(
         tag.as_str(),
         path.display()
     );
+    Ok(ExitCode::SUCCESS)
+}
+
+/// `pull --all`: work out what the whole shared corpus would change here, print
+/// it, and act only on `--confirm`.
+///
+/// **The status check to run before starting work is this command without
+/// `--confirm`.** It prints what would be taken, what refreshed, what dropped,
+/// and — the part that makes it a report rather than a teaser — everything left
+/// alone with the reason. A bulk operation is exactly where a silent omission
+/// hides, so the plan accounts for both corpora in full.
+fn pull_all(
+    rules: &Path,
+    upstream: &Path,
+    scope: &[String],
+    from: &str,
+    on: &str,
+    prune: bool,
+    confirm: bool,
+) -> Result<ExitCode, CliError> {
+    let from = SourceId::parse(from).map_err(CliError::Source)?;
+    let on = Date::parse(on).map_err(CliError::AdoptDate)?;
+    let audience: Vec<ScopeTag> = scope
+        .iter()
+        .map(|s| ScopeTag::parse(s.as_str()).map_err(CliError::Scope))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let corpus = fsio::load_rules(&upstream.join("rules"))?.validate()?;
+    let held = if rules.exists() {
+        fsio::load_rules(rules)?.validate()?
+    } else {
+        Library::new().validate()?
+    };
+
+    let prune = if prune { Prune::Drop } else { Prune::Keep };
+    let plan = Plan::of(&held, &corpus, from, on, &audience, prune);
+
+    for pulled in plan.take() {
+        println!("take     {}", pulled.rule().tag().as_str());
+    }
+    for pulled in plan.refresh() {
+        let to = pulled
+            .rule()
+            .authority()
+            .version()
+            .map_or_else(String::new, |v| format!(" → revision {v}"));
+        println!("refresh  {}{to}", pulled.rule().tag().as_str());
+    }
+    for cache in plan.drop() {
+        println!("drop     {} ({})", cache.tag().as_str(), cache.why());
+    }
+    // Printed last and always: what a bulk command did **not** do is the half a
+    // reader cannot reconstruct, and the half that is silent by default.
+    for (tag, why) in plan.skipped() {
+        println!("keep     {} ({})", tag.as_str(), why.as_str());
+    }
+    println!(
+        "\n{} to take, {} to refresh, {} to drop, {} left alone.",
+        plan.take().len(),
+        plan.refresh().len(),
+        plan.drop().len(),
+        plan.skipped().len()
+    );
+    if prune == Prune::Keep && plan.drop().is_empty() {
+        println!("Nothing is removed without --prune.");
+    }
+    // **The one action here with no inverse, said before it is taken.** A cache
+    // dropped because upstream *retired* the rule cannot be pulled again —
+    // `pull` refuses a retired rule, which is what "retired" means — where one
+    // dropped for being gone returns if it comes back.
+    let irreversible = plan
+        .drop()
+        .iter()
+        .filter(|cache| cache.unwanted() == Unwanted::RetiredUpstream)
+        .count();
+    if irreversible > 0 {
+        println!(
+            "{irreversible} of these were retired upstream: dropping one cannot be undone by \
+             pulling again, because a retired rule is refused. `adopt` first if you hold \
+             evidence upstream does not."
+        );
+    }
+
+    if plan.is_empty() {
+        println!("Nothing to do.");
+        return Ok(ExitCode::SUCCESS);
+    }
+    if !confirm {
+        println!("Nothing written. Re-run with --confirm to apply this.");
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    std::fs::create_dir_all(rules).map_err(|source| CliError::ContributionWrite {
+        path: rules.to_path_buf(),
+        source,
+    })?;
+    for pulled in plan.take().iter().chain(plan.refresh()) {
+        let path = fsio::write_cache(rules, pulled)?;
+        println!("wrote   {}", path.display());
+    }
+    for cache in plan.drop() {
+        let path = fsio::remove_cache(rules, cache)?;
+        println!("removed {}", path.display());
+    }
     Ok(ExitCode::SUCCESS)
 }
 

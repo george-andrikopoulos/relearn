@@ -30,6 +30,7 @@ pub mod fsio;
 pub mod library;
 pub mod lint;
 pub mod poke;
+pub mod pull;
 pub mod report;
 pub mod rule;
 pub mod scrub;
