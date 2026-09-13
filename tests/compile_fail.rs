@@ -26,6 +26,20 @@ fn typestate_gate_rejects_unvalidated_libraries() {
 /// other half — that `Home::federation` itself has no catch-all arm, which would
 /// silently classify that variant — is `tests/federation_exclusion.rs`, because
 /// a wildcard compiles fine and no compiler can object to it.
+/// The cached-rule refusal's mechanism, pinned as a negative: a rule file write
+/// that never asked whether the rule may be edited does not compile.
+///
+/// `fsio::write_rule` takes an `EditableRule`, and the witness's only
+/// constructor refuses a cache — so a second write path cannot reach the
+/// filesystem with the `&Rule` it is holding. A check inside `write_rule` would
+/// satisfy today's caller and be silently absent from tomorrow's, which is how
+/// a cache gets edited in place and P2 disappears with no error to read.
+#[test]
+fn writing_a_rule_file_requires_the_editable_witness() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("tests/compile_fail/write_rule_rejects_a_bare_rule.rs");
+}
+
 #[test]
 fn a_match_on_home_must_decide_about_every_variant() {
     let t = trybuild::TestCases::new();

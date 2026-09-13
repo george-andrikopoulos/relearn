@@ -11,8 +11,9 @@ use proptest::prelude::*;
 use relearn::emit;
 use relearn::library::{Library, Validated};
 use relearn::rule::{
-    Approval, Approver, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin, Recurrence,
-    Rule, RuleTag, ScopeTag, Status, Title, parse_document, to_document,
+    Approval, Approver, Authority, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin,
+    Recurrence, Rule, RuleTag, ScopeTag, SourceId, Status, Title, Version, parse_document,
+    to_document,
 };
 
 /// Non-empty, edge-trimmed text (parsing trims, so generated values must have no
@@ -64,6 +65,27 @@ fn arb_origin() -> impl Strategy<Value = Origin> {
     ]
 }
 
+/// Every authority kind. Generated into the libraries the emitter properties
+/// run over, so **every** one of them now asserts that a cached rule compiles
+/// exactly like a local one — which is the point of caching, and the thing an
+/// emitter must never learn to treat differently.
+fn arb_authority() -> impl Strategy<Value = Authority> {
+    let upstream = || {
+        (
+            Just(SourceId::parse("relearn-upstream").expect("valid source")),
+            (0u32..50).prop_map(Version::new),
+            arb_date(),
+        )
+    };
+    prop_oneof![
+        Just(Authority::Local),
+        upstream().prop_map(|(from, version, pulled)| Authority::cached(from, version, pulled)),
+        (upstream(), arb_date()).prop_map(|((from, version, pulled), adopted)| {
+            Authority::adopted(from, version, pulled, adopted)
+        }),
+    ]
+}
+
 fn arb_status() -> impl Strategy<Value = Status> {
     prop_oneof![
         Just(Status::active()),
@@ -97,6 +119,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
         arb_text(),
         arb_recurrences(),
         arb_origin(),
+        arb_authority(),
     )
         .prop_map(
             move |(
@@ -109,6 +132,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
                 body,
                 recurrences,
                 origin,
+                authority,
             )| {
                 Rule::new(
                     RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
@@ -122,6 +146,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
                     Body::parse(body).expect("non-empty body"),
                     recurrences,
                     Vec::new(),
+                    authority,
                 )
             },
         )
@@ -153,6 +178,7 @@ fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
                     Body::parse("body").expect("non-empty body"),
                     Vec::new(),
                     Vec::new(),
+                    Authority::Local,
                 ));
             }
             Library::from_rules(rules)
@@ -195,6 +221,7 @@ fn arb_library_recurring() -> impl Strategy<Value = Library<Validated>> {
                 Body::parse("body").expect("non-empty body"),
                 recurrences,
                 Vec::new(),
+                Authority::Local,
             ));
         }
         Library::from_rules(rules)
@@ -244,6 +271,7 @@ fn arb_library() -> impl Strategy<Value = Library<Validated>> {
                 Body::parse("body").expect("non-empty body"),
                 Vec::new(),
                 Vec::new(),
+                Authority::Local,
             ));
         }
         Library::from_rules(rules)
@@ -297,6 +325,7 @@ fn arb_library_scoped() -> impl Strategy<Value = Library<Validated>> {
                     Body::parse("body").expect("non-empty body"),
                     Vec::new(),
                     applies_to,
+                    Authority::Local,
                 ));
             }
             Library::from_rules(rules)
@@ -343,6 +372,7 @@ proptest! {
             Body::parse("body").expect("non-empty body"),
             Vec::new(),
             scopes.clone(),
+            Authority::Local,
         );
         let doc = to_document(&rule);
         prop_assert_eq!(doc.contains("applies_to"), !scopes.is_empty());
@@ -420,6 +450,7 @@ proptest! {
                     r.body().clone(),
                     r.recurrences().to_vec(),
                     Vec::new(),
+                    Authority::Local,
                 ))
                 .collect(),
         )
@@ -431,6 +462,38 @@ proptest! {
         prop_assert_eq!(emit::copilot::emit(&stripped), emit::copilot::emit(&lib));
         prop_assert_eq!(emit::agents::emit(&stripped), emit::agents::emit(&lib));
         prop_assert_eq!(emit::claude_rules::emit(&stripped), emit::claude_rules::emit(&lib));
+    }
+
+    /// **A cached rule compiles exactly like a local one.** For any library,
+    /// replacing every rule's authority with `Local` changes not one emitted
+    /// byte — so no emitter reads the field, and a rule pulled from upstream
+    /// reaches the instruction layer identically to one written here. That is
+    /// the entire point of caching, and the property that stops an emitter
+    /// learning to annotate, demote or skip a cache.
+    #[test]
+    fn authority_never_reaches_an_emitted_path_or_body(rule in arb_tag_body().prop_flat_map(arb_rule)) {
+        let with = Library::from_rules(vec![rule.clone()]).validate().expect("one tag validates");
+        let localised = Rule::new(
+            rule.tag().clone(),
+            rule.title().clone(),
+            rule.error_class().clone(),
+            rule.home().clone(),
+            rule.created(),
+            rule.origin().clone(),
+            rule.status().clone(),
+            rule.incident().clone(),
+            rule.body().clone(),
+            rule.recurrences().to_vec(),
+            rule.applies_to().to_vec(),
+            Authority::Local,
+        );
+        let without = Library::from_rules(vec![localised]).validate().expect("one tag validates");
+
+        prop_assert_eq!(emit::claude::emit(&with), emit::claude::emit(&without));
+        prop_assert_eq!(emit::cursor::emit(&with), emit::cursor::emit(&without));
+        prop_assert_eq!(emit::copilot::emit(&with), emit::copilot::emit(&without));
+        prop_assert_eq!(emit::agents::emit(&with), emit::agents::emit(&without));
+        prop_assert_eq!(emit::claude_rules::emit(&with), emit::claude_rules::emit(&without));
     }
 
     /// Every emitter is a deterministic function of the library: re-emitting the

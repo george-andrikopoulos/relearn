@@ -30,6 +30,11 @@ It is the reference implementation of the error loop described in *Tuning the St
   its federation behaviour is a compile error. A filter in one publishing path compiles perfectly
   while a second path publishes everything. `Project` is withheld too — its home carries a
   filesystem path, which is a private identifier.
+- **A cached rule is never edited in place.** `Authority::Local | Adopted | Cached`; `fsio::write_rule`
+  takes an `EditableRule` witness whose only constructor refuses a cache, so a write path added
+  later cannot reach the filesystem without asking. Editing a cache is a silent fork — the edit
+  succeeds and nothing records the divergence. `adopt` is the loud one, and it remembers what it
+  forked from. `Version` is totally ordered so "is this cache stale?" always has an answer.
 - **A mandate carries its approval, and is not evidence.** `Origin::Mandated(Approval)` makes a
   mandate with no signer and an approval on a mined rule both unconstructible, and mandated rules
   are held out of the recurrence statistics entirely — they were never mined, and they are not

@@ -24,7 +24,8 @@
 use relearn::emit;
 use relearn::library::{Library, Validated};
 use relearn::rule::{
-    Body, Date, ErrorClass, Home, Incident, Origin, Rule, RuleTag, ScopeTag, Status, Title,
+    Authority, Body, Date, ErrorClass, Home, Incident, Origin, Rule, RuleTag, ScopeTag, Status,
+    Title,
 };
 
 fn scopes(names: &[&str]) -> Vec<ScopeTag> {
@@ -47,6 +48,7 @@ fn rule(tag: &str, home: Home, applies_to: &[&str]) -> Rule {
         Body::parse("The body.").expect("non-empty body"),
         Vec::new(),
         scopes(applies_to),
+        Authority::Local,
     )
 }
 

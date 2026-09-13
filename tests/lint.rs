@@ -5,7 +5,8 @@
 use relearn::library::{Library, Validated};
 use relearn::lint::{Finding, Severity, lint};
 use relearn::rule::{
-    Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, Status, Title,
+    Authority, Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, Rule, RuleTag, Status,
+    Title,
 };
 
 fn rule(tag: &str, home: Home, error_class: &str, body: &str) -> Rule {
@@ -21,6 +22,7 @@ fn rule(tag: &str, home: Home, error_class: &str, body: &str) -> Rule {
         Body::parse(body).expect("non-empty body"),
         Vec::new(),
         Vec::new(),
+        Authority::Local,
     )
 }
 
@@ -48,6 +50,7 @@ fn atticked(tag: &str) -> Rule {
         Body::parse("Body.").expect("non-empty body"),
         Vec::new(),
         Vec::new(),
+        Authority::Local,
     )
 }
 
@@ -230,6 +233,7 @@ fn a_tag_cited_twice_in_the_body_yields_one_finding() {
         Body::parse("This builds on R:ghost, and again on R:ghost.").expect("non-empty body"),
         Vec::new(),
         Vec::new(),
+        Authority::Local,
     )]);
     let dangling: Vec<_> = lint(&lib)
         .into_iter()
@@ -325,6 +329,7 @@ fn rule_with_incident(tag: &str, incident: &str, body: &str) -> Rule {
         Body::parse(body).expect("non-empty body"),
         Vec::new(),
         Vec::new(),
+        Authority::Local,
     )
 }
 
@@ -385,6 +390,7 @@ fn recurred(tag: &str, status: Status, dates: &[&str]) -> Rule {
             })
             .collect(),
         Vec::new(),
+        Authority::Local,
     )
 }
 
@@ -498,6 +504,7 @@ fn with_origin(tag: &str, origin: Origin, status: Status, dates: &[&str]) -> Rul
             })
             .collect(),
         Vec::new(),
+        Authority::Local,
     )
 }
 

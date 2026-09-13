@@ -103,6 +103,18 @@ impl Library<Validated> {
         self.rules.is_empty()
     }
 
+    /// The rules, owned — consuming the library.
+    ///
+    /// For the caller that needs one rule *by value* (adoption rewrites a rule
+    /// and writes it back) without cloning it out of a borrow. The witness is
+    /// spent along with the library, which is right: what comes back is a plain
+    /// `Vec<Rule>` with no claim attached, and anything wanting the guarantee
+    /// again must validate again.
+    #[must_use]
+    pub fn into_rules(self) -> Vec<Rule> {
+        self.rules
+    }
+
     /// A validated library holding only the rules `keep` accepts.
     ///
     /// **No re-validation, and that is a claim about the invariant, not a
@@ -132,7 +144,9 @@ impl Library<Validated> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rule::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title};
+    use crate::rule::{
+        Authority, Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title,
+    };
 
     fn rule_with_tag(tag: &str) -> Rule {
         Rule::new(
@@ -147,6 +161,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty"),
             Vec::new(),
             Vec::new(),
+            Authority::Local,
         )
     }
 

@@ -58,7 +58,26 @@ const PROCESS_MARKERS: &[&str] = &["std::process::Command", "Command::new"];
 /// the paths the caller named. A config file in the home directory is how a tool
 /// starts behaving differently on two machines for reasons the command line does
 /// not show.
-const AMBIENT_MARKERS: &[&str] = &["home_dir", "dirs::", "XDG_", "env::var"];
+/// Markers for ambient state — anything read from the machine rather than from
+/// the paths and values the caller named.
+///
+/// **The clock is on this list, and that is a decision rather than an
+/// oversight** (2026-09-13, B1). `adopt` records when a fork was taken, and
+/// reading `SystemTime::now()` for it would have been the obvious
+/// implementation: it is also ambient state, it makes the command
+/// unreproducible, and it makes the output untestable without freezing time.
+/// The date is passed on the command line instead, and this list is what keeps
+/// that decision from quietly eroding the first time somebody finds the
+/// argument inconvenient.
+const AMBIENT_MARKERS: &[&str] = &[
+    "home_dir",
+    "dirs::",
+    "XDG_",
+    "env::var",
+    "SystemTime::now",
+    "Instant::now",
+    "UNIX_EPOCH",
+];
 
 /// Networking, TLS and async-runtime crates. Not exhaustive, and the module doc
 /// says so; `tests/dependencies.rs` is the half that catches the rest by

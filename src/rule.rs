@@ -21,6 +21,7 @@
 //! **Must NOT:** know anything about output formats. An emitter's concerns
 //! never leak into the rule type.
 
+mod authority;
 mod date;
 mod def;
 mod home;
@@ -32,6 +33,7 @@ mod status;
 mod tag;
 mod text;
 
+pub use authority::{AdoptError, Authority, CachedIsNotEditable, EditableRule, SourceId, Version};
 pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};
 pub use home::{DomainName, Federation, Home, OrgName, ProjectPath};

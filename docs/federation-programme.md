@@ -180,7 +180,7 @@ mandatory for `Mandated` and unrepresentable otherwise; the FEATURES row for the
 
 ---
 
-## PHASE B1 — `Authority`, and `adopt`
+## PHASE B1 — `Authority`, and `adopt` — **SHIPPED 2026-09-13**
 
 **Adds:** `Authority::Local | Cached { from, version, pulled }`; an `adopt` command converting a
 cached rule to local with recorded provenance.

@@ -77,7 +77,9 @@ fn render(rules: &[&Rule]) -> String {
 mod tests {
     use super::*;
     use crate::library::Library;
-    use crate::rule::{Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title};
+    use crate::rule::{
+        Authority, Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title,
+    };
 
     fn rule(tag: &str, home: Home, title: &str, error_class: &str, body: &str) -> Rule {
         Rule::new(
@@ -92,6 +94,7 @@ mod tests {
             Body::parse(body).expect("non-empty body"),
             Vec::new(),
             Vec::new(),
+            Authority::Local,
         )
     }
 

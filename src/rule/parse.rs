@@ -13,9 +13,9 @@
 use serde::Deserialize;
 
 use super::{
-    Approval, Approver, Body, ControlRef, Date, DateError, EmptyText, ErrorClass, Home, Incident,
-    Origin, OriginError, Recurrence, Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, Status,
-    Title,
+    Approval, Approver, Authority, Body, ControlRef, Date, DateError, EmptyText, ErrorClass, Home,
+    Incident, Origin, OriginError, Recurrence, Rule, RuleTag, RuleTagError, ScopeTag,
+    ScopeTagError, SourceId, Status, Title, Version,
 };
 
 /// Why a rule document failed to parse.
@@ -47,6 +47,12 @@ pub enum ParseError {
     /// The `home` table carried an unrecognised `kind`.
     #[error("`home` has unknown kind `{0}` (expected global | org | domain | project)")]
     UnknownHomeKind(String),
+    /// The `authority` table carried an unrecognised `kind`.
+    #[error("`authority` has unknown kind `{0}` (expected local | adopted | cached)")]
+    UnknownAuthorityKind(String),
+    /// `authority.version` was outside the range a revision number can hold.
+    #[error("`authority.version` is {0}, outside the range of a revision number")]
+    VersionOutOfRange(i64),
     /// The `status` table carried an unrecognised `kind`.
     #[error("`status` has unknown kind `{0}` (expected active | graduated | attic)")]
     UnknownStatusKind(String),
@@ -114,6 +120,30 @@ struct RawRule {
     /// contains; the parsed shape may not.
     #[serde(default)]
     approval: Option<RawApproval>,
+    /// Whether this install is the rule's home, holds a cache of one whose home
+    /// is elsewhere, or holds a deliberate fork.
+    ///
+    /// `default` and absent means [`Authority::Local`] — what every rule
+    /// written before the field existed is, and what a corpus that has never
+    /// cached anything stays. The safe reading in both directions: a rule file
+    /// that says nothing is this install's own, and a cache must **say** it is
+    /// a cache before anything treats it as one.
+    #[serde(default)]
+    authority: Option<RawAuthority>,
+}
+
+/// The `authority` table: `kind`, plus the provenance the kind requires.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawAuthority {
+    kind: String,
+    from: Option<String>,
+    /// Parsed **wide** as `i64` and range-checked into `u32`, so a negative or
+    /// oversized revision reports as out-of-range rather than collapsing into
+    /// "not a number" (`[R:parse-wide-then-range-check]`).
+    version: Option<i64>,
+    pulled: Option<String>,
+    adopted: Option<String>,
 }
 
 /// The `approval` table of a mandated rule.
@@ -211,6 +241,12 @@ impl RawRule {
             .map(RawRecurrence::into_recurrence)
             .collect::<Result<Vec<_>, _>>()?;
         let applies_to = parse_scopes(self.applies_to)?;
+        // Absent means Local: a rule file that says nothing about authority is
+        // this install's own, and a cache must say it is one.
+        let authority = match self.authority {
+            Some(raw) => raw.into_authority()?,
+            None => Authority::Local,
+        };
         Ok(Rule::new(
             tag,
             title,
@@ -223,6 +259,7 @@ impl RawRule {
             body,
             recurrences,
             applies_to,
+            authority,
         ))
     }
 }
@@ -244,6 +281,67 @@ fn parse_scopes(raw: Vec<String>) -> Result<Vec<ScopeTag>, ParseError> {
         scopes.push(scope);
     }
     Ok(scopes)
+}
+
+impl RawAuthority {
+    fn into_authority(self) -> Result<Authority, ParseError> {
+        match self.kind.as_str() {
+            "local" => Ok(Authority::Local),
+            "cached" => {
+                let (from, version, pulled) = self.upstream("authority cached")?;
+                Ok(Authority::cached(from, version, pulled))
+            }
+            "adopted" => {
+                let (from, version, pulled) = self.upstream_for("authority adopted")?;
+                let adopted = self.adopted.ok_or(ParseError::MissingField {
+                    context: "authority adopted",
+                    field: "adopted",
+                })?;
+                let adopted = Date::parse(&adopted).map_err(|source| ParseError::Date {
+                    field: "authority.adopted",
+                    source,
+                })?;
+                Ok(Authority::adopted(from, version, pulled, adopted))
+            }
+            other => Err(ParseError::UnknownAuthorityKind(other.to_owned())),
+        }
+    }
+
+    /// The three fields every non-local authority carries. Taken by value, so
+    /// the `adopted` kind reads them before adding its own field.
+    fn upstream(self, context: &'static str) -> Result<(SourceId, Version, Date), ParseError> {
+        self.upstream_for(context)
+    }
+
+    fn upstream_for(&self, context: &'static str) -> Result<(SourceId, Version, Date), ParseError> {
+        let from = self
+            .from
+            .as_ref()
+            .ok_or(ParseError::MissingField {
+                context,
+                field: "from",
+            })
+            .and_then(|s| Ok(SourceId::parse(s.as_str())?))?;
+        let version = self.version.ok_or(ParseError::MissingField {
+            context,
+            field: "version",
+        })?;
+        // The range check the wide parse exists for: a revision is a `u32`, and
+        // a file holding -1 or 5_000_000_000 must say so rather than read as a
+        // syntax error.
+        let version = u32::try_from(version)
+            .map(Version::new)
+            .map_err(|_| ParseError::VersionOutOfRange(version))?;
+        let pulled = self.pulled.as_ref().ok_or(ParseError::MissingField {
+            context,
+            field: "pulled",
+        })?;
+        let pulled = Date::parse(pulled.as_str()).map_err(|source| ParseError::Date {
+            field: "authority.pulled",
+            source,
+        })?;
+        Ok((from, version, pulled))
+    }
 }
 
 impl RawApproval {
@@ -733,6 +831,83 @@ Parse into a type wide enough to represent the out-of-range value.
              control = \"c\", bogus = 1 }\n",
         );
         assert!(matches!(parse_document(&doc), Err(ParseError::Toml(_))));
+    }
+
+    /// Absent means local — the reason none of the fifty-two committed rules
+    /// needed editing, and the safe direction: a cache must *say* it is one.
+    #[test]
+    fn a_rule_without_an_authority_is_local_and_editable() {
+        let rule = parse_document(DOC).expect("valid document parses");
+        assert_eq!(rule.authority(), &Authority::Local);
+        assert!(rule.is_editable());
+    }
+
+    fn with_authority(table: &str) -> String {
+        with_field("tag", "\"R:x\"").replace(
+            "incident = \"i\"\n",
+            &format!("incident = \"i\"\nauthority = {table}\n"),
+        )
+    }
+
+    #[test]
+    fn a_cached_authority_parses_and_is_not_editable() {
+        let doc = with_authority(
+            "{ kind = \"cached\", from = \"relearn-upstream\", version = 3, pulled = \"2026-09-10\" }",
+        );
+        let rule = parse_document(&doc).expect("a cached authority parses");
+        assert!(!rule.is_editable());
+        assert_eq!(rule.authority().version(), Some(Version::new(3)));
+    }
+
+    #[test]
+    fn an_adopted_authority_keeps_both_dates() {
+        let doc = with_authority(
+            "{ kind = \"adopted\", from = \"up\", version = 1, pulled = \"2026-09-10\", \
+             adopted = \"2026-09-13\" }",
+        );
+        let rule = parse_document(&doc).expect("an adopted authority parses");
+        assert!(rule.is_editable());
+        match rule.authority() {
+            Authority::Adopted {
+                pulled, adopted, ..
+            } => {
+                assert_eq!(pulled.to_string(), "2026-09-10");
+                assert_eq!(adopted.to_string(), "2026-09-13");
+            }
+            other => panic!("expected Adopted, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_cached_authority_without_a_version_is_missing_field() {
+        let doc = with_authority("{ kind = \"cached\", from = \"up\", pulled = \"2026-09-10\" }");
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::MissingField {
+                context: "authority cached",
+                field: "version",
+            })
+        );
+    }
+
+    // The dogfood, one field over: a version outside `u32` reports as
+    // out-of-range rather than collapsing into "not a number"
+    // (`[R:parse-wide-then-range-check]`).
+    #[test]
+    fn a_negative_version_is_a_range_error_carrying_the_value() {
+        let doc = with_authority(
+            "{ kind = \"cached\", from = \"up\", version = -1, pulled = \"2026-09-10\" }",
+        );
+        assert_eq!(parse_document(&doc), Err(ParseError::VersionOutOfRange(-1)));
+    }
+
+    #[test]
+    fn an_unknown_authority_kind_is_rejected() {
+        let doc = with_authority("{ kind = \"borrowed\" }");
+        assert_eq!(
+            parse_document(&doc),
+            Err(ParseError::UnknownAuthorityKind("borrowed".to_owned()))
+        );
     }
 
     #[test]

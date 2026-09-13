@@ -50,6 +50,13 @@ relearn build --rules ./rules --out . --targets cursor,copilot
 relearn build --rules ./rules --out . --scope rust
 relearn build --rules ./rules --out . --scope rust --scope java
 
+# Take a deliberate fork of a cached rule — a rule whose home is another
+# install. A cache is never edited in place: that is a silent fork, and the
+# write path refuses it. This is the loud one, and the adopted rule records
+# what it was forked from, at which version, and when. The date is given
+# rather than read from a clock, so the result is reproducible.
+relearn adopt --rules ./rules --tag R:some-rule --on 2026-09-13
+
 # Report advisory findings (overlapping scope, home-slug collisions,
 # dangling references). Writes nothing; non-zero exit if any are found.
 relearn lint --rules ./rules

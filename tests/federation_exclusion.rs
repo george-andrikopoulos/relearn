@@ -17,8 +17,8 @@
 //! below. The compiler holds the "must", a human holds the "correctly".
 
 use relearn::rule::{
-    Approval, Body, ControlRef, Date, ErrorClass, Federation, Home, Incident, Origin, Rule,
-    RuleTag, Status, Title,
+    Approval, Authority, Body, ControlRef, Date, ErrorClass, Federation, Home, Incident, Origin,
+    Rule, RuleTag, Status, Title,
 };
 
 fn approval() -> Approval {
@@ -42,6 +42,7 @@ fn rule(tag: &str, home: Home, origin: Origin) -> Rule {
         Body::parse("The body.").expect("non-empty body"),
         Vec::new(),
         Vec::new(),
+        Authority::Local,
     )
 }
 

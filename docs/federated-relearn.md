@@ -8,7 +8,8 @@ about the first thing a reader checks.
 |---|---|
 | **Shipped 2026-09-13 (A1, `3798521`)** | §2's `applies_to` and the `ScopeTag` type, with `--scope` on `build`, `verify` and `list`. Enforced by `tests/scope_filter.rs` and four properties in `tests/properties.rs`; FEATURES carries both rows |
 | **Shipped 2026-09-13 (A2)** | §2's `Home::Org`, §7's `Origin::Mandated` and its `approval` block, and the federation exclusion as an exhaustive match — enforced by `tests/federation_exclusion.rs` and a compile-fail pin |
-| **Not built** | `Authority` and `adopt` (§3); `contribute` (§4); `report` and the aggregate (§5, §9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
+| **Shipped 2026-09-13 (B1)** | §3's `Authority` and `adopt`, with the cached-rule refusal as a witness type at the write boundary and a compile-fail pin |
+| **Not built** | `contribute` (§4); `report` and the aggregate (§5, §9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
 
 The rest is filed so the design is written down rather than re-invented, on the same footing as
 [`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried open

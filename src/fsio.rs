@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 
 use crate::emit::{OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
-use crate::rule::{ParseError, parse_document};
+use crate::rule::{EditableRule, ParseError, parse_document, to_document};
 
 /// The opening of the generated-by comment. Its presence in an existing file is
 /// how the overwrite guard tells "relearn wrote this" from "a human wrote this":
@@ -133,6 +133,73 @@ pub enum WriteError {
         /// The file that would have been clobbered.
         path: PathBuf,
     },
+}
+
+/// Why writing a **rule file** failed. Separate from [`WriteError`] because the
+/// two writes guard different things: an emitted file must not clobber
+/// human-authored content, while a rule file *is* human-authored content and
+/// must not clobber a different rule.
+#[derive(Debug, thiserror::Error)]
+pub enum RuleWriteError {
+    /// The target exists and is not the same rule — it does not parse, or it
+    /// parses to a different tag. Refused rather than overwritten: a rule file
+    /// is source, and clobbering one destroys work that nothing regenerates.
+    #[error("{path:?} already exists and is not rule {tag} — refusing to overwrite it")]
+    WouldClobberUnrelated {
+        /// The target file.
+        path: PathBuf,
+        /// The tag the write was for.
+        tag: String,
+    },
+    /// The file could not be read or written.
+    #[error("{path:?}: {source}")]
+    Io {
+        /// The file at fault.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+}
+
+/// Write one rule back to its file under `rules_dir`, named by its tag body.
+///
+/// **The only path that writes a rule file, and it takes an [`EditableRule`].**
+/// The witness is minted by a constructor that refuses a cached rule, so a
+/// second write path added later cannot reach the filesystem without asking the
+/// same question — where a check *inside* this function would be satisfied
+/// exactly once and silently absent from the next one. Editing a cache in place
+/// is a silent fork: P2 gone, with no error to read.
+///
+/// Returns the path written. Refuses a target that is not the same rule, for the
+/// same reason the emitted tree refuses unversioned content — except that here
+/// the content being protected is hand-authored source rather than a generated
+/// artifact, which makes the refusal stricter rather than looser.
+#[must_use = "the write result reports failure (clobber refusal, I/O); ignoring it discards that"]
+pub fn write_rule(rules_dir: &Path, rule: &EditableRule<'_>) -> Result<PathBuf, RuleWriteError> {
+    let rule = rule.rule();
+    let path = rules_dir.join(format!("{}.md", rule.tag().body()));
+
+    match fs::read_to_string(&path) {
+        Ok(existing) => {
+            let same_rule = parse_document(&existing)
+                .is_ok_and(|existing| existing.tag().as_str() == rule.tag().as_str());
+            if !same_rule {
+                return Err(RuleWriteError::WouldClobberUnrelated {
+                    path,
+                    tag: rule.tag().as_str().to_owned(),
+                });
+            }
+        }
+        Err(source) if source.kind() == ErrorKind::NotFound => {}
+        Err(source) => return Err(RuleWriteError::Io { path, source }),
+    }
+
+    fs::write(&path, to_document(rule)).map_err(|source| RuleWriteError::Io {
+        path: path.clone(), // allow:clone: the error owns the path for the diagnostic, and the success path returns it
+        source,
+    })?;
+    Ok(path)
 }
 
 /// Write every emitted file under `out_dir`, each with its generated-by header

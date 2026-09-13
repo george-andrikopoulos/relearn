@@ -35,10 +35,13 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::emit::{self, HomeSlug, OutputFile};
-use crate::fsio::{self, LoadError, VerifyError, WriteError};
+use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
 use crate::lint;
-use crate::rule::{ScopeTag, ScopeTagError};
+use crate::rule::{
+    AdoptError, CachedIsNotEditable, Date, DateError, EditableRule, RuleTag, RuleTagError,
+    ScopeTag, ScopeTagError,
+};
 
 /// The `relearn` command line.
 #[derive(Debug, Parser)]
@@ -102,6 +105,28 @@ enum Command {
         /// nothing *is* an answer here, as it is for `list --home`.
         #[arg(long)]
         scope: Vec<String>,
+    },
+    /// Take a deliberate fork of a cached rule: it becomes editable and records
+    /// what it was forked from, at which upstream version, and when.
+    ///
+    /// The only command that writes a rule file. Editing a cache in place is a
+    /// silent fork; this is the loud one.
+    Adopt {
+        /// Directory of `*.md` rule files.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+        /// The rule to adopt, e.g. `R:verify-through-production-path`.
+        #[arg(long)]
+        tag: String,
+        /// The date of the adoption, `YYYY-MM-DD`.
+        ///
+        /// **Given, never read from a clock.** The tool consults no ambient
+        /// state — the same invariant that keeps a config file out — and a
+        /// clock is ambient state that would also make this command
+        /// untestable and its output unreproducible. `tests/solo_mode.rs`
+        /// holds it.
+        #[arg(long)]
+        on: String,
     },
     /// Report advisory lint findings (overlapping scope, home-slug collisions,
     /// dangling references). Writes nothing; exits non-zero if any are found.
@@ -230,6 +255,32 @@ pub enum CliError {
         /// Every home slug the library does contain, sorted and deduplicated.
         known: Vec<String>,
     },
+    /// `adopt --tag` was not a well-formed rule tag.
+    #[error("--tag: {0}")]
+    Tag(RuleTagError),
+    /// `adopt --on` was not a well-formed date.
+    ///
+    /// The date is given rather than read from a clock: the tool consults no
+    /// ambient state, and a clock would also make adoption unreproducible.
+    #[error("--on: {0}")]
+    AdoptDate(DateError),
+    /// `adopt --tag` named a rule the library does not hold.
+    #[error("no rule in this library carries the tag {requested}")]
+    NoSuchRule {
+        /// The tag as given on the command line.
+        requested: String,
+    },
+    /// The rule named is not a cache, so there is nothing to fork.
+    #[error(transparent)]
+    Adopt(AdoptError),
+    /// A rule that is not editable reached the write path. Unreachable through
+    /// `adopt` — adoption is what makes a rule editable — and kept because the
+    /// witness returns a `Result` that no caller may discard by `unwrap`.
+    #[error(transparent)]
+    NotEditable(CachedIsNotEditable),
+    /// Writing a rule file failed.
+    #[error(transparent)]
+    RuleWrite(#[from] RuleWriteError),
     /// `--scope` was not a well-formed scope.
     ///
     /// Deliberately **not** `#[from]`: the derived `source` would make
@@ -303,6 +354,10 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
         }
         Command::List { rules, home, scope } => {
             list(&rules, home.as_deref(), &scope)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::Adopt { rules, tag, on } => {
+            adopt(&rules, &tag, &on)?;
             Ok(ExitCode::SUCCESS)
         }
         Command::Lint { rules, deny } => lint_rules(&rules, deny),
@@ -460,6 +515,46 @@ fn verify(
         reports.len()
     );
     Ok(ExitCode::FAILURE)
+}
+
+/// `adopt`: convert one cached rule into a deliberate fork, and write it back.
+///
+/// The only command that writes a rule file, and it goes through
+/// [`EditableRule`] exactly as any future write path will have to: the adopted
+/// rule is editable *because* adoption made it so, and the witness is minted
+/// from that fact rather than assumed.
+///
+/// Four refusals, each naming what to do instead: the tag is malformed, no rule
+/// carries it, the rule is not a cache (`AdoptError` says whether it is already
+/// local or already adopted), or the date is not a date. The library is loaded
+/// and validated first, so adoption cannot run against a corpus that does not
+/// parse.
+fn adopt(rules: &Path, tag: &str, on: &str) -> Result<(), CliError> {
+    let tag = RuleTag::parse(tag).map_err(CliError::Tag)?;
+    let on = Date::parse(on).map_err(CliError::AdoptDate)?;
+
+    // `into_rules` rather than a borrow: the rewritten rule is owned outright,
+    // so no field is cloned and the original cannot be used by accident.
+    let rule = fsio::load_rules(rules)?
+        .validate()?
+        .into_rules()
+        .into_iter()
+        .find(|r| r.tag() == &tag)
+        .ok_or_else(|| CliError::NoSuchRule {
+            requested: tag.as_str().to_owned(),
+        })?;
+
+    let adopted = rule.authority().adopt(on).map_err(CliError::Adopt)?;
+    let adopted = rule.with_authority(adopted);
+
+    let editable = EditableRule::of(&adopted).map_err(CliError::NotEditable)?;
+    let path = fsio::write_rule(rules, &editable)?;
+    println!(
+        "adopted {} — a local fork now, recorded in {}",
+        tag.as_str(),
+        path.display()
+    );
+    Ok(())
 }
 
 /// `list`: print each rule as `tag  [home-slug]  title`, optionally filtered.

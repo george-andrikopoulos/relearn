@@ -12,7 +12,7 @@
 //! as a TOML basic string so quotes, backslashes, and control characters
 //! survive the round trip.
 
-use super::{Approval, Home, Rule, ScopeTag, Status};
+use super::{Approval, Authority, Home, Rule, ScopeTag, Status};
 
 /// Serialize a rule to its neutral document form (`+++` front-matter, then the
 /// markdown body). [`super::parse_document`] parses the result back to an equal
@@ -44,6 +44,14 @@ pub fn to_document(rule: &Rule) -> String {
         out.push_str(&approval_line(approval));
     }
     out.push_str(&status_line(rule.status()));
+    // Emitted **only** when the rule is not local, so every rule written before
+    // the field existed renders exactly as it did — and, more importantly, a
+    // file that says nothing about authority reads back as `Local`, which is the
+    // safe direction: a cache must declare itself before anything treats it as
+    // one.
+    if let Some(line) = authority_line(rule.authority()) {
+        out.push_str(&line);
+    }
     out.push_str(&kv("incident", rule.incident().as_str()));
     // Emitted **only** when there is at least one, and last, because a TOML
     // array of tables captures every key that follows it. A rule that has not
@@ -94,6 +102,39 @@ fn approval_line(approval: &Approval) -> String {
         toml_basic_string(&approval.date().to_string()),
         toml_basic_string(approval.control().as_str())
     )
+}
+
+/// The `authority = { ... }` line, or `None` for a local rule.
+///
+/// `Local` renders nothing rather than `kind = "local"`: the overwhelmingly
+/// common case is a rule this install owns, and a line every file carries is a
+/// line no reader reads. The parser's default closes the loop — absent is
+/// `Local`, and the round trip is exact in both directions.
+fn authority_line(authority: &Authority) -> Option<String> {
+    match authority {
+        Authority::Local => None,
+        Authority::Cached {
+            from,
+            version,
+            pulled,
+        } => Some(format!(
+            "authority = {{ kind = \"cached\", from = {}, version = {version}, pulled = {} }}\n",
+            toml_basic_string(from.as_str()),
+            toml_basic_string(&pulled.to_string())
+        )),
+        Authority::Adopted {
+            from,
+            version,
+            pulled,
+            adopted,
+        } => Some(format!(
+            "authority = {{ kind = \"adopted\", from = {}, version = {version}, \
+             pulled = {}, adopted = {} }}\n",
+            toml_basic_string(from.as_str()),
+            toml_basic_string(&pulled.to_string()),
+            toml_basic_string(&adopted.to_string())
+        )),
+    }
 }
 
 /// The `applies_to = [...]` line, a TOML array of basic strings in file order.
@@ -150,8 +191,8 @@ fn toml_basic_string(s: &str) -> String {
 mod tests {
     use super::to_document;
     use crate::rule::{
-        Approval, Approver, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin, Recurrence,
-        Rule, RuleTag, ScopeTag, Status, Title, parse_document,
+        Approval, Approver, Authority, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin,
+        Recurrence, Rule, RuleTag, ScopeTag, SourceId, Status, Title, Version, parse_document,
     };
 
     fn rule_with_recurrences(recurrences: Vec<Recurrence>) -> Rule {
@@ -167,6 +208,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
             Vec::new(),
+            Authority::Local,
         )
     }
 
@@ -190,6 +232,7 @@ mod tests {
             Body::parse(body).expect("non-empty body"),
             Vec::new(),
             Vec::new(),
+            Authority::Local,
         )
     }
 
@@ -299,6 +342,7 @@ mod tests {
                 .iter()
                 .map(|s| ScopeTag::parse(*s).expect("valid scope"))
                 .collect(),
+            Authority::Local,
         )
     }
 
@@ -367,6 +411,7 @@ mod tests {
             Body::parse("Do the mandated thing.").expect("non-empty body"),
             Vec::new(),
             Vec::new(),
+            Authority::Local,
         )
     }
 
@@ -408,6 +453,54 @@ mod tests {
         let approval_at = doc.find("approval = ").expect("approval is emitted");
         let status_at = doc.find("status = ").expect("status is emitted");
         assert!(origin_at < approval_at && approval_at < status_at, "{doc}");
+    }
+
+    fn rule_under(authority: Authority) -> Rule {
+        Rule::new(
+            RuleTag::parse("R:x").expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-09-13").expect("valid date"),
+            Origin::Mined,
+            Status::active(),
+            Incident::parse("the triggering incident").expect("non-empty incident"),
+            Body::parse("Do the thing.").expect("non-empty body"),
+            Vec::new(),
+            Vec::new(),
+            authority,
+        )
+    }
+
+    /// A local rule renders no authority line at all — the reason no committed
+    /// rule file needed editing, and the reason absent can safely mean local.
+    #[test]
+    fn a_local_rule_renders_no_authority_line() {
+        let doc = to_document(&rule_under(Authority::Local));
+        assert!(!doc.contains("authority"), "{doc}");
+    }
+
+    #[test]
+    fn round_trips_a_cached_authority() {
+        let r = rule_under(Authority::cached(
+            SourceId::parse("relearn-upstream").expect("valid source"),
+            Version::new(3),
+            Date::parse("2026-09-10").expect("valid date"),
+        ));
+        let doc = to_document(&r);
+        assert!(doc.contains("version = 3"), "{doc}");
+        assert_eq!(parse_document(&doc), Ok(r));
+    }
+
+    #[test]
+    fn round_trips_an_adopted_authority() {
+        let r = rule_under(Authority::adopted(
+            SourceId::parse("relearn-upstream").expect("valid source"),
+            Version::new(12),
+            Date::parse("2026-09-10").expect("valid date"),
+            Date::parse("2026-09-13").expect("valid date"),
+        ));
+        assert_eq!(parse_document(&to_document(&r)), Ok(r));
     }
 
     #[test]

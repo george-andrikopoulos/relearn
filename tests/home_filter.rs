@@ -10,7 +10,9 @@
 
 use relearn::emit;
 use relearn::library::{Library, Validated};
-use relearn::rule::{Body, Date, ErrorClass, Home, Incident, Origin, Rule, RuleTag, Status, Title};
+use relearn::rule::{
+    Authority, Body, Date, ErrorClass, Home, Incident, Origin, Rule, RuleTag, Status, Title,
+};
 
 fn rule(tag: &str, home: Home) -> Rule {
     Rule::new(
@@ -25,6 +27,7 @@ fn rule(tag: &str, home: Home) -> Rule {
         Body::parse("The body.").expect("non-empty body"),
         Vec::new(),
         Vec::new(),
+        Authority::Local,
     )
 }
 

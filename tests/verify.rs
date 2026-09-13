@@ -8,7 +8,9 @@ use std::fs;
 use relearn::emit;
 use relearn::fsio::{self, VerifyStatus};
 use relearn::library::{Library, Validated};
-use relearn::rule::{Body, Date, ErrorClass, Home, Incident, Origin, Rule, RuleTag, Status, Title};
+use relearn::rule::{
+    Authority, Body, Date, ErrorClass, Home, Incident, Origin, Rule, RuleTag, Status, Title,
+};
 
 fn rule(tag: &str, body: &str) -> Rule {
     Rule::new(
@@ -23,6 +25,7 @@ fn rule(tag: &str, body: &str) -> Rule {
         Body::parse(body).expect("non-empty body"),
         Vec::new(),
         Vec::new(),
+        Authority::Local,
     )
 }
 

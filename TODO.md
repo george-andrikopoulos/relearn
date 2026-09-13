@@ -345,6 +345,33 @@ and the programme is wrong where the two disagree.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
+## Phase B1 — `Authority`, and `adopt` (shipped 2026-09-13)
+
+`Authority::Local | Adopted | Cached`, `relearn adopt`, and the refusal that makes a silent fork
+impossible. Emission unchanged for all 52 rules (`verify` green, 63 files).
+
+- [x] The refusal is **structural**: `fsio::write_rule` takes an `EditableRule` witness whose only
+      constructor refuses `Cached`, with a compile-fail pin asserting that a bare `&Rule` does not
+      compile, by its error.
+- [x] `Version` is a monotonic `u32` — a **total order** for every pair, so `is_behind` always has
+      an answer; trichotomy asserted explicitly.
+- [x] Three authority variants, so an adopted rule remembers its fork rather than becoming
+      indistinguishable from one authored here; adopting twice is refused.
+- [x] `authority_never_reaches_an_emitted_path_or_body` — emitters treat a cache exactly like a
+      local rule, which is the point of caching it.
+- [x] `adopt --on <date>`: the date is given, never read from a clock, and `tests/solo_mode.rs`
+      now forbids clock reads so the decision cannot erode.
+
+Carried, not decided here:
+
+- [ ] **Nothing creates a cached rule yet.** A cache arrives today only by hand-writing the
+      `authority` table; pulling belongs to a later phase, and until it exists `is_behind` has no
+      upstream to ask about. The type and the refusal are deliberately in place first — the guard
+      that arrives after the thing it guards is the guard somebody has to remember.
+- [ ] **`write_rule` names the file from the tag body.** Correct for every rule this repository
+      holds, and it means adopting a rule whose file was named differently would write a second
+      file rather than rewriting the first. A pull that records its own filename would settle it.
+
 ## Phase A2 — the org layer and mandated content (shipped 2026-09-13)
 
 `Home::Org { name }`, `Origin::Mandated(Approval)`, and the federation exclusion — established

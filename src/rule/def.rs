@@ -4,7 +4,8 @@
 //! with its arguments in the wrong order — a swap is a compile error.
 
 use super::{
-    Body, Date, ErrorClass, Federation, Home, Incident, Origin, RuleTag, ScopeTag, Status, Title,
+    Authority, Body, Date, ErrorClass, Federation, Home, Incident, Origin, RuleTag, ScopeTag,
+    Status, Title,
 };
 
 /// One later occurrence of the error class a rule already covers — evidence
@@ -57,6 +58,7 @@ pub struct Rule {
     body: Body,
     recurrences: Vec<Recurrence>,
     applies_to: Vec<ScopeTag>,
+    authority: Authority,
 }
 
 impl Rule {
@@ -101,6 +103,7 @@ impl Rule {
         body: Body,
         recurrences: Vec<Recurrence>,
         applies_to: Vec<ScopeTag>,
+        authority: Authority,
     ) -> Self {
         Rule {
             tag,
@@ -114,6 +117,7 @@ impl Rule {
             body,
             recurrences,
             applies_to,
+            authority,
         }
     }
 
@@ -198,6 +202,40 @@ impl Rule {
     #[must_use]
     pub fn origin(&self) -> &Origin {
         &self.origin
+    }
+
+    /// Whether this install is the rule's home, holds a cache of one whose home
+    /// is elsewhere, or holds a fork it took deliberately.
+    ///
+    /// Absent from a rule file means [`Authority::Local`], which is what every
+    /// rule written before this field existed is: a corpus that has never
+    /// cached anything never meets the other two states.
+    #[must_use]
+    pub fn authority(&self) -> &Authority {
+        &self.authority
+    }
+
+    /// The same rule under a different authority.
+    ///
+    /// Consuming, so nothing is cloned and the old value cannot be used
+    /// afterwards by mistake — an adoption produces *the* rule, not a second
+    /// copy of it beside the original. This is a pure transform: it changes a
+    /// value, never a file, and the write is gated separately by
+    /// [`EditableRule`](super::EditableRule).
+    #[must_use]
+    pub fn with_authority(self, authority: Authority) -> Self {
+        Rule { authority, ..self }
+    }
+
+    /// Whether this rule may be edited in place.
+    ///
+    /// Delegates to [`Authority::is_editable`] rather than matching again here:
+    /// one definition of the word, and a future authority variant is a compile
+    /// error in one place instead of a state that quietly becomes editable in
+    /// the second place that forgot to ask.
+    #[must_use]
+    pub fn is_editable(&self) -> bool {
+        self.authority.is_editable()
     }
 
     /// Whether this rule may leave the machine, which is a property of its home
@@ -305,6 +343,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
             Vec::new(),
+            Authority::Local,
         )
     }
 
@@ -331,6 +370,7 @@ mod tests {
                 .iter()
                 .map(|n| ScopeTag::parse(*n).expect("valid scope"))
                 .collect(),
+            Authority::Local,
         )
     }
 

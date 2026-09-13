@@ -350,7 +350,8 @@ mod tests {
     use super::*;
     use crate::library::Library;
     use crate::rule::{
-        Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, RuleTag, Status, Title,
+        Authority, Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, RuleTag, Status,
+        Title,
     };
 
     fn rule_with_recurrences(tag: &str, status: Status, recurrences: Vec<Recurrence>) -> Rule {
@@ -366,6 +367,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             recurrences,
             Vec::new(),
+            Authority::Local,
         )
     }
 
@@ -389,6 +391,7 @@ mod tests {
             Body::parse("Do the thing.").expect("non-empty body"),
             Vec::new(),
             Vec::new(),
+            Authority::Local,
         )
     }
 
