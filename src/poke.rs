@@ -1,6 +1,6 @@
 //! `poke` — the federation's signal, surfaced inside `lint`.
 //!
-//! **One reactive trigger, three broadcast ones, and the difference is the
+//! **One reactive trigger, four broadcast ones, and the difference is the
 //! whole design.** The reactive poke arrives at the moment a developer has just
 //! demonstrated they needed it — *you recorded a recurrence, and upstream
 //! already has a rule for that class*. That is what makes a corpus a collective
@@ -9,7 +9,7 @@
 //! §9 already documents the failure on exposed rows — a column is *"useful only
 //! while it embarrasses someone"*, and twenty of them teach readers to skip it.
 //! So broadcast pokes are **capped per run**, the cap is a number the operator
-//! passes rather than a judgement buried here, and two of the three are off
+//! passes rather than a judgement buried here, and two of the four are off
 //! until asked for.
 //!
 //! Three things this module must not do, each one named in the programme as
@@ -36,7 +36,7 @@ use std::fmt;
 use crate::aggregate::Aggregate;
 use crate::library::{Library, Validated};
 use crate::report::Bucket;
-use crate::rule::{Authority, Rule, RuleTag, ScopeTag, Version};
+use crate::rule::{Authority, Date, Rule, RuleTag, ScopeTag, Status, Version};
 
 /// Whether a poke is addressed to this install's own evidence, or to everyone.
 ///
@@ -53,7 +53,7 @@ pub enum Reach {
     Broadcast,
 }
 
-/// One of §6's four triggers.
+/// One of the five triggers: §6's four, plus §12.6's upstream retirement.
 ///
 /// **Declaration order is the rank**, and the rank is what orders the output —
 /// never an incidental sort of the rendered text (`[R:order-by-explicit-rank]`).
@@ -64,6 +64,8 @@ pub enum Trigger {
     ClassCoveredUpstream,
     /// A rule this install caches has a newer revision upstream.
     CacheBehind,
+    /// A rule this install caches has been retired upstream.
+    CacheRetiredUpstream,
     /// A rule serving this install's audience was contributed, and this install
     /// does not hold it.
     ContributedInAudience,
@@ -83,9 +85,10 @@ pub struct UnknownTrigger {
 
 impl Trigger {
     /// Every trigger, in rank order.
-    pub const ALL: [Trigger; 4] = [
+    pub const ALL: [Trigger; 5] = [
         Trigger::ClassCoveredUpstream,
         Trigger::CacheBehind,
+        Trigger::CacheRetiredUpstream,
         Trigger::ContributedInAudience,
         Trigger::HighRecurrenceUnheld,
     ];
@@ -96,6 +99,7 @@ impl Trigger {
         match self {
             Trigger::ClassCoveredUpstream => Reach::Reactive,
             Trigger::CacheBehind
+            | Trigger::CacheRetiredUpstream
             | Trigger::ContributedInAudience
             | Trigger::HighRecurrenceUnheld => Reach::Broadcast,
         }
@@ -103,16 +107,19 @@ impl Trigger {
 
     /// Whether this trigger is on when nobody has said which they want.
     ///
-    /// **§6's table, in one exhaustive match and nowhere else**, so the defaults
-    /// are a fact a reader can check rather than behaviour distributed over
-    /// call sites. Two are on: the reactive one, and the stale-cache one —
-    /// which is "on, silent until `lint`" in the design, and `lint` is where
-    /// this runs. The two that are off are the ones that fire about things
-    /// nobody here has touched.
+    /// **The design's table, in one exhaustive match and nowhere else**, so the
+    /// defaults are a fact a reader can check rather than behaviour spread over
+    /// call sites. Three are on: the reactive one, and the two about a copy
+    /// this install already holds — the stale cache, which the design puts as
+    /// "on, silent until `lint`", and the upstream retirement, which §12.6
+    /// puts as a warning and which cannot fire unless you cache something. The
+    /// two that are off fire about things nobody here has touched.
     #[must_use]
     pub fn on_by_default(self) -> bool {
         match self {
-            Trigger::ClassCoveredUpstream | Trigger::CacheBehind => true,
+            Trigger::ClassCoveredUpstream
+            | Trigger::CacheBehind
+            | Trigger::CacheRetiredUpstream => true,
             Trigger::ContributedInAudience | Trigger::HighRecurrenceUnheld => false,
         }
     }
@@ -132,6 +139,7 @@ impl Trigger {
         match self {
             Trigger::ClassCoveredUpstream => "class-covered",
             Trigger::CacheBehind => "cache-behind",
+            Trigger::CacheRetiredUpstream => "cache-retired",
             Trigger::ContributedInAudience => "contributed",
             Trigger::HighRecurrenceUnheld => "high-recurrence",
         }
@@ -213,6 +221,25 @@ pub enum Poke {
         /// The revision upstream publishes.
         upstream: Version,
     },
+    /// A rule this install holds a copy of has been retired upstream.
+    ///
+    /// **A warning, and structurally incapable of being anything more.**
+    /// Deleting an instruction a team relies on because a stranger retired it
+    /// is a correction lost with no reader — P1, and the exact failure this
+    /// tool exists to prevent; the local install may hold evidence the upstream
+    /// author does not. Only a **local** `Status` reaches
+    /// `Status::emittability`, so nothing here can suppress emission, and
+    /// `tests/poke.rs` asserts it over the real emitters rather than trusting
+    /// the argument.
+    CacheRetiredUpstream {
+        /// The rule this install holds a copy of.
+        tag: RuleTag,
+        /// Upstream's own reason, which is what decides between the three human
+        /// resolutions — and which is already public in the clone.
+        reason: String,
+        /// When upstream retired it.
+        since: Date,
+    },
     /// An upstream rule serves an audience this install declares, and this
     /// install does not hold it.
     ContributedInAudience {
@@ -237,6 +264,7 @@ impl Poke {
         match self {
             Poke::ClassCoveredUpstream { .. } => Trigger::ClassCoveredUpstream,
             Poke::CacheBehind { .. } => Trigger::CacheBehind,
+            Poke::CacheRetiredUpstream { .. } => Trigger::CacheRetiredUpstream,
             Poke::ContributedInAudience { .. } => Trigger::ContributedInAudience,
             Poke::HighRecurrenceUnheld { .. } => Trigger::HighRecurrenceUnheld,
         }
@@ -252,7 +280,9 @@ impl Poke {
     fn sort_key(&self) -> &str {
         match self {
             Poke::ClassCoveredUpstream { fired, .. } => fired.as_str(),
-            Poke::CacheBehind { tag, .. } | Poke::ContributedInAudience { tag, .. } => tag.as_str(),
+            Poke::CacheBehind { tag, .. }
+            | Poke::CacheRetiredUpstream { tag, .. }
+            | Poke::ContributedInAudience { tag, .. } => tag.as_str(),
             Poke::HighRecurrenceUnheld { tag, .. } => tag.as_str(),
         }
     }
@@ -278,6 +308,15 @@ impl fmt::Display for Poke {
             } => write!(
                 f,
                 "your cache of {} is at revision {held} and upstream publishes {upstream} — pull it, or `adopt` it if you have reasons to stay where you are",
+                tag.as_str()
+            ),
+            // Three resolutions, named, because the poke is worth nothing
+            // without them — and `adopt` is first among equals: a retirement
+            // installs refuse is the population telling an author something no
+            // single install can know.
+            Poke::CacheRetiredUpstream { tag, reason, since } => write!(
+                f,
+                "upstream retired {} in {since} ({reason}) — your copy still emits, and will keep emitting: pull the retirement, `adopt` it if you hold evidence they do not, or drop it",
                 tag.as_str()
             ),
             Poke::ContributedInAudience { tag, serves } => {
@@ -376,6 +415,9 @@ pub fn pokes(
                 raised.extend(class_covered_upstream(local, upstream, &held));
             }
             Trigger::CacheBehind => raised.extend(cache_behind(local, upstream)),
+            Trigger::CacheRetiredUpstream => {
+                raised.extend(cache_retired_upstream(local, upstream));
+            }
             Trigger::ContributedInAudience => {
                 raised.extend(contributed_in_audience(local, upstream, &held));
             }
@@ -512,6 +554,44 @@ fn cache_behind(local: &Library<Validated>, upstream: &Library<Validated>) -> Ve
         .collect()
 }
 
+/// The retirement trigger: a rule this install holds a copy of, retired
+/// upstream.
+///
+/// **Only a copy, and only an attic.** A rule this install *owns* has no
+/// upstream to be retired by — an upstream rule sharing its tag is the same
+/// rule, published, not a retirement of anything held here; the same predicate
+/// as [`cache_behind`], so the two cannot disagree about what "holds a copy"
+/// means. And a *graduated* upstream rule is not retired: it is still emitted,
+/// annotated with the stronger control that also holds it. Only tag-level death
+/// is an attic, which is why §12.6 needed no new `Status` variant.
+///
+/// What this trigger deliberately **cannot** do is act. It is news, and the
+/// resolution is a person's: pull, adopt, or drop.
+fn cache_retired_upstream(local: &Library<Validated>, upstream: &Library<Validated>) -> Vec<Poke> {
+    let retired: BTreeMap<&str, (&str, Date)> = upstream
+        .rules()
+        .iter()
+        .filter_map(|rule| match rule.status() {
+            Status::Attic { reason, date } => Some((rule.tag().as_str(), (reason.as_str(), *date))),
+            Status::Active | Status::Graduated { .. } => None,
+        })
+        .collect();
+
+    local
+        .rules()
+        .iter()
+        .filter(|rule| !matches!(rule.authority(), Authority::Local { .. }))
+        .filter_map(|rule| {
+            let (reason, since) = retired.get(rule.tag().as_str())?;
+            Some(Poke::CacheRetiredUpstream {
+                tag: rule.tag().clone(), // allow:clone: the poke owns its tag and outlives the library borrow
+                reason: (*reason).to_owned(),
+                since: *since,
+            })
+        })
+        .collect()
+}
+
 /// The contribution trigger: an upstream rule serving this install's audience
 /// that this install does not hold.
 ///
@@ -561,13 +641,19 @@ fn high_recurrence_unheld(aggregate: &Aggregate, held: &BTreeSet<&str>) -> Vec<P
 mod tests {
     use super::*;
 
-    /// §6's table, asserted rather than described. Two on, two off, and the
-    /// reactive one is among the two that are on.
+    /// The design's table, asserted rather than described. Three on, two off,
+    /// the reactive one among those on — and the two that are on beside it are
+    /// both about a copy this install already holds, so neither can fire
+    /// against an install that caches nothing.
     #[test]
     fn the_default_set_is_the_designs_table() {
         assert_eq!(
             Trigger::defaults(),
-            vec![Trigger::ClassCoveredUpstream, Trigger::CacheBehind]
+            vec![
+                Trigger::ClassCoveredUpstream,
+                Trigger::CacheBehind,
+                Trigger::CacheRetiredUpstream
+            ]
         );
         assert!(Trigger::ClassCoveredUpstream.on_by_default());
         assert!(!Trigger::ContributedInAudience.on_by_default());

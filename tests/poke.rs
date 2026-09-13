@@ -1,9 +1,9 @@
 //! The poke: what the corpus has to say to this install, surfaced in `lint`.
 //!
-//! Four triggers, and the shape of the design is that **one of them is worth
+//! Five triggers, and the shape of the design is that **one of them is worth
 //! reading**. The reactive poke follows evidence recorded here — you wrote down
 //! that a rule of yours failed, and upstream already has a rule for that class.
-//! The other three follow things that happened elsewhere, which is how a
+//! The other four follow things that happened elsewhere, which is how a
 //! notification channel teaches people to ignore it, so they are capped and two
 //! of them are off until asked for.
 //!
@@ -59,6 +59,26 @@ fn rule(
             .map(|s| ScopeTag::parse(*s).expect("a valid scope"))
             .collect(),
         authority,
+        None,
+    )
+}
+
+/// A rule retired to the attic, with upstream's own reason, on 2026-09-01.
+fn retired(tag: &str, reason: &str) -> Rule {
+    Rule::new(
+        RuleTag::parse(tag).expect("a valid tag"),
+        Title::parse("A title").expect("non-empty"),
+        ErrorClass::parse("a class").expect("non-empty"),
+        Home::global(),
+        Date::parse("2026-09-13").expect("a valid date"),
+        Origin::Mined,
+        Status::attic(reason, Date::parse("2026-09-01").expect("a valid date"))
+            .expect("non-empty reason"),
+        Incident::parse("The triggering incident.").expect("non-empty"),
+        Body::parse("Do the thing.").expect("non-empty"),
+        Vec::new(),
+        Vec::new(),
+        Authority::local(),
         None,
     )
 }
@@ -358,6 +378,125 @@ fn a_local_rule_is_never_behind_anything() {
     );
 }
 
+// ── the upstream-retirement trigger ─────────────────────────────────────────
+
+/// **A local attic suppresses; an upstream attic only warns** (§12.6). The
+/// message carries upstream's own reason and date, because those are what
+/// decide between the three human resolutions — pull, adopt, drop.
+#[test]
+fn a_rule_retired_upstream_pokes_and_says_when_and_why() {
+    let local = library(vec![rule("R:x", "a class", cached_at(2), 0, &[])]);
+    let upstream = library(vec![retired("R:x", "cold surface, challenge-tested")]);
+
+    let raised = with(
+        &local,
+        &upstream,
+        &empty_aggregate(),
+        &[Trigger::CacheRetiredUpstream],
+    );
+    match &raised.shown()[0] {
+        Poke::CacheRetiredUpstream { tag, reason, since } => {
+            assert_eq!(tag.as_str(), "R:x");
+            assert_eq!(reason, "cold surface, challenge-tested");
+            assert_eq!(since.to_string(), "2026-09-01");
+        }
+        other => panic!("expected an upstream-retirement poke, got {other:?}"),
+    }
+    assert!(
+        raised.shown()[0].to_string().contains("adopt"),
+        "the message must name the resolution that is the federation's best signal: {}",
+        raised.shown()[0]
+    );
+}
+
+/// **The load-bearing one.** Deleting an instruction a team relies on because a
+/// stranger retired it is a correction lost with no reader — P1, and the exact
+/// failure this tool exists to prevent. Only a **local** `Status` reaches
+/// `Status::emittability`, so the poke cannot reach emission even in principle;
+/// this asserts it over the real emitters rather than trusting that.
+#[test]
+fn an_upstream_retirement_never_suppresses_the_local_rule() {
+    let local = library(vec![rule("R:x", "a class", cached_at(2), 0, &[])]);
+    let upstream = library(vec![retired("R:x", "we stopped believing in it")]);
+
+    let raised = with(
+        &local,
+        &upstream,
+        &empty_aggregate(),
+        &[Trigger::CacheRetiredUpstream],
+    );
+    assert_eq!(raised.shown().len(), 1, "the poke fires");
+
+    for file in relearn::emit::claude::emit(&local) {
+        assert!(
+            file.contents().contains("R:x"),
+            "the retired-upstream rule vanished from an emitted file:\n{}",
+            file.contents()
+        );
+    }
+    assert!(
+        relearn::emit::cursor::emit(&local)
+            .iter()
+            .any(|f| f.contents().contains("R:x")),
+        "the retired-upstream rule vanished from the cursor layer"
+    );
+}
+
+/// A rule this install owns has no upstream to be retired by. Without this the
+/// trigger would fire on a local rule that merely shares a tag with an upstream
+/// one — which is the *same* rule, published, and not a retirement of anything
+/// this install holds a copy of.
+#[test]
+fn a_rule_you_own_is_not_retired_by_a_stranger() {
+    let local = library(vec![rule("R:x", "a class", Authority::local(), 0, &[])]);
+    let upstream = library(vec![retired("R:x", "cold surface")]);
+    assert!(
+        with(
+            &local,
+            &upstream,
+            &empty_aggregate(),
+            &[Trigger::CacheRetiredUpstream]
+        )
+        .is_empty()
+    );
+}
+
+/// Graduated is not retired: a graduated rule is still emitted, annotated with
+/// the stronger control that also holds it. Only tag-level death is an attic,
+/// and only an attic is this poke.
+#[test]
+fn an_upstream_graduation_is_not_a_retirement() {
+    let local = library(vec![rule("R:x", "a class", cached_at(2), 0, &[])]);
+    let graduated = Rule::new(
+        RuleTag::parse("R:x").expect("a valid tag"),
+        Title::parse("A title").expect("non-empty"),
+        ErrorClass::parse("a class").expect("non-empty"),
+        Home::global(),
+        Date::parse("2026-09-13").expect("a valid date"),
+        Origin::Mined,
+        Status::graduated(
+            "hook:something",
+            Date::parse("2026-09-01").expect("a valid date"),
+        )
+        .expect("non-empty destination"),
+        Incident::parse("The triggering incident.").expect("non-empty"),
+        Body::parse("Do the thing.").expect("non-empty"),
+        Vec::new(),
+        Vec::new(),
+        Authority::local(),
+        None,
+    );
+    assert!(
+        with(
+            &local,
+            &library(vec![graduated]),
+            &empty_aggregate(),
+            &[Trigger::CacheRetiredUpstream]
+        )
+        .is_empty()
+    );
+}
+
 // ── the contribution trigger ────────────────────────────────────────────────
 
 #[test]
@@ -434,17 +573,23 @@ fn high_recurrence_means_the_top_bucket() {
 
 // ── the defaults, and the cap ───────────────────────────────────────────────
 
-/// **§6's table, observed rather than described.** With data present for all
-/// four triggers and nothing asked for, exactly the two default-on triggers
-/// fire — the reactive one, and the stale cache. The two that broadcast about
-/// things nobody here has touched stay silent, which is the failure the
-/// programme names first: *broadcast triggers default on, because they are
-/// easier to demo*.
+/// **§6's table, observed rather than described.** With data present for
+/// **every** trigger and nothing asked for, exactly the default-on ones fire —
+/// the reactive one, the stale cache, and the upstream retirement. The two that
+/// broadcast about things nobody here has touched stay silent, which is the
+/// failure the programme names first: *broadcast triggers default on, because
+/// they are easier to demo*.
+///
+/// The fixture has to feed all five, or the silence it asserts could be an
+/// absence of data wearing a decision's clothes — which is what this test
+/// briefly became when `cache-retired` was added and nothing here retired
+/// anything: it passed, unchanged, while proving one trigger less than it said.
 #[test]
 fn only_the_default_triggers_fire_when_none_is_named() {
     let local = library(vec![
         rule("R:mine", "a shared class", Authority::local(), 1, &["rust"]),
         rule("R:cached", "a cached class", cached_at(1), 0, &[]),
+        rule("R:dropped", "a dropped class", cached_at(1), 0, &[]),
     ]);
     let upstream = library(vec![
         rule(
@@ -461,6 +606,7 @@ fn only_the_default_triggers_fire_when_none_is_named() {
             0,
             &[],
         ),
+        retired("R:dropped", "cold surface, challenge-tested"),
     ]);
     let aggregate = aggregate_of("R:popular", K_ANONYMITY_FLOOR, "10+");
 
@@ -474,7 +620,11 @@ fn only_the_default_triggers_fire_when_none_is_named() {
     let triggers: Vec<Trigger> = raised.shown().iter().map(Poke::trigger).collect();
     assert_eq!(
         triggers,
-        vec![Trigger::ClassCoveredUpstream, Trigger::CacheBehind],
+        vec![
+            Trigger::ClassCoveredUpstream,
+            Trigger::CacheBehind,
+            Trigger::CacheRetiredUpstream
+        ],
         "the off-by-default triggers had data and must still have stayed quiet: {:?}",
         raised.shown()
     );
@@ -488,7 +638,12 @@ fn only_the_default_triggers_fire_when_none_is_named() {
         &Trigger::ALL,
         BroadcastCap::new(usize::MAX),
     );
-    assert_eq!(all.shown().len(), 4, "{:?}", all.shown());
+    assert_eq!(
+        all.shown().len(),
+        Trigger::ALL.len(),
+        "every trigger had data and exactly one poke each was expected: {:?}",
+        all.shown()
+    );
 }
 
 #[test]

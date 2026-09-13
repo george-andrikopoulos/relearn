@@ -274,6 +274,12 @@ the k-floor and the confound sentence printing beside the numbers.
 
 **Adds:** the four triggers from §6, with the reactive one on by default and broadcast capped.
 
+*Amended after shipping, 2026-09-13.* A **fifth** trigger followed on George's call:
+§12.6's `CachedRuleRetiredUpstream`, which the design specifies as a lint `Warning` and which
+ships as a poke instead — a Warning reachable only with `--upstream` is federation failing a run
+at the default `--deny warning`, which is the invariant this phase had just made structural. It
+is broadcast, on by default, and cannot fire against an install that caches nothing.
+
 **What George approves:** the default table; the cap being a number in config rather than a
 judgement in code; that it lives in `lint` and not in a new command.
 

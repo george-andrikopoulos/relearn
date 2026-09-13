@@ -56,8 +56,11 @@ It is the reference implementation of the error loop described in *Tuning the St
 - **A poke is news, never a verdict.** The federation's signal is surfaced inside `lint`, carries
   no severity, and is printed after the exit code has been decided — a signal from strangers that
   could fail CI would have made federation required. One trigger is reactive (a rule fired *here*,
-  and upstream covers that class) and is never capped; the other three are broadcast, capped at a
-  number the operator passes, and two of them are off until named. No clone, no pokes, and no
+  and upstream covers that class) and is never capped; the other four are broadcast, capped at a
+  number the operator passes, and two of them are off until named. An upstream **retirement**
+  warns and can do no more: a local attic suppresses emission, an upstream one never does,
+  because deleting an instruction a team relies on because a stranger retired it is a correction
+  lost with no reader. No clone, no pokes, and no
   warning about their absence. `build` cannot reach the module at all, asserted by reading the
   emitters' source: `lint` reports and `build` emits.
 - **A mandate carries its approval, and is not evidence.** `Origin::Mandated(Approval)` makes a

@@ -356,6 +356,10 @@ and the programme is wrong where the two disagree.
 operator passes. Emission unchanged for all 52 rules (`verify`: 63 generated files up to
 date) — no emitter reads the poke, and a test reads their source to keep it so.
 
+*A fifth trigger landed the same day, after this section was written* — §12.6's upstream
+retirement, on George's call, recorded under Phase J below and in the decisions log. The
+items in this section describe C2's four and stay as they were.
+
 - [x] The default table is `Trigger::on_by_default`, one exhaustive match and nowhere
       else, asserted with data present for **all four** triggers so the two that stay
       quiet are making a decision rather than finding nothing.
@@ -611,7 +615,7 @@ Discovered while building it, deliberately not decided here:
 - [ ] **Candidate rules for `applies_to`.** Reported in the A1 summary, **none applied**: deciding
       a rule's audience is a judgement about who is harmed by not seeing it, and that is George's.
 
-## Phase J — federated relearn (design v2 filed 2026-09-13; **built A1 → C2 the same day**, three items open)
+## Phase J — federated relearn (design v2 filed 2026-09-13; **built A1 → C2 the same day**, two items open)
 
 The design is [`docs/federated-relearn.md`](docs/federated-relearn.md). **v2 supersedes the v1
 filed the same day** (then `docs/federated-recurrence.md`, in commit 522679f). v1's thesis was
@@ -630,7 +634,7 @@ in the file that grades this repository. It was filed beside `docs/recurrence-se
 implemented it without coming back here: a design document that becomes a plan, and a plan nobody
 re-reads because its heading still says nothing was built. What each item became is now recorded
 against the phase that delivered it; those phase sections are above and are not restated here.
-**Three items were never built, and each says why.**
+**Two items were never built, and each says why.**
 
 - [x] **Decide the six open questions (§12).** Answered 2026-09-13, the same day they were filed;
       §12 records each decision with its why, and the two that moved the design carried edits into
@@ -700,19 +704,24 @@ against the phase that delivered it; those phase sections are above and are not 
       `Aggregate::to_toml`, including in an empty aggregate — not a flag, because the way they
       get dropped is by being droppable. The mined fraction is the counter-metric to the
       federation itself, and `lint::Tally` reports the evidential denominator beside it.
+- [x] **`CachedRuleRetiredUpstream` (§12.6) — shipped 2026-09-13 as the fifth poke**, on
+      George's call. §12.6 specifies a lint `Warning`, written before the poke existed; a
+      `Warning` reachable only with `--upstream` is federation failing a run at the default
+      `--deny warning`, which is the invariant C2 had just made structural. So it sits beside
+      `cache-behind` as a broadcast poke, on by default, and cannot fire at all against an
+      install that caches nothing. Everything §12.6 is *about* survives: an upstream attic only
+      warns, the three resolutions are named with `adopt` first, and the suppression is
+      **unreachable rather than declined** — only a local `Status` reaches
+      `Status::emittability`, asserted over the real emitters. The deviation is recorded in
+      §12.6 itself, in the programme's C2 section and in the decisions log, so the design does
+      not go on specifying a shape the code deliberately does not have.
+  - [ ] **The trigger has never fired against this corpus and cannot**: no rule here is a cache,
+        and the clone it would read does not exist. Observed through the binary on a hand-built
+        clone with a hand-added cached rule, then both removed. Same standing gap as the other
+        four triggers, and the same second install closes it.
 
-### Not built — the three, and why
+### Not built — the two, and why
 
-- [ ] **`CachedRuleRetiredUpstream { tag, upstream_status, since }` (§12.6).** A local attic
-      suppresses, an upstream attic only warns, and an upstream retirement that installs refuse
-      by adopting is the best signal the federation can produce. **Its shape is now an open
-      question rather than a design detail.** §12.6 specifies a lint `Warning`, written before C2
-      established that no federated input may change a verdict — and a `Warning` that can only
-      fire when `--upstream` is given is federation failing a run at the default `--deny
-      warning`, which invariant 3 forbids. So it wants to be a **fifth poke** beside
-      `cache-behind`: same input, same reach, same inability to fail CI. The weaker alternative
-      is an `Info` finding, which cannot fail a run either but sits in a list `--deny` grades.
-      **George's call**; the argument for the poke is C2's own invariant.
 - [ ] **`ScopeNearDuplicate` (§12.5).** A scope used by exactly one rule within edit distance 2
       of one used by many. **Deliberately not built**: this corpus declares no scopes at all, and
       a drift detector over an empty vocabulary arrives already green — an artefact that cannot

@@ -559,6 +559,17 @@ pull, adopt, drop. And **`adopt` on an upstream retirement is the most valuable 
 federation can produce** — a retirement that installs refuse is evidence the retirement was
 wrong, which is the population telling an author something no single install can know.
 
+*Amended in implementation, 2026-09-13.* **It ships as the fifth poke, not as a lint Warning.**
+The sentence above predates the poke, and a `Warning` reachable only with `--upstream` is
+federation failing a run at the default `--deny warning` — which §1's invariant 3 forbids and
+which the poke was shaped to make impossible. Same input, same reach, same inability to touch a
+verdict; it sits beside `cache-behind`, on by default, and cannot fire at all against an install
+that caches nothing. Everything the paragraph is actually *about* survives unchanged: an upstream
+attic only warns, the three resolutions are named with `adopt` first, and the suppression is
+unreachable rather than declined, because only a local `Status` reaches `Status::emittability`.
+The trigger reads only an attic — a graduated rule is still emitted, annotated — so the "no new
+`Status` variant" reading below is what held.
+
 On supersession: **no new `Status` variant.** `Graduated { to }` means promoted to a control, not
 replaced by another rule, and rule-replaces-rule is just a new version of the same tag — the
 cache sees `version` move. Only tag-level death needs `Attic`. That is the reading of *do not

@@ -87,8 +87,9 @@ relearn lint --rules ./rules
 
 # The same, plus the federation's pokes read out of a clone of an aggregate
 # repository: a rule that fired here and is already covered upstream (on), a
-# cache behind its upstream revision (on), a contributed rule serving your
-# audience (off), a rule many installs report and you do not hold (off).
+# cache behind its upstream revision (on), a cached rule retired upstream —
+# which warns and never suppresses your copy (on), a contributed rule serving
+# your audience (off), a rule many installs report and you do not hold (off).
 # Pokes carry no severity and never change the exit code. Without --upstream
 # there are none, and nothing is said about their absence.
 relearn lint --rules ./rules --upstream ../aggregate

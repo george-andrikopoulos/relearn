@@ -56,7 +56,8 @@ line, exactly as every other input to this tool is (`tests/solo_mode.rs` fails t
 on the alternative). Someone who has not cloned a corpus has nothing to put here, which
 is the correct outcome — not an error, not a prompt.
 
-**No `--poke` flags.** The default set is the reactive trigger and the stale-cache one.
+**No `--poke` flags.** The default set is the reactive trigger and the two about a copy you
+already hold — a stale cache, and one retired upstream.
 Adding `--poke contributed` or `--poke high-recurrence` to a hook that fires on every
 session is how the poke becomes a notification people dismiss, including the one that
 mattered. If you want them, run `lint` by hand on the day you want them.
