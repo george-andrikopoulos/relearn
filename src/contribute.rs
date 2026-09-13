@@ -64,6 +64,72 @@ pub enum NotContributable {
     IsMandated,
 }
 
+/// Why a tag this rule cites is not at the destination.
+///
+/// The distinction is the whole value of the warning: one of these is waiting
+/// for somebody to publish something, and the other never resolves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Citation {
+    /// The destination does not carry it yet. Publishing it would resolve this.
+    NotPublishedYet,
+    /// Its home never leaves a machine, so no destination can ever carry it.
+    /// Publishing the closure is not the remedy and waiting will not help.
+    NeverPublishable,
+}
+
+impl Citation {
+    /// What to tell the contributor.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Citation::NotPublishedYet => "not published there yet",
+            Citation::NeverPublishable => {
+                "can never be published — its home never leaves a machine"
+            }
+        }
+    }
+}
+
+/// The tags this rule cites that `published` does not carry.
+///
+/// **The publishable unit is a rule plus its citation closure, and this is what
+/// says so at the moment it matters.** A subset publication of a corpus whose
+/// rules cite each other hands every subscriber a library with dangling
+/// references, and `lint` makes those fatal at its default threshold — so the
+/// subscriber's *first* command fails. It is a warning rather than a refusal
+/// because a rule may legitimately cite one whose home never leaves a machine,
+/// and refusing would make it permanently unpublishable.
+///
+/// `local` is consulted only to tell the two cases apart. A tag nobody holds at
+/// all is reported as unpublished: it dangles for the subscriber either way, and
+/// the contributor is the only person positioned to know what it was meant to
+/// point at.
+#[must_use]
+pub fn dangling_citations(
+    rule: &Rule,
+    published: &[RuleTag],
+    local: &crate::library::Library<crate::library::Validated>,
+) -> Vec<(RuleTag, Citation)> {
+    crate::lint::cited_tags(rule)
+        .into_iter()
+        .filter(|cited| cited != rule.tag())
+        .filter(|cited| !published.contains(cited))
+        .map(|cited| {
+            let withheld = local
+                .rules()
+                .iter()
+                .find(|held| held.tag() == &cited)
+                .is_some_and(|held| matches!(held.home().federation(), Federation::Withheld));
+            let why = if withheld {
+                Citation::NeverPublishable
+            } else {
+                Citation::NotPublishedYet
+            };
+            (cited, why)
+        })
+        .collect()
+}
+
 /// A proposed revision does not supersede what is already published.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error(

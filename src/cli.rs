@@ -35,7 +35,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::aggregate::{Aggregate, AggregateError};
-use crate::contribute::{Contribution, NotContributable, NotSuperseding, SupersedingVersion};
+use crate::contribute::{self, Contribution, NotContributable, NotSuperseding, SupersedingVersion};
 use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
@@ -1100,6 +1100,33 @@ fn pull_all(
     Ok(ExitCode::SUCCESS)
 }
 
+/// Every tag the shared corpus already carries.
+///
+/// A destination that does not exist yet carries nothing, and a file in it that
+/// does not parse carries nothing either — a corpus half of which is unreadable
+/// is a broken corpus, but that is the *subscriber's* problem to be told about,
+/// not a reason to refuse somebody's publication.
+fn published_tags(out: &Path) -> Result<Vec<RuleTag>, CliError> {
+    let entries = match std::fs::read_dir(out) {
+        Ok(entries) => entries,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(source) => {
+            return Err(CliError::ContributionWrite {
+                path: out.to_path_buf(),
+                source,
+            });
+        }
+    };
+    Ok(entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|e| e == "md"))
+        .filter_map(|path| std::fs::read_to_string(path).ok())
+        .filter_map(|text| crate::rule::parse_document(&text).ok())
+        .map(|rule| rule.tag().clone()) // allow:clone: the caller owns the tag list, which outlives every document it was parsed from
+        .collect())
+}
+
 /// The revision the shared corpus already publishes for `tag`, if it holds it.
 ///
 /// **Reads one file and asks one question.** A destination that holds nothing
@@ -1190,6 +1217,27 @@ fn contribute(
     // this one question and for nothing else.
     let published = published_revision(out, &tag)?;
     let version = SupersedingVersion::of(version, published).map_err(CliError::NotSuperseding)?;
+
+    // **A second question of the same destination, at no extra cost.** A subset
+    // publication of a corpus whose rules cite each other hands every
+    // subscriber dangling references, and `lint` makes those fatal at its
+    // default threshold — so their first command fails. A warning rather than a
+    // refusal: a rule may legitimately cite one whose home never leaves a
+    // machine, and refusing would make it permanently unpublishable.
+    let dangling = contribute::dangling_citations(rule, &published_tags(out)?, &library);
+    if !dangling.is_empty() {
+        println!(
+            "Note: this rule cites {} tag(s) the destination does not carry.",
+            dangling.len()
+        );
+        for (tag, why) in &dangling {
+            println!("  {:<34} {}", tag.as_str(), why.as_str());
+        }
+        println!(
+            "A subscriber taking this rule will see them as dangling references, and `lint` \
+             makes those fatal at its default threshold.\n"
+        );
+    }
 
     println!("{}", contribution.what_would_leave(version));
 

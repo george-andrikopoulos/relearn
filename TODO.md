@@ -378,12 +378,14 @@ machine, taking rules from a shared one it does not own.
 
 Carried:
 
-- [ ] **Nothing warns a contributor that a rule cites tags the destination does not carry.**
-      `contribute` reads the destination for one question (does this revision supersede?) and
-      could read it for a second at no extra cost. The check is cheap and the failure is
-      guaranteed — every subset publication of a corpus whose rules cite each other produces
-      it. **George's call**, because the right response might be a refusal, a warning, or
-      offering to publish the closure.
+- [x] **`contribute` now warns about citations the destination does not carry** — shipped the
+      same day the second install found the failure. Two of the three candidate responses were
+      wrong on inspection: a **refusal** would make any rule citing a project-homed one
+      permanently unpublishable, and **offering to publish the closure** cannot work, because a
+      closure member with no published incident cannot be published either and the offer would
+      fail halfway. So it warns, and distinguishes *not published yet* (resolves when somebody
+      publishes it) from *never publishable* (does not). Probed both ways against the real
+      corpus.
 - [ ] **The corpus has one contributor and one subscriber, both George.** The mechanics are
       exercised; nothing about whether a rule mined from one person's sessions helps someone
       whose sessions they never saw is. The aggregate stays empty and correctly so: five

@@ -304,3 +304,105 @@ fn a_contribution_can_only_be_rendered_with_a_superseding_version() {
 fn first(n: u32) -> SupersedingVersion {
     SupersedingVersion::of(Version::new(n), None).expect("a first publication supersedes nothing")
 }
+
+// ── citations the destination does not carry ────────────────────────────────
+
+use relearn::contribute::{Citation, dangling_citations};
+use relearn::rule::Home as H;
+
+fn citing(body: &str) -> Rule {
+    Rule::new(
+        RuleTag::parse("R:citer").expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse("an error class").expect("non-empty error class"),
+        Home::global(),
+        Date::parse("2026-09-13").expect("valid date"),
+        Origin::Mined,
+        Status::active(),
+        Incident::parse(RAW).expect("non-empty incident"),
+        Body::parse(body).expect("non-empty body"),
+        Vec::new(),
+        Vec::new(),
+        Authority::local(),
+        Some(PublishedIncident::parse(PUBLISHED).expect("non-empty")),
+    )
+}
+
+fn homed(tag: &str, home: H) -> Rule {
+    Rule::new(
+        RuleTag::parse(tag).expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse("a class").expect("non-empty error class"),
+        home,
+        Date::parse("2026-09-13").expect("valid date"),
+        Origin::Mined,
+        Status::active(),
+        Incident::parse(RAW).expect("non-empty incident"),
+        Body::parse("Body.").expect("non-empty body"),
+        Vec::new(),
+        Vec::new(),
+        Authority::local(),
+        None,
+    )
+}
+
+fn library(rules: Vec<Rule>) -> relearn::library::Library<relearn::library::Validated> {
+    relearn::library::Library::from_rules(rules)
+        .validate()
+        .expect("a valid library")
+}
+
+/// **The finding the second install produced in its first ten minutes.**
+/// Publishing a rule that cites tags the destination does not carry hands every
+/// subscriber a library with dangling references — and `lint` makes those fatal
+/// at its default threshold, so their *first* command fails.
+#[test]
+fn a_citation_the_destination_lacks_is_reported() {
+    let rule = citing("This builds on R:absent, which upstream does not have.");
+    let local = library(vec![homed("R:absent", Home::global())]);
+
+    let dangling = dangling_citations(&rule, &[], &local);
+    assert_eq!(dangling.len(), 1, "{dangling:?}");
+    assert_eq!(dangling[0].0.as_str(), "R:absent");
+    assert_eq!(dangling[0].1, Citation::NotPublishedYet);
+}
+
+/// A citation of a rule that **can never be published** is a different warning
+/// and says so: its home never leaves a machine, so publishing the closure is
+/// not the remedy and waiting will not help.
+#[test]
+fn a_citation_of_a_withheld_rule_says_it_can_never_be_published() {
+    let rule = citing("See R:private for the paired rule.");
+    let local = library(vec![homed(
+        "R:private",
+        Home::project("C:/somewhere").expect("non-empty project"),
+    )]);
+
+    let dangling = dangling_citations(&rule, &[], &local);
+    assert_eq!(dangling[0].1, Citation::NeverPublishable);
+}
+
+/// A citation the destination already carries is not a warning, and neither is
+/// a rule citing itself.
+#[test]
+fn a_citation_the_destination_carries_is_quiet() {
+    let rule = citing("Builds on R:present, and on R:citer itself.");
+    let local = library(vec![homed("R:present", Home::global())]);
+    let published = [RuleTag::parse("R:present").expect("valid tag")];
+
+    assert!(
+        dangling_citations(&rule, &published, &local).is_empty(),
+        "{:?}",
+        dangling_citations(&rule, &published, &local)
+    );
+}
+
+/// A tag cited by nothing local and absent from the destination is still
+/// reported — it is dangling for the subscriber either way, and the contributor
+/// is the only person positioned to know what it was meant to point at.
+#[test]
+fn a_citation_of_a_tag_nobody_holds_is_still_reported() {
+    let rule = citing("This builds on R:ghost, which was never written.");
+    let dangling = dangling_citations(&rule, &[], &library(Vec::new()));
+    assert_eq!(dangling[0].1, Citation::NotPublishedYet);
+}

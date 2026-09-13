@@ -450,7 +450,7 @@ fn status_kind(status: &Status) -> &'static str {
 /// the new rule's incident recorded "retagged from <the old tag>" and lint
 /// reported a dangling reference to a tag appearing nowhere but provenance —
 /// so the wording had to be contorted to silence a false positive.
-fn cited_tags(rule: &Rule) -> Vec<RuleTag> {
+pub fn cited_tags(rule: &Rule) -> Vec<RuleTag> {
     let mut out = Vec::new();
     collect_tag_tokens(rule.body().as_str(), &mut out);
     out.sort();

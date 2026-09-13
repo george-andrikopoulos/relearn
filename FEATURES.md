@@ -404,6 +404,18 @@ What: before printing or writing anything, `contribute` runs the banned-terms ma
 
 **Observed through the binary (2026-09-13):** a rule whose raw incident named a person and a home path → the contribution printed with neither, the published account in its place, nothing written; a protected name inserted into the published incident → `error: 'published_incident' contains a protected name — a protected name appears at character 129 (length 5)`, exit 1, **the term itself absent from the diagnostic**; `--confirm` → written, and `grep` for the two private strings in the written file returns 0; a term list with no salt → refused, exit 1, naming the disarmed state rather than passing clean.
 
+### A contribution warns about citations the destination does not carry
+
+What: `contribute` reads its destination for a second question and reports every tag the rule cites that is not published there, distinguishing *not published there yet* from *can never be published — its home never leaves a machine*. Printed before `--confirm`, like everything else that flow shows.
+
+**The publishable unit is a rule plus its citation closure, and this is what says so at the moment it matters.** Publishing a subset of a corpus whose rules cite each other hands every subscriber a library with dangling references — and `lint` makes those `Warning`s, fatal at its default threshold, so a new subscriber's **first command fails**. That is the worst possible first impression of a shared corpus.
+
+**A warning, not a refusal**, and the distinction the warning draws is why: a rule may legitimately cite one whose home never leaves a machine, and refusing would make it permanently unpublishable. One case resolves when somebody publishes something; the other never does, so telling them apart is the whole value.
+
+**Enforced by:** `contribute::dangling_citations` + `contribute::Citation` + `tests/contribution.rs::a_citation_the_destination_lacks_is_reported`, `a_citation_of_a_withheld_rule_says_it_can_never_be_published`, `a_citation_the_destination_carries_is_quiet` (a rule citing itself is not a dangling reference), `a_citation_of_a_tag_nobody_holds_is_still_reported`. The citation scan is `lint::cited_tags`, made public rather than copied — it reads the **body only**, because provenance legitimately names retired and foreign tags, and a second scanner would drift from that reasoning.
+
+**Found by the second install, not by a fixture (2026-09-13).** Three rules were published; the subscriber's first `lint` failed on two dangling references, because the closure of those three was five. Probed both ways afterwards: publishing into an empty corpus prints the warning naming `R:wired-artifact`; publishing into the corpus that now carries the closure prints nothing.
+
 ### A republication goes forwards, and no rule-file write is unguarded
 
 What: publishing a rule the shared corpus already holds must carry a **greater** revision than the one already there. Republishing at or below it makes every existing cache read as *newer than upstream* — and nothing anywhere notices, because `cache-behind` decides staleness by comparing exactly the two numbers that have been corrupted. A first publication supersedes nothing, so any revision starts it.
