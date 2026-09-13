@@ -315,6 +315,35 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
       no reference to the log — the drift shape the rule names. One line each to fix, but
       it belongs with the retrofit decision above rather than ahead of it.
 
+## Phase J — federated recurrence (design filed 2026-09-13; **nothing built**)
+
+The design is [`docs/federated-recurrence.md`](docs/federated-recurrence.md), filed on the
+same footing as `docs/recurrence-session-hook.md`: written down so it is not re-invented,
+deliberately not implemented. Its thesis is *federate the signal, not the corpus* — publish
+an error-class identifier and a count, never `incident`, `body`, `tag` or any identity. It
+is the cross-install answer to the same question Phase F answered locally, and it is the
+only route on the table to the n = 1 objection and to measuring the decay curve Paper 3
+declines to claim.
+
+- [ ] **Decide the five open questions (§10).** They are George's, and the design says so.
+      Nothing below can be built before they are answered.
+  - [ ] Who curates the class catalogue — a maintainer does not scale, a free-for-all
+        re-imports the entity-resolution problem through the back door.
+  - [ ] What is *k* for the anonymity floor. Proposed 5; wants an argument, not a preference.
+  - [ ] Whether `control` **kind** is published at all — most useful field, most likely leak.
+  - [ ] Whether `class` lives on the rule or in a separate local mapping file.
+  - [ ] Catalogue versioning when an entry is merged, split or retired — the same problem as
+        `Status` on rules; do not invent it twice.
+- [ ] *(Blocked on the above)* The `class` optional field: parse, serialize, lint and all five
+      emitters, plus the round-trip assertion that **the emitted tree does not change for any
+      rule without a `class`** — the same proof that carried `recurrences`.
+- [ ] *(Blocked)* `relearn report` — writes a file, publishes nothing. No auto-sync, ever.
+- [ ] *(Blocked)* The four federated lint findings (`ClassRecurrentElsewhere`,
+      `GraduatedElsewhere`, `UnminedClass`, `InertLocally`).
+- [ ] **Counter-metric, not optional (§6).** Cross-install recurrence measures frequency *and*
+      diligence, inseparably; the aggregate must print that sentence beside its own numbers.
+      A published report is also not research consent — that is a separate, recorded opt-in.
+
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.
 - [ ] First-time-right capture on AI-assisted work
