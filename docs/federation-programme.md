@@ -106,7 +106,8 @@ there are now seven across three projects. Its own verification step fails on a 
 > per-home figures (446 global, 200 domain-rust) are stated as alternatives rather than as the
 > pack's own number. The layer table reads 27 / 18 / 7 and `relearn list --home` returns 27, 18
 > and 7 — summing to 52. The README even says the counts are hand-written and nothing checks
-> them, which remains true and is the standing exposure; it is not, today, wrong. The paragraph
+> them, which was true when this was written and was the standing exposure; `tests/pack_counts.rs`
+> closed it on 2026-09-13. It is not, today, wrong. The paragraph
 > is struck rather than deleted because *"this is the pattern, not the exception"* below is still
 > the correct warning, and a struck claim with its measurement is more useful than a silent
 > removal.
@@ -323,8 +324,15 @@ recreation standard becomes a lie one phase at a time.
 FEATURES rows and pack documentation. Any phase that changes a total must name every place
 asserting it. *This document was itself an instance on the day it was written — it counted the
 corpus at 51 in one place and described a pack README that had already been repaired — which is
-the argument for the rule, not against it. The pack's layer counts remain hand-written with
-nothing checking them, and that is the standing exposure.*
+the argument for the rule, not against it.*
+
+*Closed 2026-09-13, after C2.* The pack's counts were hand-written with nothing checking them,
+and that was named here as the standing exposure. `tests/pack_counts.rs` now reads them in both
+directions: every number a pack README claims must match what that file holds, **and** every file
+in a pack must be counted by its README — the second being the direction that catches a new home
+layer arriving while the inventory still lists the old set. A test rather than a script, so it is
+wired by construction and cannot arrive disarmed. What remains of this risk is everything a
+*rule count* appears in that is not a pack README, which nothing enumerates.
 
 **Solo mode eroding by a thousand conveniences.** No single addition breaks it. A config file
 here, an env var there, a cached fetch "only when asked". The test is the only thing holding the

@@ -343,8 +343,10 @@ and the programme is wrong where the two disagree.
         an enforcing artefact that points at a plan is what `FEATURES.md` exists to prevent.
   - [x] ~~0.3 `copilot-pack/README.md` is stale~~ — **already closed**; measured before filing
         (52 rules / 746 lines claimed, 746 lines and 52 `^## ` headings actual, layers 27/18/7
-        matching `relearn list --home`). Its counts remain hand-written with nothing checking
-        them: that exposure stands and is the real lesson of the item.
+        matching `relearn list --home`). Its counts remained hand-written with nothing checking
+        them, and that exposure — not the staleness — was the real lesson of the item.
+        **Closed 2026-09-13** by `tests/pack_counts.rs`, which reads both pack READMEs in both
+        directions: every claim must match its file, and every file must be claimed.
 - [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
@@ -609,23 +611,30 @@ Discovered while building it, deliberately not decided here:
 - [ ] **Candidate rules for `applies_to`.** Reported in the A1 summary, **none applied**: deciding
       a rule's audience is a judgement about who is harmed by not seeing it, and that is George's.
 
-## Phase J — federated relearn (design v2 filed 2026-09-13, its six questions answered the same day; **nothing built**)
+## Phase J — federated relearn (design v2 filed 2026-09-13; **built A1 → C2 the same day**, three items open)
 
-The design is [`docs/federated-relearn.md`](docs/federated-relearn.md), filed on the same
-footing as `docs/recurrence-session-hook.md`: written down so it is not re-invented,
-deliberately not implemented. **v2 supersedes the v1 filed the same day** (then
-`docs/federated-recurrence.md`, in commit 522679f). v1's thesis was *federate the
-signal, not the corpus* — a class catalogue and counts, no rule text ever. v2 lets rules
-travel and moves the privacy problem to **contribution time, where a human is present**:
+The design is [`docs/federated-relearn.md`](docs/federated-relearn.md). **v2 supersedes the v1
+filed the same day** (then `docs/federated-recurrence.md`, in commit 522679f). v1's thesis was
+*federate the signal, not the corpus* — a class catalogue and counts, no rule text ever. v2 lets
+rules travel and moves the privacy problem to **contribution time, where a human is present**:
 one home, many regenerable caches, and three flows with three different privacy models —
-contribution **attributed**, cache carrying its author, recurrence report **anonymous,
-always**. It is still the cross-install answer to the question Phase F answered locally, and
-still the only route on the table to the n = 1 objection and to measuring the decay curve
-Paper 3 declines to claim.
+contribution **attributed**, cache carrying its author, recurrence report **anonymous, always**.
+It is still the cross-install answer to the question Phase F answered locally, and still the only
+route on the table to the n = 1 objection and to measuring the decay curve Paper 3 declines to
+claim.
 
-- [x] **Decide the six open questions (§12).** ~~They are George's, and the design says so.~~
-      **Answered 2026-09-13**, the same day they were filed; §12 now records each decision with
-      its why, and the two that moved the design carried edits into §5 and §8.
+*Reconciled 2026-09-13, after C2.* **This section read "nothing built" while seven phases had
+built it**, and every item below was marked `(Blocked)` — a ledger contradicted by its own tree,
+in the file that grades this repository. It was filed beside `docs/recurrence-session-hook.md` as
+*written down so it is not re-invented, deliberately not implemented*, and then the programme
+implemented it without coming back here: a design document that becomes a plan, and a plan nobody
+re-reads because its heading still says nothing was built. What each item became is now recorded
+against the phase that delivered it; those phase sections are above and are not restated here.
+**Three items were never built, and each says why.**
+
+- [x] **Decide the six open questions (§12).** Answered 2026-09-13, the same day they were filed;
+      §12 records each decision with its why, and the two that moved the design carried edits into
+      §5 and §8.
   - [x] The catalogue stays dropped — a second identity space means per-install, per-rule entity
         resolution with no error-correcting feedback, and it was the sole source of v1's own
         hardest question. The real cost is a **biased** under-count, not a sparse one, and it is
@@ -643,59 +652,75 @@ Paper 3 declines to claim.
         rule-replaces-rule is a version move on the same tag.
 - [x] **Solo mode is gated before any federated line of code exists (§1).** `tests/solo_mode.rs`:
       no socket, no spawned process, no ambient state, no networking/TLS/async-runtime crate in
-      the tree. Two of §1's four invariants are *not* covered by it and are listed below, because
-      there is no configuration and no optional federated field yet to assert about.
-  - [ ] *(Blocked)* `Audience::Everything` as the constructed default, so **no configuration
-        means no filtering** — a rule with `applies_to` emits everywhere until someone declares
-        scopes, and a narrowed build reports what it withheld. A silently dropped rule is a lost
-        correction, which is the failure the project exists to prevent.
-  - [ ] *(Blocked)* Every federated field optional, absence being today's behaviour exactly —
-        proved by the same round-trip assertion as §13, not by intent.
-- [ ] *(Blocked on the above)* `applies_to` — an optional scope set, **absent meaning today's
-      behaviour exactly**: parse, serialize, lint and all five emitters, plus the round-trip
-      assertion that **the emitted tree does not change for any rule without it** — the same
-      proof that carried `recurrences`. `Scope` parses at the perimeter (§12.5).
-- [ ] *(Blocked)* `Home::Org { name }`, and the structural guarantee that an `Org`-homed rule
-      can never be contributed and never appears in a report — an exhaustive match that fails
-      to compile when a home variant is added without deciding its federation behaviour, not
-      a filter someone can forget.
-- [ ] *(Blocked)* `Authority::Local | Cached { .. }` — emitters treat both identically; the
-      **edit path refuses `Cached`**, the same shape as `[R:generate-guards-unversioned]`.
-      `adopt` is the deliberate fork, with recorded provenance.
-- [ ] *(Blocked)* `relearn adopt <tag>` — **load-bearing, not a convenience** (§12.1): it is what
-      makes the common case free once contribution is expensive, and it is the only route by
-      which a locally-mined signal becomes reportable at all.
-- [ ] *(Blocked)* `CachedRuleRetiredUpstream { tag, upstream_status, since }` — Warning, and it
-      **cannot** suppress emission: only a local `Status` reaches `Status::emittability` (§12.6).
-      An upstream retirement that installs refuse by adopting is the federation's best signal.
-- [ ] *(Blocked)* `Origin::Mandated` with an `approval` provenance table, and the exclusion of
-      mandated rules from every recurrence statistic. No regulatory-alignment claim ships
-      without a named signer — `[R:guarantee-needs-a-reader]`.
-- [ ] *(Blocked)* `relearn contribute` — requires a hand-written **published incident**, shows
-      exactly what will leave, demands confirmation. The raw `incident` never leaves the
-      machine. First mechanical enforcement of `[R:names-travel-with-the-quote]`.
-  - [ ] The scrub runs **here, not at review** (§12.2): the `scripts/no-banned-names.sh` matcher
-        over the published incident. Reusable as a matcher; its `File::Find` half is not, since
-        the target is one string. Reports location and length, never the match; **exits 2 when
-        disarmed** — a contribution with no term list is refused, not passed.
-- [ ] *(Blocked)* `relearn report` — writes a file, publishes nothing. No auto-sync, ever, in
-      either direction. Only upstream tags are reportable.
-  - [ ] Counts serialize as **buckets** (`1 | 2-4 | 5-9 | 10+`), with no path that emits an exact
-        integer, and `Control` is a **sealed enum, no free-text variant** (§12.3, §12.4). Both
-        are type-shaped on purpose: the leak is unrepresentable rather than forbidden.
-  - [ ] k = 5 as a published constant, plus the caveat in the aggregate that a small homogeneous
-        reporting population defeats any k — and that the aggregator cannot detect it.
-- [ ] *(Blocked)* The poke, surfaced in `relearn lint` rather than a `news` command nobody
-      runs: reactive trigger on by default, broadcast triggers capped by a number in config.
-- [ ] *(Blocked)* `ScopeNearDuplicate` — a scope used by exactly one rule within edit distance 2
-      of one used by many. Extends `Finding::OverlappingScope`'s shape rather than adding a
-      parallel mechanism, and it is what replaces a vocabulary curator (§12.5).
-- [ ] **Counter-metrics, not optional (§8) — now two.** Cross-install recurrence measures
-      frequency *and* diligence, inseparably. And with the catalogue gone, the aggregate counts
-      only **classes somebody published a rule for**: a bias toward the cheap incidents, not mere
-      sparseness. Both sentences ship beside the numbers. The mined fraction is the
-      counter-metric to the federation itself. A published report is also not research consent —
-      that is a separate, recorded opt-in.
+      the tree. It held through all seven phases, and every one of them had a standing reason to
+      breach it. The two invariants it does *not* cover were closed by A1 and by the round trip:
+  - [x] **No configuration means no filtering.** Closed by A1, **not** as designed: there is no
+        `Audience::Everything` type, because `Rule::serves` reads an empty audience as "no
+        filter" and a rule declaring no `applies_to` is emitted under every audience. A config
+        file was then refused outright by programme Phase 0.1 rather than deferred, so the
+        invariant is held by the absence of the thing it was guarding against.
+        `tests/properties.rs::narrowing_never_touches_an_unscoped_rule` is the whole-space form.
+  - [x] **Every federated field optional, absence being today's behaviour exactly.** Five fields
+        arrived across the seven phases — `recurrence`, `applies_to`, `approval`, `authority`,
+        `published_incident` — and not one rule file needed editing. Proved by
+        `tests/corpus.rs::every_committed_rule_round_trips_byte_identically` over the real
+        fifty-two, which is the round-trip assertion §13 asks for rather than the intent.
+- [x] `applies_to` — **A1** (`3798521`). An audience, never a second home; absent means every
+      audience, so adding a scope to one rule can never remove a different rule from a build.
+- [x] `Home::Org { name }` and the structural exclusion — **A2**. `Home::federation` decides
+      every variant with no catch-all arm, so a home added without deciding its federation
+      behaviour is a compile error. `Project` is withheld too: its path is a private identifier.
+- [x] `Authority::Local | Adopted | Cached` — **B1**. Three variants, not two: a cache that
+      "became local" on adoption would be indistinguishable from a rule authored here. The edit
+      path refuses `Cached` through the `EditableRule` witness, with a compile-fail pin.
+- [x] `relearn adopt <tag>` — **B1**. The deliberate fork, with recorded provenance; refused for
+      anything that is not a cache, and refused again on an already-adopted rule.
+- [x] `Origin::Mandated` with an `approval` table, and mandates held out of every recurrence
+      statistic — **A2**. No regulatory-alignment claim ships, with or without a signer.
+- [x] `relearn contribute` — **B2**. `Contribution` is a projection that never *borrows* the raw
+      incident or the recurrences, so no renderer can leak them. Prints what would leave, writes
+      only on `--confirm`, transmits nothing.
+  - [x] The scrub runs **here, not at review** (§12.2): `scrub::TermList` over the published
+        incident **and the body**, reporting a location and a length and never the match.
+        `--terms` is a required argument, so "ran with no list" is unconstructible rather than an
+        exit code to remember — stronger than the script's exit 2.
+- [x] `relearn report` — **B3**. Writes a file, publishes nothing. `Observation` **is** the field
+      list, and `Month` has no day, so neither a sixth field nor a day-level date can be
+      reintroduced by an edit. Only upstream tags are reportable.
+  - [x] Counts serialize as **buckets**, `Control` is sealed at five values, and `k = 5` is a
+        published constant both ends read — the producer and the aggregate, so neither can
+        quietly lower it.
+- [x] The poke, surfaced in `relearn lint` — **C2**. Reactive on and uncapped; broadcast capped
+      by a number the operator passes (`--poke-cap`, not a config file — §6 amended in place),
+      and two of the three off until named. It carries no severity and cannot change a verdict.
+- [x] **Counter-metrics, not optional (§8) — and there are two.** Cross-install recurrence
+      measures frequency *and* diligence, inseparably; and with the catalogue gone the aggregate
+      counts only **classes somebody published a rule for**, a bias toward the cheap incidents
+      rather than mere sparseness. Both sentences are a `const` written unconditionally by
+      `Aggregate::to_toml`, including in an empty aggregate — not a flag, because the way they
+      get dropped is by being droppable. The mined fraction is the counter-metric to the
+      federation itself, and `lint::Tally` reports the evidential denominator beside it.
+
+### Not built — the three, and why
+
+- [ ] **`CachedRuleRetiredUpstream { tag, upstream_status, since }` (§12.6).** A local attic
+      suppresses, an upstream attic only warns, and an upstream retirement that installs refuse
+      by adopting is the best signal the federation can produce. **Its shape is now an open
+      question rather than a design detail.** §12.6 specifies a lint `Warning`, written before C2
+      established that no federated input may change a verdict — and a `Warning` that can only
+      fire when `--upstream` is given is federation failing a run at the default `--deny
+      warning`, which invariant 3 forbids. So it wants to be a **fifth poke** beside
+      `cache-behind`: same input, same reach, same inability to fail CI. The weaker alternative
+      is an `Info` finding, which cannot fail a run either but sits in a list `--deny` grades.
+      **George's call**; the argument for the poke is C2's own invariant.
+- [ ] **`ScopeNearDuplicate` (§12.5).** A scope used by exactly one rule within edit distance 2
+      of one used by many. **Deliberately not built**: this corpus declares no scopes at all, and
+      a drift detector over an empty vocabulary arrives already green — an artefact that cannot
+      fail is one nobody notices is broken. It waits for a second scope to exist, which is the
+      same second install everything else here waits for.
+- [ ] **A published report is not research consent.** A separate, recorded opt-in, and nothing
+      records one. No report has been published, so nothing is exposed today — but the first one
+      would be, and the consent is not a field, a flag, or a document yet.
 
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.

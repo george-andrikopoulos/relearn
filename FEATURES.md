@@ -298,6 +298,20 @@ What: `relearn aggregate --clone <path> --generated YYYY-MM` recomputes `aggrega
 
 **What it does not do.** It does not fetch — there is no network path in this tool and `tests/solo_mode.rs` is what keeps the "for convenience" version from appearing. It does not schedule itself: the job belongs to the aggregate repository's CI, which does not exist here, and this row claims a command rather than a cron entry.
 
+### A pack README's counts are read, in both directions
+
+What: `copilot-pack/README.md` says *"52 rules, 746 lines"* and `claude-pack/README.md` says *"27 rules"*, *"18 rules"* and three more. Those numbers are hand-written about generated files, and until 2026-09-13 **nothing read them** — the federation programme named it as the standing exposure twice, and it is `[R:guarantee-needs-a-reader]` in the repository whose own corpus carries that rule.
+
+**Two directions, because one of them misses what actually drifts.** Every **claim** must resolve to a file in its pack and match what that file holds. And every **file** in a pack must be the subject of at least one claim — the direction that catches a sixth home layer arriving, `build` writing its `SKILL.md`, `verify` staying green because the pack matches the rules, and the README still listing five. Every claim would still be correct; the inventory would be a lie by omission.
+
+**Enforced by:** `tests/pack_counts.rs::every_count_a_pack_readme_claims_is_the_one_its_file_holds` and `every_file_in_a_pack_is_counted_by_its_readme`. **Invocation:** `cargo test`, which CI runs on `ubuntu-latest` and `windows-latest` — a test rather than a script, for the same reason as the dependency and solo-mode gates: it is wired by construction and cannot arrive disarmed.
+
+**Scope, stated because `[R:measure-the-claim-not-a-subset]` is exactly what goes wrong here.** A *rule* is a `## ` heading ending in its `[R:tag]` — the form every emitter writes, which no prose heading can accidentally match; a *line* is `str::lines()`, which strips a trailing `\r` so the count is identical on a CRLF checkout (`[R:xplat-fixtures]`). A README stating no counts at all **fails**, because a parser that has stopped recognising the inventory would otherwise pass silently. File paths are resolved by suffix match rather than by parsing the ASCII tree: the tree is decoration, and a check that read it would break on a redrawn box character while the numbers it guards stayed wrong.
+
+**What it does not check:** that a pack matches the rules. `relearn verify --targets copilot --out copilot-pack` holds that and CI runs it as a second output root. The two compose — README ↔ pack ↔ rules — and **each owns its own denominator**, so neither needs to know how the other measures.
+
+**Probed both ways (2026-09-13):** `746` → `747` in the copilot README fails naming the file, the line and the true count; deleting the `project-design-architecture-tool` line from the claude README leaves every remaining claim correct and fails the *second* test naming the uncounted file. Restored, both green.
+
 ### The poke: one reactive trigger on, broadcast capped, and it can never fail a run
 
 What: `relearn lint --upstream <clone>` prints what the corpus knows that this install might want to. Four triggers, from §6 of the design: **class-covered** (a rule fired here and upstream already has one for that class — *reactive*), **cache-behind** (a cached rule whose upstream revision has moved), **contributed** (an upstream rule serving this install's audience that it does not hold), **high-recurrence** (a rule many installs report and this one does not hold). Without `--upstream` there are no pokes and **no warning about their absence** — a solo install is the product, and a nag is a requirement with better manners.
