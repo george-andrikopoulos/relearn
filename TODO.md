@@ -639,8 +639,12 @@ reports in a clone. Emission unchanged for all 52 rules.
 
 Carried, not decided here:
 
-- [ ] **No scheduled job exists.** The command is here; the cron or CI entry belongs to the
-      aggregate repository, which does not exist yet. FEATURES claims a command, not a schedule.
+- [x] **The scheduled job exists** — closed 2026-09-13. The aggregate repository was created
+      that day and carries a monthly workflow that installs the tool at a pinned commit and
+      commits the recompute. Pinned to a **commit** rather than a tag because the tool has no
+      tags: a workflow pinned to a tag that does not exist is a control that cannot run, and it
+      would have failed on its first scheduled attempt, silently, in a repository nobody was
+      watching.
 - [ ] **An aggregate reveals its own population size** (`installs = N`) and the number of
       suppressed rules. Both are deliberate — a reader cannot weigh a figure without them — but
       they are exact counts, and the same argument that bucketed recurrences could be made about

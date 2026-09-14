@@ -1,8 +1,10 @@
 # Federated relearn — design
 
-**Status: a design, now partly built.** One phase has shipped and the rest has not, and this
-line says which — a document that still claimed "nothing here is implemented" would be lying
-about the first thing a reader checks.
+**Status: built, bar two items that are waiting on something rather than on work.** Every phase
+A1 through C2 shipped on 13 September 2026, and the table below says which brought what — a
+document that still claimed "nothing here is implemented", or "one phase has shipped", would be
+lying about the first thing a reader checks. The two remaining rows say what they are waiting
+for rather than sitting as open work.
 
 | | |
 |---|---|
@@ -10,9 +12,10 @@ about the first thing a reader checks.
 | **Shipped 2026-09-13 (A2)** | §2's `Home::Org`, §7's `Origin::Mandated` and its `approval` block, and the federation exclusion as an exhaustive match — enforced by `tests/federation_exclusion.rs` and a compile-fail pin |
 | **Shipped 2026-09-13 (B1)** | §3's `Authority` and `adopt`, with the cached-rule refusal as a witness type at the write boundary and a compile-fail pin |
 | **Shipped 2026-09-13 (B2)** | §4's `contribute`, as a projection that never holds the raw incident, plus the banned-terms matcher over one string |
-| **Shipped 2026-09-13 (B3)** | §5's `report` — five fields, bucketed counts, a day-free `Month` type, and the pseudonym living in the clone (§0.2 resolved in code). The aggregate itself (§9) is not built |
-| **Shipped 2026-09-13 (C1)** | §9's recompute, as `relearn aggregate`: the k-floor applied from the same constant the producer reads, both §8 confounds written unconditionally, and a source-level check that no build depends on an aggregate. The aggregate **repository** does not exist yet — this is the command a job would run |
-| **Not built** | the aggregate repository and its scheduled job (§9); the poke (§6); `ScopeNearDuplicate` (§12.5) |
+| **Shipped 2026-09-13 (B3)** | §5's `report` — five fields, bucketed counts, a day-free `Month` type, and the pseudonym living in the clone (§0.2 resolved in code). The aggregate itself followed in C1 |
+| **Shipped 2026-09-13 (C1)** | §9's recompute, as `relearn aggregate`: the k-floor applied from the same constant the producer reads, both §8 confounds written unconditionally, and a source-level check that no build depends on an aggregate. The aggregate **repository** followed later the same day (see C2) — this row is the command a job runs |
+| **Shipped 2026-09-13 (C2)** | §6's poke inside `lint`, with §12.6's upstream retirement as a fifth trigger; `pull`, the receiving half nothing had, with `--all` and a prune that reaches only caches; and the aggregate **repository** itself, with the scheduled job §9 describes |
+| **Not built** | `ScopeNearDuplicate` (§12.5), which waits for a second scope to exist; and research consent, which waits for a first report |
 
 The rest is filed so the design is written down rather than re-invented, on the same footing as
 [`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried open

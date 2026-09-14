@@ -250,7 +250,7 @@ boundaries; that the k-floor and buckets are published constants a reader can ch
 
 ---
 
-## PHASE C1 — the aggregate repository — **SHIPPED 2026-09-13** (the command; the repository itself does not exist yet)
+## PHASE C1 — the aggregate repository — **SHIPPED 2026-09-13** (the command; the repository itself followed on 2026-09-13, with its scheduled job)
 
 **Adds:** a repository, not a service. Contributions and reports arrive as pull requests; a
 scheduled job recomputes `aggregate.toml`.
