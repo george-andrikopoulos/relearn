@@ -151,7 +151,28 @@
 - [x] **Closed 2026-09-13 by the same gate, in both directions.** Was: the same exposure — it names per-home rule counts that nothing checks. Verified two ways when written; stale the day a rule moves home. Same fix as the item below, and they should be closed together: either generate the factual block from the library, or add a check that greps the numbers back out of the emitted artefacts. **Refreshed by hand 2026-09-12**, alongside the copilot pack: 24 / 18 / 2 / 2 → 27 / 18 / 2 / 2 / 3, the fourth home added, per-skill line counts added to a new install prompt, and the collision hazard written down (`cp -r` over a hand-authored skill of the same name destroys it silently — a skill with no `relearn:generated` footer is exactly what nothing here can recognise and refuse). As with the copilot pack, the refresh is the symptom: it was needed because nothing failed when the numbers went stale. Every number now sits beside the command that measures the real one, which is a mitigation, not the check this item asks for.
 - [x] **Closed 2026-09-13 by `tests/pack_counts.rs`.** Was: numbers nothing checks. Added 2026-08-24. The pack's instruction file is generated and CI-verified; its README is hand-authored and asserts a rule count, a line count, a per-home breakdown and the eighteen `domain-rust` tags by name. All of those go stale on the next rule added, with nothing failing. Recorded in FEATURES.md on the same row rather than left implicit. Closing it means either generating the README's factual block from the library or adding a check that greps the numbers back out of the emitted file — the second is cheap and is the likely fix. `[R:doc-currency]` **Refreshed by hand 2026-09-12** (46 → 52 rules, 538 → 746 lines, 24 / 18 / 4 → 27 / 18 / 7, three graduated → eight, four project rules → seven, and a new install prompt that does not assume `.github/`). The refresh is the symptom, not the fix: it was needed because nothing failed when the numbers went stale, and nothing will fail the next time. The README now says so under its own table and points the reader at `grep -c '^## '`, which is the count that cannot rot — a mitigation in prose, not the check this item is asking for.
 - [ ] **A path-scoped Copilot target.** Copilot also reads `.github/instructions/*.instructions.md` with `applyTo:` front-matter, which is the same load-semantics idea the Cursor emitter already models in `LoadSemantics` and the rules layer already emits as `paths:`. A `copilot-instructions` target that emitted one file per home with `applyTo: "**/*.rs"` for `domain-rust` would stop the eighteen Rust rules from occupying context in a repository with no Rust in it — the P6 argument that motivated `--home`. Reuse, not new modelling: the per-`Home` glob table exists. Not started; noted 2026-08-24 while building `copilot-pack/`, where the whole library goes into one always-on file because that is the only Copilot shape this tool emits today.
-- [ ] **Third home for the `relearn` skill:** `~/.claude/skills/relearn/` is a stale July copy. Flagged 2026-08-22, deliberately out of scope of that change; fix in the `~/.claude` repo, not here.
+- [x] **Third home for the `relearn` skill — closed 2026-09-14, and it was three other things.**
+      The text staleness was fixed **the same day it was flagged**: this line was written at
+      14:28 on 2026-08-22 and `stochos-lab@baf41d9` brought `~/.claude/skills/relearn/SKILL.md`
+      up to its 2026-08-20 revision at 16:53, two and a half hours later. The box was never
+      ticked, so the entry outlived its subject by three weeks. What *was* stale, each found by
+      fixing the one before it (`stochos-lab@a8ba857`):
+  - **The binary.** `~/.cargo/bin/relearn` was the 6 September build — five subcommands where
+    the tree has ten, and no knowledge of `applies_to`, so it could not parse this library at
+    all. The `unheld-recurrence-report` SessionStart hook reported it on every session start,
+    exactly as designed, and nobody read it. Reinstalled and verified by reading back the three
+    properties that were wrong, not the exit code `[R:verdict-survives-the-channel]` — which is
+    the same rule whose recurrence on `[R:attack-the-design-in-a-second-pass]` was recorded
+    earlier today, against this very binary.
+  - **The generated skills layer**, visible only once the binary could read the corpus.
+    `~/.claude/skills/global/SKILL.md` was 123 lines behind and `domain-low-latency` and
+    `project-design-architecture-tool` were absent. That is the **always-loaded** layer: the
+    machine had been running a global rule set this corpus had already moved past.
+  - **The eval suite** — the part of the July copy that was still July. `baf41d9` updated
+    `SKILL.md` and left `evals/evals.json` at 22 July, and all three cases expect the
+    *missing rule* branch, so nothing in the suite could tell the pre-2026-08-20 skill from the
+    post one. Step 3's whole point is that a new rule is the **wrong** answer when a control
+    exists or the fix belongs in code, and neither branch was exercised. Two cases added.
 
 ## Phase F — recurrence (2026-09-06)
 
