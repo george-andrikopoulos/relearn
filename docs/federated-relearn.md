@@ -15,7 +15,8 @@ for rather than sitting as open work.
 | **Shipped 2026-09-13 (B3)** | §5's `report` — five fields, bucketed counts, a day-free `Month` type, and the pseudonym living in the clone (§0.2 resolved in code). The aggregate itself followed in C1 |
 | **Shipped 2026-09-13 (C1)** | §9's recompute, as `relearn aggregate`: the k-floor applied from the same constant the producer reads, both §8 confounds written unconditionally, and a source-level check that no build depends on an aggregate. The aggregate **repository** followed later the same day (see C2) — this row is the command a job runs |
 | **Shipped 2026-09-13 (C2)** | §6's poke inside `lint`, with §12.6's upstream retirement as a fifth trigger; `pull`, the receiving half nothing had, with `--all` and a prune that reaches only caches; and the aggregate **repository** itself, with the scheduled job §9 describes |
-| **Not built** | `ScopeNearDuplicate` (§12.5), which waits for a second scope to exist; and research consent, which waits for a first report |
+| **Shipped 2026-09-14** | §12.5's `ScopeNearDuplicate`, built once a second scope existed and the detector could therefore fail — with the edit-distance floor §12.5 needed and did not state |
+| **Not built** | research consent, which waits for a first report |
 
 The rest is filed so the design is written down rather than re-invented, on the same footing as
 [`recurrence-session-hook.md`](recurrence-session-hook.md). The six questions §12 carried open
@@ -539,6 +540,16 @@ Drift is a near-miss problem and near-misses are detectable without a curator: a
 `ScopeNearDuplicate` finding for a scope used by exactly one rule within edit distance 2 of a
 scope used by many. That is the shape of `Finding::OverlappingScope`, which exists — extend it
 rather than inventing a parallel mechanism.
+
+*Amended in implementation, 2026-09-14.* **Distance 2 is the ceiling; it needed a floor, and
+the vocabulary in this very paragraph shows why.** `rust` and `ruby` are two edits apart and
+are two languages; `go` and `js` are two edits apart because *any* two two-letter scopes are,
+by arithmetic rather than by error. A check firing on those is the false positive that gets
+the whole thing muted, which is the outcome this design was written to avoid. So the distance
+is read relative to length — a slip must be small compared to the word it damages — which
+admits `low-latencv` against `low-latency` and refuses both pairs above. Everything else is as
+written: one use against more than one, the shape of the overlapping-scope finding, and no
+curator.
 
 One convention that cannot be typed and therefore has to be written down: **scopes are audiences,
 not topics.** `rust`, `java`, `embedded` — things an install can declare it *is*. Not

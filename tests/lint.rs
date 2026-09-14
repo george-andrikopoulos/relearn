@@ -612,3 +612,143 @@ fn the_tally_counts_recurred_and_inert_separately() {
     assert_eq!(t.recurred(), 2, "R:a and R:d have recurred");
     assert_eq!(t.inert(), 1, "only R:c is codified AND never fired");
 }
+
+// ── scope near-duplicates (§12.5) ───────────────────────────────────────────
+
+use relearn::rule::ScopeTag;
+
+/// A rule declaring the audiences it serves.
+fn scoped(tag: &str, scopes: &[&str]) -> Rule {
+    Rule::new(
+        RuleTag::parse(tag).expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse(format!("class for {tag}")).expect("non-empty error class"),
+        Home::global(),
+        Date::parse("2026-09-14").expect("valid date"),
+        Origin::Mined,
+        Status::active(),
+        Incident::parse("an incident").expect("non-empty incident"),
+        Body::parse("Body.").expect("non-empty body"),
+        Vec::new(),
+        scopes
+            .iter()
+            .map(|s| ScopeTag::parse(*s).expect("valid scope"))
+            .collect(),
+        Authority::local(),
+        None,
+    )
+}
+
+fn near_duplicates(lib: &Library<Validated>) -> Vec<(String, String)> {
+    lint(lib)
+        .into_iter()
+        .filter_map(|f| match f {
+            Finding::ScopeNearDuplicate { rare, common, .. } => {
+                Some((rare.as_str().to_owned(), common.as_str().to_owned()))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// **The drift this replaces a curator with.** One rule declares `rusty`; many
+/// declare `rust`. Nothing is malformed — the shape rules pass — and the rule
+/// silently serves an audience nobody asks for.
+#[test]
+fn a_scope_used_once_near_one_used_by_many_is_flagged() {
+    let lib = validated(vec![
+        scoped("R:a", &["rust"]),
+        scoped("R:b", &["rust"]),
+        scoped("R:c", &["rust"]),
+        scoped("R:typo", &["rusty"]),
+    ]);
+    assert_eq!(
+        near_duplicates(&lib),
+        vec![("rusty".to_owned(), "rust".to_owned())]
+    );
+}
+
+/// Two audiences that are genuinely different are not a near-miss, however few
+/// characters separate them. **`ruby` and `rust` are edit distance 2 apart**,
+/// and flagging that pair would be the false positive that gets the whole check
+/// muted — so distance alone is not the test.
+#[test]
+fn two_real_audiences_two_edits_apart_are_not_flagged() {
+    let lib = validated(vec![
+        scoped("R:a", &["rust"]),
+        scoped("R:b", &["rust"]),
+        scoped("R:c", &["ruby"]),
+    ]);
+    assert!(
+        near_duplicates(&lib).is_empty(),
+        "{:?}",
+        near_duplicates(&lib)
+    );
+}
+
+/// Short audiences sit close together by arithmetic rather than by error: any
+/// two two-letter scopes are within distance 2 of each other. A check that
+/// flagged every such pair would be noise from the first day a corpus used
+/// short names.
+#[test]
+fn short_audiences_are_not_near_misses_of_each_other() {
+    let lib = validated(vec![
+        scoped("R:a", &["go"]),
+        scoped("R:b", &["go"]),
+        scoped("R:c", &["js"]),
+    ]);
+    assert!(
+        near_duplicates(&lib).is_empty(),
+        "{:?}",
+        near_duplicates(&lib)
+    );
+}
+
+/// A long audience tolerates a one-character slip and is still obviously the
+/// same word — which is exactly the case a curator would have caught.
+#[test]
+fn a_one_character_slip_in_a_long_audience_is_flagged() {
+    let lib = validated(vec![
+        scoped("R:a", &["low-latency"]),
+        scoped("R:b", &["low-latency"]),
+        scoped("R:c", &["low-latencv"]),
+    ]);
+    assert_eq!(
+        near_duplicates(&lib),
+        vec![("low-latencv".to_owned(), "low-latency".to_owned())]
+    );
+}
+
+/// Two audiences each used once are two audiences, not a drift: there is no
+/// "many" for the rare one to have drifted from, and guessing which of the two
+/// was intended is the judgement this check refuses to make.
+#[test]
+fn two_scopes_each_used_once_are_not_a_near_duplicate() {
+    let lib = validated(vec![scoped("R:a", &["rust"]), scoped("R:b", &["rusty"])]);
+    assert!(
+        near_duplicates(&lib).is_empty(),
+        "{:?}",
+        near_duplicates(&lib)
+    );
+}
+
+/// It is a `Warning`, like the overlapping-scope finding whose shape it
+/// extends: a fault in the library rather than in the emitted tree. CI here
+/// runs at `--deny error`, so it is visible without being fatal.
+#[test]
+fn a_scope_near_duplicate_is_a_warning() {
+    let lib = validated(vec![
+        scoped("R:a", &["rust"]),
+        scoped("R:b", &["rust"]),
+        scoped("R:c", &["rusty"]),
+    ]);
+    let finding = lint(&lib)
+        .into_iter()
+        .find(|f| matches!(f, Finding::ScopeNearDuplicate { .. }))
+        .expect("the finding is raised");
+    assert_eq!(finding.severity(), Severity::Warning);
+    assert!(
+        finding.to_string().contains("rusty") && finding.to_string().contains("rust"),
+        "the message names both scopes: {finding}"
+    );
+}

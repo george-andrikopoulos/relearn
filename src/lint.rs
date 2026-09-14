@@ -22,7 +22,7 @@ use std::fmt;
 
 use crate::emit::HomeSlug;
 use crate::library::{Library, Validated};
-use crate::rule::{Date, Home, Rule, RuleTag, Status};
+use crate::rule::{Date, Home, Rule, RuleTag, ScopeTag, Status};
 
 /// How much a finding matters. Ordered so `Error > Warning > Info`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -56,6 +56,23 @@ pub enum Finding {
         /// The shared error-class text (as first written).
         error_class: String,
         /// The tags of the rules that share it.
+        tags: Vec<RuleTag>,
+    },
+    /// A scope used by exactly one rule sits a slip away from one used by
+    /// many — almost certainly a typo, and a silent one: the shape rules pass,
+    /// nothing fails to parse, and the rule simply serves an audience nobody
+    /// asks for.
+    ///
+    /// **This is what replaces a vocabulary curator** (§12.5). The set of
+    /// scopes in use is whatever appears in the corpus — one identity space,
+    /// not a controlled list somebody owns — and drift is a near-miss problem,
+    /// which is detectable without an owner.
+    ScopeNearDuplicate {
+        /// The scope used by exactly one rule.
+        rare: ScopeTag,
+        /// The established scope it is a slip away from.
+        common: ScopeTag,
+        /// The rules declaring the rare spelling — where the fix goes.
         tags: Vec<RuleTag>,
     },
     /// Two or more rules with *different* homes slugify to the same token, so
@@ -130,6 +147,7 @@ impl Finding {
             // unheld recurrence is a fault in the **library**: the emission is
             // correct, and a build that emits correctly should not fail.
             Finding::OverlappingScope { .. }
+            | Finding::ScopeNearDuplicate { .. }
             | Finding::DanglingReference { .. }
             | Finding::UnheldRecurrence { .. } => Severity::Warning,
             Finding::RetiredReference { .. } => Severity::Info,
@@ -144,6 +162,16 @@ impl fmt::Display for Finding {
                 f,
                 "overlapping scope: {} rules share error class {error_class:?}: {}",
                 tags.len(),
+                join_tags(tags)
+            ),
+            // States the suspicion and where to act on it, not the arithmetic:
+            // a reader does not need the edit distance, they need to know which
+            // spelling is the odd one out and which file to open.
+            Finding::ScopeNearDuplicate { rare, common, tags } => write!(
+                f,
+                "scope near-duplicate: {:?} is declared by one rule and is a slip away from {:?}, which is established — check {} for a typo, because a misspelled audience does not fail, it just serves nobody",
+                rare.as_str(),
+                common.as_str(),
                 join_tags(tags)
             ),
             Finding::HomeSlugCollision { slug, tags } => write!(
@@ -198,6 +226,7 @@ fn join_tags(tags: &[RuleTag]) -> String {
 pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
     let mut findings = Vec::new();
     findings.extend(overlapping_scope(library));
+    findings.extend(scope_near_duplicates(library));
     findings.extend(home_slug_collisions(library));
     findings.extend(reference_checks(library));
     findings.extend(unheld_recurrences(library));
@@ -206,6 +235,92 @@ pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
     // order within a severity.
     findings.sort_by_key(|finding| std::cmp::Reverse(finding.severity()));
     findings
+}
+
+/// The furthest apart two spellings may be and still be read as a slip.
+///
+/// §12.5 says edit distance 2, and that alone is wrong in a way the vocabulary
+/// it governs makes immediate: `rust` and `ruby` are two edits apart and are two
+/// languages, and **any** two two-letter scopes — `go` and `js` — are within two
+/// of each other by arithmetic rather than by error. A check firing on those is
+/// the false positive that gets the whole thing muted.
+///
+/// So distance is read **relative to length**: a slip must be small compared to
+/// the word it damages. Two edits therefore require a scope of at least five
+/// characters, one edit at least three, which admits `low-latency` against
+/// `low-latencv` and refuses `rust` against `ruby`. The design's number is kept
+/// as the ceiling; what is added is the floor it needed.
+const NEAR_ENOUGH: usize = 2;
+
+/// Scopes that look like a slip of an established one (§12.5).
+///
+/// **This is what stands in for a vocabulary curator.** The set of audiences in
+/// use is whatever the corpus declares — one identity space rather than a
+/// controlled list somebody owns — so drift cannot be prevented at the
+/// perimeter, only detected. `ScopeTag` already kills the malformed cases at
+/// parse time; what survives is the well-formed near-miss, which is silent:
+/// nothing fails, and the rule serves an audience nobody asks for.
+///
+/// Reported only when one spelling is used **once** and the other by **more**.
+/// Two scopes each used once are two scopes: there is no established spelling to
+/// have drifted from, and deciding which of the two was intended is the
+/// judgement this check exists not to make.
+fn scope_near_duplicates(library: &Library<Validated>) -> Vec<Finding> {
+    let mut users: BTreeMap<&ScopeTag, Vec<RuleTag>> = BTreeMap::new();
+    for rule in library.rules() {
+        for scope in rule.applies_to() {
+            users.entry(scope).or_default().push(rule.tag().clone()); // allow:clone: the finding owns its tags, outliving the &Library borrow
+        }
+    }
+
+    let mut findings = Vec::new();
+    for (rare, tags) in &users {
+        if tags.len() != 1 {
+            continue;
+        }
+        for (common, common_tags) in &users {
+            if common_tags.len() <= tags.len() || !is_a_slip(rare.as_str(), common.as_str()) {
+                continue;
+            }
+            findings.push(Finding::ScopeNearDuplicate {
+                rare: (*rare).clone(), // allow:clone: the finding owns the scopes it names, outliving the borrow of the library they were read from
+                common: (*common).clone(), // allow:clone: as above
+                tags: tags.clone(),    // allow:clone: as above
+            });
+        }
+    }
+    findings
+}
+
+/// Whether `a` reads as a slip of `b`: close in absolute terms, and close
+/// *relative to* the shorter of the two. See [`NEAR_ENOUGH`] for why the second
+/// condition is not optional.
+fn is_a_slip(a: &str, b: &str) -> bool {
+    let distance = edit_distance(a, b);
+    let shortest = a.chars().count().min(b.chars().count());
+    distance > 0 && distance <= NEAR_ENOUGH && distance * 2 < shortest
+}
+
+/// Levenshtein distance, by the usual two-row table.
+///
+/// Written here rather than taken as a dependency: twenty lines against a crate
+/// that would need pricing in the decisions log (`[R:price-every-dependency]`),
+/// for a function whose behaviour is fully specified by four test cases.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let mut previous: Vec<usize> = (0..=b.len()).collect();
+    let mut current = vec![0; b.len() + 1];
+
+    for (i, from) in a.iter().enumerate() {
+        current[0] = i + 1;
+        for (j, to) in b.iter().enumerate() {
+            let substitution = previous[j] + usize::from(from != to);
+            current[j + 1] = substitution.min(previous[j + 1] + 1).min(current[j] + 1);
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+    previous[b.len()]
 }
 
 /// Rules that declare the same error class (case-insensitive), grouped.

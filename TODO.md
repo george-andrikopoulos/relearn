@@ -800,13 +800,18 @@ Discovered while building it, deliberately not decided here:
       this very phase is absent from `.claude/rules/`. Skills, Cursor, Copilot and `AGENTS.md`
       all carry it. Either `low-latency` earns a glob set, or the rules layer needs a story for
       an always-loaded non-language domain. Not a regression: this predates scoping.
-- [ ] **A controlled scope vocabulary.** `applies_to` is free strings, bounded only in shape.
-      Uncontrolled it grows two spellings of *low-latency*; controlled, somebody owns the list.
-      The federated design answers it as §12.5 (the corpus is the vocabulary, plus a
-      `ScopeNearDuplicate` lint finding) — that finding is **not** built here.
-- [ ] **Should `lint` flag a scope used by exactly one rule?** The early signal that the
-      vocabulary is drifting, before there are two spellings to merge. George's call; §12.5
-      sketches the shape.
+- [x] **A controlled scope vocabulary — answered without a controller, 2026-09-14.** `applies_to`
+      is free strings bounded in shape, the corpus is the vocabulary, and `ScopeNearDuplicate`
+      catches the drift a curator would have. Built once a second scope existed, because a drift
+      detector over an empty vocabulary arrives already green and an artefact that cannot fail is
+      one nobody notices is broken.
+- [x] **Should `lint` flag a scope used by exactly one rule? — No, and the answer is in the
+      finding.** A scope used once is flagged *only* when an established spelling sits a slip
+      away from it. Flagging every singleton would fire on the first rule of every genuinely new
+      audience, which is the ordinary way a vocabulary grows; and when two scopes are each used
+      once there is no established spelling to have drifted from, so deciding which was intended
+      is a judgement the check refuses to make. Pinned by
+      `two_scopes_each_used_once_are_not_a_near_duplicate`.
 - [ ] **Should `copilot-pack/` and `claude-pack/` gain scoped variants?** They are built per home
       today and keep working untouched, because unscoped rules always emit. Changing nothing for
       now.
@@ -925,11 +930,12 @@ against the phase that delivered it; those phase sections are above and are not 
 
 ### Not built — the two, and why
 
-- [ ] **`ScopeNearDuplicate` (§12.5).** A scope used by exactly one rule within edit distance 2
-      of one used by many. **Deliberately not built**: this corpus declares no scopes at all, and
-      a drift detector over an empty vocabulary arrives already green — an artefact that cannot
-      fail is one nobody notices is broken. It waits for a second scope to exist, which is the
-      same second install everything else here waits for.
+- [x] **`ScopeNearDuplicate` (§12.5) — shipped 2026-09-14**, once the two low-latency rules
+      gave the corpus a vocabulary and the detector could therefore fail. §12.5 specifies edit
+      distance 2 and that alone is wrong in a way its own examples show: `rust` and `ruby` are
+      two edits apart and are two languages, and any two two-letter scopes are two apart by
+      arithmetic. Distance is read relative to length, and the deviation is recorded in §12.5
+      itself. Levenshtein is twenty lines here rather than a dependency needing a price.
 - [ ] **A published report is not research consent.** A separate, recorded opt-in, and nothing
       records one. No report has been published, so nothing is exposed today — but the first one
       would be, and the consent is not a field, a flag, or a document yet.
