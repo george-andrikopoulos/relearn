@@ -7,6 +7,7 @@ created = "2026-07-16"
 origin = "mined"
 status = { kind = "active" }
 incident = "project-discipline (2026-07-16): the default-hygiene list still named a stale .zed/tasks.json entry after the workflow had moved on, and Claude scaffolded mesh-watchdog from that stale list. Fix: replaced it with the actually-observed hygiene set (README/FEATURES/ARCHITECTURE). Retagged on 2026-08-16: the tag it previously carried had been independently assigned on 2026-08-11 to a different rule (verify internal references after restructuring), and the tag-uniqueness invariant made the collision a hard build failure."
+published_incident = "A checked-in list of a project's standard files still named an entry the workflow had moved on from, and a new project was scaffolded from that stale list — so the drift propagated into a repository that then had to be corrected. A document that lags what it describes is worse than no document: a reader trusts it and acts on it, and the more authoritative the document the further the stale guidance travels before anyone checks."
 
 [[recurrence]]
 date = "2026-09-13"

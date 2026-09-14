@@ -7,6 +7,7 @@ created = "2026-08-20"
 origin = "mined"
 status = { kind = "active" }
 incident = "Paper 3 draft (2026-08-20): drafted a 5,400-word paper on George's project-file discipline with its entire spine built on the AGENTS.md agent-instruction-file convention. He does not use it -- 'I am not using agents, I am using Architecture, Features, Todo, Claude md etc with controls to keep the workload focused.' The authoritative sources were both available and unread: project-discipline/SKILL.md was listed in the available skills and specifies the five files and the definition of done exactly, and relearn/CLAUDE.md was on disk. Three clarifying questions were asked -- framing, evidence, venue -- and none about the subject. The rewrite was a new paper, not an edit."
+published_incident = "A five-thousand-word paper was drafted about somebody's working discipline with its entire spine built on a convention they do not use — assumed from what is common in the field rather than read from what they actually had. The authoritative sources were both available and unread: a skill file specifying the real practice was listed in the session's own inventory, and a project charter stated it again. Describing a practice from its reputation rather than from its artefacts produces a document that is confidently and completely about something else."
 +++
 
 Before writing anything that *describes* how the user works -- their process, their file

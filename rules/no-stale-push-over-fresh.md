@@ -7,6 +7,7 @@ created = "2026-08-16"
 origin = "mined"
 status = { kind = "active" }
 incident = "claude-workflow, 2026-08-16: `sync-to-system.sh --apply --yes` would have replaced a July global configuration with a May fork, and with it four of the enforcement hooks themselves -- ten files, no prompt, no indication that the source was the older side. The direction was never established anywhere in the script; it simply wrote. Ported into this library 2026-08-25."
+published_incident = "A synchronisation script run with its apply and assume-yes flags would have replaced a two-month-newer configuration with an older fork of it — ten files including four of the enforcement hooks themselves, with no prompt and no indication that the source was the older side. The direction of freshness was never established anywhere in the script; it simply wrote. A sync that does not know which side is newer is not a sync, and the flags that make it unattended are exactly the ones that remove the last chance to notice."
 +++
 
 Any script that writes a mirror, template, or snapshot onto a live target must refuse when the target is newer than the source, and must say which side is behind. Direction is the property that has to be checked; sameness is not.

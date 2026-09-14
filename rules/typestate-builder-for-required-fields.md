@@ -7,6 +7,7 @@ created = "2026-08-24"
 origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 4 of ~/.claude/CLAUDE.md, which states it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
+published_incident = "Codified from standing practice rather than mined from a failure. It surfaced in an audit of an emitted instruction artefact against the hand-written pattern list it was supposed to replace: ten practices were stated in that one hand-maintained layer and had no rule in the library, so they reached a single assistant and travelled to no other tool — which is the failure the library exists to prevent, arriving in the library's own contents. The practice: track each required field in a type parameter so an incomplete build is not an error value to handle but a method that does not exist. The alternative returns a result every caller handles identically, until the one caller who defaults it ships something pointing at nothing."
 +++
 
 Track each required field in a phantom type parameter, and implement `build()` only for the fully populated combination:

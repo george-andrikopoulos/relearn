@@ -7,6 +7,7 @@ created = "2026-07-20"
 origin = "mined"
 status = { kind = "active" }
 incident = "Ferridis (2026-07-20): three tests green on Linux and broken on Windows -- a hardcoded `target/release/mcp_consumer` path that spawned a stale Linux ELF (os error 193), a bash stub for `claude-cli` on a machine with no bash, and an `AllowedCwd` assertion comparing a raw path against a canonicalized one, which on Windows returns the extended-length `\\\\?\\C:\\...` form. Recurred at the tooling layer 2026-08-16: `verify-wiring.sh` reported the same hook wiring as both 'declared but NOT live' and 'live-only' -- a self-contradicting permanent FAIL -- because Windows jq terminates lines with CRLF and command substitution strips the trailing newline but leaves the final line's CR."
+published_incident = "Three tests were green on one operating system and broken on the other: a hardcoded path to a build output that spawned a stale binary of the wrong architecture, a shell stub for a command on a machine with no shell to run it, and a path assertion comparing a raw path against a canonicalised one, which on the second platform returns an extended-length form that never matches. The class returned at the tooling layer, where a verification script reported the same wiring as both declared-but-not-live and live-only — a stray carriage return on exactly one record per stream, invisible on the platform it was written on. A fixture that passes only where it was written does not fail; it certifies."
 +++
 
 A test that passes only on the machine that wrote it is a latent lie, and it is a

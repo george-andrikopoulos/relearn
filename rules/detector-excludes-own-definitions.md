@@ -7,6 +7,7 @@ created = "2026-07-22"
 origin = "mined"
 status = { kind = "active" }
 incident = "2026-07-22, twice within one hour. A model-reach detector flagged all six of the files it protected, because each contained the config-directory path the detector matched on. A deploy verifier flagged its own docstring, which described the pattern it was looking for. Neither found a real defect; both produced a red run that had to be reasoned past, which is the first step toward a run nobody reads. Ported into this library 2026-08-25."
+published_incident = "Twice within one hour, two detectors flagged themselves. One scanned for a configuration path and matched every file it was written to protect, because each of them contained that path. The other matched its own docstring, which described the pattern it was looking for. Neither found a real defect, and both produced a red run that had to be reasoned past — which is the first step toward a run nobody reads, and a muted check is worse than no check at all."
 +++
 
 Any check whose subject matter is text it must itself contain -- a linter, a secret scanner, a policy grep, a rules sweep -- matches itself by construction. Exclude the detector's own source, comments, and docstrings from its scan, strip comments before matching, and normalise paths to placeholders so documentation *about* a pattern is never read as an instance of it.

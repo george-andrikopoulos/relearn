@@ -7,6 +7,7 @@ created = "2026-09-06"
 origin = "mined"
 status = { kind = "active" }
 incident = "relearn, 2026-09-06. An employer-owned product name was found in this public repository: once in `rules/repair-the-lying-artefact.md`, in the `incident` field, and twice in `TODO.md`. It was present in all 52 commit trees, in TODO.md since the first commit. Design-Architecture-Tool -- the repository the incident was quoted FROM -- has had a working detector for exactly this name since its M33-A4, salted digests read by `the_repository_contains_no_banned_name` on every push. That gate was green throughout and could not have helped: it scans its own tree. The name did not escape a control, it was carried past one, by the act of writing an incident down somewhere else. Found by a PostToolUse output hook firing on an unrelated read of the rule file, not by any check either repository owned."
+published_incident = "A protected product name was found in a public repository: once inside a rule's incident field, where it had been quoted verbatim from a private session in another repository, and twice in a planning document, present in every commit tree since the first. The repository the quotation came FROM had a working detector for exactly that name, green throughout, and it could not have helped: a gate scans its own tree. The name did not escape a control, it was carried past one, in a quotation copied into a repository with no such gate."
 +++
 
 Before an incident, a log line, a trace or a path leaves the repository that holds it,

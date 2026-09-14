@@ -7,6 +7,7 @@ created = "2026-08-25"
 origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-25 from ~/.claude/skills/project-discipline/SKILL.md, the artefact that defines the practice. Surfaced in the 2026-08-25 audit of the emitted Copilot pack, which carried no rule about the repository discipline at all. The log format itself is load-bearing in this repository: the 2026-08-22 claude-rules collision entry is what lets a reader see that three specific alternatives -- a different constant, making Unversioned non-fatal, dropping the target from the default set -- were priced and refused, rather than never considered."
+published_incident = "Codified from a standing repository discipline rather than mined from a failure. It surfaced in an audit of an emitted instruction pack, which carried no rule about that discipline at all while the type-design half was fully present — so one of the two disciplines the author works by reached every assistant and the other reached none. The practice: a decision is recorded with what was rejected and why, append-only. Without the rejected alternatives the log reads as a list of things that happened rather than choices that were made, and the next person re-derives — or re-makes — a decision somebody already paid for."
 +++
 
 Keep an append-only decisions log in the architecture document: date, decision, why, alternatives rejected. Append; never rewrite an entry to match what was later believed, because the value of the log is that it records what was known at the time.

@@ -7,6 +7,7 @@ created = "2026-09-05"
 origin = "mined"
 status = { kind = "graduated", to = "hook:banned-name-in-output", date = "2026-09-05" }
 incident = "Design-Architecture-Tool M33-A5, 2026-09-05: auditing a repository for an employer-owned product name, a redaction printed `${p%/*}` -- the parent path of each match -- which for a DIRECTORY match is the name itself; the next command printed the paths outright. Two leaks in two commands, during the audit whose entire subject was removing that name, in a repository whose own gate does this correctly by reporting a path and a length and never the match. The correct implementation was open in the same session and did not transfer, because it was read as a property of that artefact rather than of the act."
+published_incident = "While auditing a repository to remove a protected name, a redaction printed the parent path of each match instead of the match itself — which for a directory whose own name is the protected one discloses exactly what was being hidden. The next command printed the paths outright. Two disclosures in two commands, during the audit whose entire subject was removing that name, in a repository whose committed detector does this correctly by reporting a location and a length and never the text. The correct implementation was open in the same session and did not transfer, because it had been read as a property of that one artefact rather than of the act of searching for a secret."
 +++
 
 When what you are searching for is a thing whose whole problem is that it exists, your

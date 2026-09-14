@@ -7,6 +7,7 @@ created = "2026-08-24"
 origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 7 of ~/.claude/CLAUDE.md, which states it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. Its sibling, the ban on anyhow in library return types, is named here in prose rather than cited by tag on purpose: that rule has graduated to a hook, and a citation of a retired rule is a lint finding."
+published_incident = "Codified from standing practice rather than mined from a failure. It surfaced in an audit of an emitted instruction artefact against the hand-written pattern list it was supposed to replace: ten practices were stated in that one hand-maintained layer and had no rule in the library, so they reached a single assistant and travelled to no other tool — which is the failure the library exists to prevent, arriving in the library's own contents. The practice: each distinct failure is a variant carrying the values that identify the instance, so a caller can match on it rather than parsing prose that changes the next time somebody edits a message, and one log line names the actual address or path instead of starting an investigation."
 +++
 
 Every distinct failure is a variant of a `thiserror` enum, and every variant carries the values that identify the instance:
