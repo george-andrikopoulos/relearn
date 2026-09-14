@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Answer a requirement at the layer it lives at [R:answer-the-requirement-at-its-layer]
 
+> Written for the rust and java audiences.
+
 State which layer a requirement lives at before choosing anything, and satisfy it there.
 
 A requirement about the machine -- do not perturb a neighbouring isolated core, do not
@@ -38,4 +40,4 @@ Then run the pass the sibling rule requires: `[R:attack-the-design-in-a-second-p
 exists because the person who chose the mechanism is the last person able to see that
 they answered at the wrong layer.
 
-<!-- relearn:generated v0.1.0 sha256=0f997f8e670d5127f36e2ecd0f4c8ae2e059b5b5bd4a0cd428e5801995040805 rules=R:answer-the-requirement-at-its-layer -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=f2b72164aea59b9a56e094856439266955f0c31a92971b97539f147b3da6543a rules=R:answer-the-requirement-at-its-layer -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -152,6 +152,12 @@ decisions-log entry recording **why nesting was rejected**.
 > 52 rules (`verify` green, 63 files). **No rule was given an `applies_to`** — candidates were
 > reported and none applied. The three named failure modes are each covered by a test rather than
 > by this paragraph.
+>
+> *Superseded in one respect, 2026-09-14.* `scope_never_reaches_an_emitted_path_or_body` no longer
+> exists under that name: a scoped rule now announces its audience in the emitted body, so the
+> property was split into `scope_never_reaches_an_emitted_path` (unchanged, and the half that was
+> load-bearing) and `scope_reaches_a_body_only_through_the_audience_note`. The record above stands
+> as what A1 shipped; the pin it names has a different name today.
 
 ---
 

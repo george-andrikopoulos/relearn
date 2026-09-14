@@ -20,6 +20,14 @@
 //! Scope never touches the emitted path. `Home` alone decides where a rule
 //! lands; scope decides only whether it is included. Nothing here may produce a
 //! `rust-low-latency.md`, and `scope_never_changes_the_emitted_path` is the pin.
+//!
+//! Scope **does** touch the emitted body, deliberately and in exactly one place:
+//! a scoped rule announces its audience (`> Written for the rust and java
+//! audiences.`), decided 2026-09-14 so that a reader of a skill can tell a rule
+//! written for them from a rule written for everyone. The announcement is the
+//! whole of the difference — `scoping_a_rule_changes_exactly_one_announced_line`
+//! here, `scope_reaches_a_body_only_through_the_audience_note` over the whole
+//! space in `tests/properties.rs`.
 
 use relearn::emit;
 use relearn::library::{Library, Validated};
@@ -139,10 +147,15 @@ fn scope_never_changes_the_emitted_path() {
     );
 }
 
-/// The same rule, homed identically but unscoped, emits byte-identically:
-/// `applies_to` changes *whether* a rule is included, never *what* is written.
+/// The same rule, homed identically but unscoped, emits the same bytes **apart
+/// from one announced line**. `applies_to` changes *whether* a rule is included
+/// and says so in the body; it changes nothing else.
+///
+/// Until 2026-09-14 the two were byte-identical, which made the property easy to
+/// state and left a reader of `skills/domain-low-latency/SKILL.md` unable to see
+/// that the rule in front of them was written for someone in particular.
 #[test]
-fn scoping_a_rule_does_not_change_a_single_emitted_byte() {
+fn scoping_a_rule_changes_exactly_one_announced_line() {
     let home = || Home::domain("low-latency").expect("non-empty domain");
     let with = Library::from_rules(vec![rule("R:x", home(), &["rust", "java"])])
         .validate()
@@ -156,7 +169,60 @@ fn scoping_a_rule_does_not_change_a_single_emitted_byte() {
         .zip(emit::claude::emit(&without).iter())
     {
         assert_eq!(a.path().as_str(), b.path().as_str());
-        assert_eq!(a.contents(), b.contents());
+        assert_eq!(
+            a.contents()
+                .replacen("> Written for the rust and java audiences.\n\n", "", 1),
+            b.contents(),
+            "a scoped rule differs from its unscoped twin by more than the announcement"
+        );
+    }
+}
+
+/// What the announcement actually says, spelled out for one, two and three
+/// audiences. The properties in `tests/properties.rs` prove the note is the
+/// whole of the difference and that every emitter splices it; only a literal
+/// pins the sentence a human reads.
+#[test]
+fn the_announcement_names_every_audience_in_house_prose() {
+    let home = || Home::domain("low-latency").expect("non-empty domain");
+    for (audiences, expected) in [
+        (vec!["rust"], "> Written for the rust audience."),
+        (
+            vec!["rust", "java"],
+            "> Written for the rust and java audiences.",
+        ),
+        (
+            vec!["rust", "java", "embedded"],
+            "> Written for the rust, java and embedded audiences.",
+        ),
+    ] {
+        let lib = Library::from_rules(vec![rule("R:x", home(), &audiences)])
+            .validate()
+            .expect("one tag validates");
+        let files = emit::claude::emit(&lib);
+        let file = files.first().expect("one home, one file");
+        assert!(
+            file.contents().contains(expected),
+            "{audiences:?} should announce {expected:?}, got:\n{}",
+            file.contents()
+        );
+    }
+}
+
+/// An unscoped rule announces nothing. The safety default has a body half too:
+/// a rule with no audience is emitted under every audience, so there is no
+/// audience to name, and inventing one ("all") would read as a claim the rule
+/// does not make.
+#[test]
+fn an_unscoped_rule_announces_nothing() {
+    let lib = Library::from_rules(vec![rule("R:x", Home::global(), &[])])
+        .validate()
+        .expect("one tag validates");
+    for file in emit::claude::emit(&lib) {
+        assert!(
+            !file.contents().contains("> Written for the "),
+            "an unscoped rule was annotated as though it had an audience"
+        );
     }
 }
 

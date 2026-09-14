@@ -45,8 +45,8 @@
 use std::collections::BTreeMap;
 
 use super::{
-    HomeSlug, LoadSemantics, OutputFile, RelativePath, emittable, graduation_note, recurrence_note,
-    yaml_double_quote,
+    HomeSlug, LoadSemantics, OutputFile, RelativePath, audience_note, emittable, graduation_note,
+    recurrence_note, yaml_double_quote,
 };
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule, RuleTag};
@@ -157,6 +157,9 @@ fn render_layer(home: &Home, rules: &[&Rule]) -> String {
             r.title().as_str(),
             r.tag().as_str()
         ));
+        if let Some(note) = audience_note(r) {
+            out.push_str(&note);
+        }
         if let Some(note) = graduation_note(r) {
             out.push_str(&note);
         }

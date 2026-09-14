@@ -819,11 +819,17 @@ Discovered while building it, deliberately not decided here:
 - [ ] **Should `copilot-pack/` and `claude-pack/` gain scoped variants?** They are built per home
       today and keep working untouched, because unscoped rules always emit. Changing nothing for
       now.
-- [ ] **Should an emitted rule announce its audience?** A scoped rule currently emits identically
-      to an unscoped one — which is what makes the byte-identity property provable, and it means
-      a reader of `skills/domain-low-latency/SKILL.md` cannot see that the rule is scoped. An
-      annotation would be the recurrence-note shape, and it would change emitted bytes for scoped
-      rules only.
+- [x] **Answered 2026-09-14, YES — a scoped rule announces its audience.** `> Written for the rust
+      and java audiences.`, the recurrence-note shape exactly as this entry anticipated: third
+      member of the `graduation_note` / `recurrence_note` family, `None` for an unscoped rule so
+      not one byte moved for the other 52, and spliced **first** of the three because *is this
+      mine* is the reader's first question. The byte-identity property was **split, not deleted**
+      — `scope_never_reaches_an_emitted_path` keeps the load-bearing half, and
+      `scope_reaches_a_body_only_through_the_audience_note` replaces the body half with a stronger
+      claim: delete the note from a scoped build and the remainder is byte-identical to an
+      unscoped one, so the announcement is provably the whole of the difference. Four emitted
+      files changed for the two low-latency rules; `claude_rules` is unaffected because
+      `low-latency` is not a known language domain, which is the gap already carried below.
 - [x] **Answered 2026-09-14: two rules now declare one.** Reported in the A1 summary, **none applied**: deciding
       a rule's audience is a judgement about who is harmed by not seeing it, and that is George's.
 

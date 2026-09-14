@@ -7,6 +7,8 @@ description: "Engineering discipline for working in low-latency. Covers: Answer 
 
 ## Answer a requirement at the layer it lives at [R:answer-the-requirement-at-its-layer]
 
+> Written for the rust and java audiences.
+
 State which layer a requirement lives at before choosing anything, and satisfy it there.
 
 A requirement about the machine -- do not perturb a neighbouring isolated core, do not
@@ -41,6 +43,8 @@ they answered at the wrong layer.
 
 ## Attack the design in a separate pass, and build nothing in it [R:attack-the-design-in-a-second-pass]
 
+> Written for the rust and java audiences.
+
 > Has recurred 1 time(s) since it was written; most recently 2026-09-14.
 
 When a component is finished, do a second pass whose only job is to attack it. Build
@@ -73,4 +77,4 @@ page under load still passes every functional test, and the cost appears as unex
 tail latency somewhere else entirely -- attributable to nothing, days later, by somebody
 who was not there.
 
-<!-- relearn:generated v0.1.0 sha256=1eaa94a4d13226a01e731fccd4622c51b98a88a8c78d779882ea1f1a97445881 rules=R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=f74bb7e2532c499d1a62c76275622ea8618af99b74e6acea0ba889460a4e36bb rules=R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass -- DO NOT EDIT; regenerate with `relearn build` -->

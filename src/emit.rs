@@ -25,7 +25,7 @@ pub mod copilot;
 pub mod cursor;
 
 use crate::library::{Library, Validated};
-use crate::rule::{Emittability, Home, Rule, RuleTag, Status};
+use crate::rule::{Emittability, Home, Rule, RuleTag, ScopeTag, Status};
 
 /// A path relative to the output root, in portable forward-slash form. Built
 /// only from known-safe segments inside this crate (`pub(crate)` constructor),
@@ -345,13 +345,49 @@ pub(crate) fn recurrence_note(rule: &Rule) -> Option<String> {
     ))
 }
 
+/// The one-line annotation a **scoped** rule carries in every emitted format: a
+/// markdown blockquote naming the audiences the rule was written for. `None` for
+/// a rule that declares no `applies_to`, so an unscoped rule emits exactly what
+/// it emitted before this existed — and, more importantly, says nothing it has
+/// not been told. A rule with no audience is emitted under *every* audience;
+/// annotating it "applies to all" would be a claim the rule does not make.
+///
+/// Third of the same family as [`graduation_note`] and [`recurrence_note`], and
+/// the last of the three by rank on purpose: the reader's first question about a
+/// rule is whether it is theirs, the second is how firmly it is held, the third
+/// is whether it has bitten. Returns the note plus its trailing blank line, so a
+/// caller splices it in with one `push_str`.
+///
+/// Decided 2026-09-14. Before it, a scoped rule and an unscoped one emitted
+/// byte-identically, which made the old
+/// `scope_never_reaches_an_emitted_path_or_body` property easy to state and left
+/// a reader of `skills/domain-low-latency/SKILL.md` with no way to tell that the
+/// rule in front of them was written for Rust and Java engineers in particular.
+/// The path half of that property is untouched and still holds: `Home` alone
+/// decides where a rule lands.
+#[must_use]
+pub(crate) fn audience_note(rule: &Rule) -> Option<String> {
+    let names: Vec<&str> = rule.applies_to().iter().map(ScopeTag::as_str).collect();
+    let list = match names.as_slice() {
+        [] => return None,
+        [only] => (*only).to_owned(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    };
+    let noun = if names.len() == 1 {
+        "audience"
+    } else {
+        "audiences"
+    };
+    Some(format!("> Written for the {list} {noun}.\n\n"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::library::Library;
     use crate::rule::{
-        Authority, Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, RuleTag, Status,
-        Title,
+        Authority, Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, RuleTag, ScopeTag,
+        Status, Title,
     };
 
     fn rule_with_recurrences(tag: &str, status: Status, recurrences: Vec<Recurrence>) -> Rule {
@@ -500,6 +536,81 @@ mod tests {
         );
         assert!(graduation_note(&r).is_some());
         assert!(recurrence_note(&r).is_some());
+    }
+
+    fn rule_scoped(tag: &str, audiences: &[&str]) -> Rule {
+        Rule::new(
+            RuleTag::parse(tag).expect("valid tag"),
+            Title::parse("A title").expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-09-14").expect("valid date"),
+            Origin::Mined,
+            Status::active(),
+            Incident::parse("an incident").expect("non-empty incident"),
+            Body::parse("Do the thing.").expect("non-empty body"),
+            Vec::new(),
+            audiences
+                .iter()
+                .map(|a| ScopeTag::parse(*a).expect("valid scope"))
+                .collect(),
+            Authority::local(),
+            None,
+        )
+    }
+
+    #[test]
+    fn an_unscoped_rule_has_no_audience_note() {
+        assert_eq!(audience_note(&rule_scoped("R:none", &[])), None);
+    }
+
+    #[test]
+    fn one_audience_is_named_in_the_singular() {
+        assert_eq!(
+            audience_note(&rule_scoped("R:one", &["rust"])),
+            Some("> Written for the rust audience.\n\n".to_owned())
+        );
+    }
+
+    #[test]
+    fn two_audiences_are_joined_with_and() {
+        assert_eq!(
+            audience_note(&rule_scoped("R:two", &["rust", "java"])),
+            Some("> Written for the rust and java audiences.\n\n".to_owned())
+        );
+    }
+
+    #[test]
+    fn three_or_more_audiences_are_comma_separated_before_the_last() {
+        assert_eq!(
+            audience_note(&rule_scoped("R:three", &["rust", "java", "embedded"])),
+            Some("> Written for the rust, java and embedded audiences.\n\n".to_owned())
+        );
+    }
+
+    /// The declared order is the emitted order — `applies_to` is a list the
+    /// author wrote, not a set the tool reorders behind them.
+    #[test]
+    fn the_declared_order_is_the_announced_order() {
+        assert_eq!(
+            audience_note(&rule_scoped("R:order", &["java", "rust"])),
+            Some("> Written for the java and rust audiences.\n\n".to_owned())
+        );
+    }
+
+    /// All three notes are independent: a rule can be graduated, recurred and
+    /// scoped at once, and each annotation is decided by its own field.
+    #[test]
+    fn the_audience_note_is_independent_of_the_other_two() {
+        let scoped = rule_scoped("R:s", &["rust"]);
+        assert!(audience_note(&scoped).is_some());
+        assert!(graduation_note(&scoped).is_none());
+        assert!(recurrence_note(&scoped).is_none());
+
+        let recurred =
+            rule_with_recurrences("R:r", Status::active(), vec![recurrence("2026-08-24")]);
+        assert!(audience_note(&recurred).is_none());
+        assert!(recurrence_note(&recurred).is_some());
     }
 
     #[test]

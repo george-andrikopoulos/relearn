@@ -11,7 +11,8 @@
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
 use super::{
-    HomeSlug, OutputFile, RelativePath, emittable, graduation_note, home_rank, recurrence_note,
+    HomeSlug, OutputFile, RelativePath, audience_note, emittable, graduation_note, home_rank,
+    recurrence_note,
 };
 use crate::library::{Library, Validated};
 use crate::rule::{Rule, RuleTag};
@@ -62,6 +63,9 @@ fn render(rules: &[&Rule]) -> String {
             r.title().as_str(),
             r.tag().as_str()
         ));
+        if let Some(note) = audience_note(r) {
+            out.push_str(&note);
+        }
         if let Some(note) = graduation_note(r) {
             out.push_str(&note);
         }

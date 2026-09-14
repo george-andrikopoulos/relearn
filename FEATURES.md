@@ -516,11 +516,40 @@ What: `Origin::Mandated(Approval)` beside `Mined | Codified`, for control-framew
 
 ### A rule declares the audiences it serves, and an unscoped rule serves all of them
 
-What: a rule may carry `applies_to = ["rust", "java"]` — the audiences that should *load* it, distinct from the one `home` that *owns* it. `build`, `verify` and `list` take a repeatable `--scope`, which narrows by audience and composes with `--home`. The table: with no `--scope` every rule is emitted, scoped ones included; with `--scope rust` an unscoped rule and a rust-scoped rule are both emitted; with `--scope java` the rust-scoped rule is withheld and **the unscoped rule is not**; with both, either matches. **The default is the safety decision, not a convenience:** adding `applies_to` to one rule must never be able to remove a *different* rule from an existing build, because a silently dropped rule is a lost correction. Scope decides only *whether* a rule is included — `Home` alone decides *where* it lands, so no scope can fabricate a path.
+What: a rule may carry `applies_to = ["rust", "java"]` — the audiences that should *load* it, distinct from the one `home` that *owns* it. `build`, `verify` and `list` take a repeatable `--scope`, which narrows by audience and composes with `--home`. The table: with no `--scope` every rule is emitted, scoped ones included; with `--scope rust` an unscoped rule and a rust-scoped rule are both emitted; with `--scope java` the rust-scoped rule is withheld and **the unscoped rule is not**; with both, either matches. **The default is the safety decision, not a convenience:** adding `applies_to` to one rule must never be able to remove a *different* rule from an existing build, because a silently dropped rule is a lost correction. Scope decides *whether* a rule is included and announces itself in the body — `Home` alone decides *where* it lands, so no scope can fabricate a path.
 
-**Enforced by:** `ScopeTag` (private field, constructible only via `ScopeTag::parse`: trimmed, non-blank, bounded, lowercase kebab, so a malformed audience is unrepresentable) + `Rule::serves`, which holds both defaults in one place no caller can reimplement + `tests/scope_filter.rs` (the four rows as four assertions, plus `scope_never_changes_the_emitted_path`, `scoping_a_rule_does_not_change_a_single_emitted_byte`, `home_and_scope_narrow_independently`) + `tests/properties.rs::narrowing_never_touches_an_unscoped_rule` — **the whole-space form of the safety default**: for any library and any audience, every unscoped rule survives, and every emitter's output for those rules is byte-identical to its output with no narrowing at all + `no_audience_emits_exactly_what_an_unnarrowed_build_emits` (no `--scope` is not the empty audience) + `scope_never_reaches_an_emitted_path_or_body` (stripping every scope changes nothing any emitter writes) + `applies_to_survives_the_round_trip_and_empty_renders_nothing` + `rule::parse` tests (`a_rule_without_applies_to_parses_as_unscoped`, `applies_to_parses_as_an_array_of_scopes_in_file_order`, `a_malformed_scope_stops_the_build_naming_the_field`, `a_repeated_scope_is_a_parse_error_naming_it`, `scopes_are_trimmed_before_the_duplicate_check`) + `rule::serialize` tests (`an_unscoped_rule_renders_no_applies_to_line`, `round_trips_applies_to_in_file_order`, `the_applies_to_line_follows_home`) + `tests/corpus.rs::every_committed_rule_round_trips_byte_identically`, which is what makes "no rule file needed editing" a fact over the real fifty-two rather than over generated ones.
+**Enforced by:** `ScopeTag` (private field, constructible only via `ScopeTag::parse`: trimmed, non-blank, bounded, lowercase kebab, so a malformed audience is unrepresentable) + `Rule::serves`, which holds both defaults in one place no caller can reimplement + `tests/scope_filter.rs` (the four rows as four assertions, plus `scope_never_changes_the_emitted_path`, `scoping_a_rule_changes_exactly_one_announced_line`, `home_and_scope_narrow_independently`) + `tests/properties.rs::narrowing_never_touches_an_unscoped_rule` — **the whole-space form of the safety default**: for any library and any audience, every unscoped rule survives, and every emitter's output for those rules is byte-identical to its output with no narrowing at all + `no_audience_emits_exactly_what_an_unnarrowed_build_emits` (no `--scope` is not the empty audience) + `scope_never_reaches_an_emitted_path` (stripping every scope moves no file, from any emitter) + `scope_reaches_a_body_only_through_the_audience_note` (and changes no byte but the announcement) + `applies_to_survives_the_round_trip_and_empty_renders_nothing` + `rule::parse` tests (`a_rule_without_applies_to_parses_as_unscoped`, `applies_to_parses_as_an_array_of_scopes_in_file_order`, `a_malformed_scope_stops_the_build_naming_the_field`, `a_repeated_scope_is_a_parse_error_naming_it`, `scopes_are_trimmed_before_the_duplicate_check`) + `rule::serialize` tests (`an_unscoped_rule_renders_no_applies_to_line`, `round_trips_applies_to_in_file_order`, `the_applies_to_line_follows_home`) + `tests/corpus.rs::every_committed_rule_round_trips_byte_identically`, which is what makes "no rule file needed editing" a fact over the real fifty-two rather than over generated ones.
 
 **A duplicate scope in one rule is a parse error**, for the same reason a duplicate rule tag is: one written intent with two behaviours, the second inert. Checked after trimming, so `["rust", " rust "]` is caught.
+
+### A scoped rule announces its audience in every emitted format
+
+What: a rule carrying `applies_to` emits `> Written for the rust and java audiences.` under its
+heading — one audience in the singular, three or more comma-separated before the last, in the
+order the author declared. An **unscoped rule announces nothing**: it is emitted under every
+audience, so there is no audience to name, and annotating it "applies to all" would be a claim
+the rule does not make. Decided 2026-09-14; until then a scoped rule and an unscoped one emitted
+byte-identically, and a reader of `skills/domain-low-latency/SKILL.md` could not tell that the
+rule in front of them had been written for someone in particular.
+
+Third of a family. `graduation_note` says how firmly a rule is held, `recurrence_note` says
+whether it has bitten, `audience_note` says whether it is yours — and it is spliced first,
+because that is the reader's first question.
+
+**Enforced by:** `emit::audience_note` (one definition, `Option<String>`, so "unscoped" is
+`None` rather than an empty string a splice site could render as a blank blockquote) +
+`tests/properties.rs::an_audience_is_announced_in_every_emitted_format` — **the wiredness
+artifact**: one function, five independent splice sites, so it counts announcements per file
+across all five emitters rather than testing the function, exactly as the recurrence note is
+held + `scope_reaches_a_body_only_through_the_audience_note`, which deletes the note from a
+scoped build and requires the remainder to be byte-identical to an unscoped one, so the
+announcement is provably the *whole* of the difference + `scope_never_reaches_an_emitted_path`,
+the surviving half of the old byte-identity property + `emit` unit tests
+(`an_unscoped_rule_has_no_audience_note`, `one_audience_is_named_in_the_singular`,
+`two_audiences_are_joined_with_and`, `three_or_more_audiences_are_comma_separated_before_the_last`,
+`the_declared_order_is_the_announced_order`, `the_audience_note_is_independent_of_the_other_two`)
++ `tests/scope_filter.rs::the_announcement_names_every_audience_in_house_prose` and
+`an_unscoped_rule_announces_nothing`, which pin the sentence a human actually reads.
 
 ### An audience no rule declares is an error for `build` and `verify`, and an empty listing for `list`
 

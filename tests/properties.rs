@@ -244,6 +244,55 @@ fn expected_recurrence_note(rule: &Rule) -> Option<String> {
     ))
 }
 
+/// The note a rule's audience should produce, rebuilt independently of `emit`
+/// so the property is checked against the *specification* rather than against
+/// the implementation restating itself. `None` for an unscoped rule: a rule
+/// declaring no audience is emitted under every audience, so it has nothing to
+/// announce and its bytes must not move.
+fn expected_audience_note(rule: &Rule) -> Option<String> {
+    let names: Vec<&str> = rule.applies_to().iter().map(ScopeTag::as_str).collect();
+    let list = match names.as_slice() {
+        [] => return None,
+        [only] => (*only).to_owned(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    };
+    let noun = if names.len() == 1 {
+        "audience"
+    } else {
+        "audiences"
+    };
+    Some(format!("> Written for the {list} {noun}."))
+}
+
+/// The same library with every `applies_to` emptied and nothing else touched —
+/// the control group both scope properties compare against.
+fn without_scopes(lib: &Library<Validated>) -> Library<Validated> {
+    Library::from_rules(
+        lib.rules()
+            .iter()
+            .map(|r| {
+                Rule::new(
+                    r.tag().clone(), // allow:clone: the rebuilt rule owns its fields, and the source library must stay intact for the comparison
+                    r.title().clone(), // allow:clone: same
+                    r.error_class().clone(), // allow:clone: same
+                    r.home().clone(), // allow:clone: same
+                    r.created(),
+                    r.origin().clone(),   // allow:clone: same
+                    r.status().clone(),   // allow:clone: same
+                    r.incident().clone(), // allow:clone: same
+                    r.body().clone(),     // allow:clone: same
+                    r.recurrences().to_vec(),
+                    Vec::new(),
+                    r.authority().clone(),           // allow:clone: same
+                    r.published_incident().cloned(), // allow:clone: same
+                )
+            })
+            .collect(),
+    )
+    .validate()
+    .expect("the same tags still validate")
+}
+
 /// The tags of every atticked rule in a library.
 fn atticked_tags(lib: &Library<Validated>) -> BTreeSet<String> {
     lib.rules()
@@ -434,41 +483,122 @@ proptest! {
         prop_assert_eq!(emit::claude_rules::emit(&narrowed), emit::claude_rules::emit(&lib));
     }
 
-    /// A scope changes *whether* a rule is emitted, never *what* is emitted or
-    /// *where*. The same library, with every scope stripped, produces the same
-    /// files under an empty audience — so no emitter has learned to read
-    /// `applies_to` for a path or a body.
+    /// **An audience changes *whether* a rule is emitted and announces itself in
+    /// the body — it can never change *where* a rule lands.** `Home` alone
+    /// decides the path; stripping every `applies_to` from a library must leave
+    /// the same set of files, from every emitter.
+    ///
+    /// This is the half of the old `scope_never_reaches_an_emitted_path_or_body`
+    /// that survived the 2026-09-14 decision to let a scoped rule announce its
+    /// audience. The body half is the property below, which pins the announcement
+    /// as the *only* channel from `applies_to` into emitted text.
     #[test]
-    fn scope_never_reaches_an_emitted_path_or_body(lib in arb_library_scoped()) {
-        let stripped = Library::from_rules(
-            lib.rules()
-                .iter()
-                .map(|r| Rule::new(
-                    r.tag().clone(),
-                    r.title().clone(),
-                    r.error_class().clone(),
-                    r.home().clone(),
-                    r.created(),
-                    r.origin().clone(), // allow:clone: the rebuilt rule owns its origin, and the source library must stay intact for the comparison this property makes
+    fn scope_never_reaches_an_emitted_path(lib in arb_library_scoped()) {
+        let stripped = without_scopes(&lib);
+        for (scoped, plain) in [
+            (emit::claude::emit(&lib), emit::claude::emit(&stripped)),
+            (emit::cursor::emit(&lib), emit::cursor::emit(&stripped)),
+            (emit::copilot::emit(&lib), emit::copilot::emit(&stripped)),
+            (emit::agents::emit(&lib), emit::agents::emit(&stripped)),
+            (emit::claude_rules::emit(&lib), emit::claude_rules::emit(&stripped)),
+        ] {
+            let with: Vec<&str> = scoped.iter().map(|f| f.path().as_str()).collect();
+            let without: Vec<&str> = plain.iter().map(|f| f.path().as_str()).collect();
+            prop_assert_eq!(with, without, "an audience moved a file");
+        }
+    }
 
-                    r.status().clone(),
-                    r.incident().clone(),
-                    r.body().clone(),
-                    r.recurrences().to_vec(),
-                    Vec::new(),
-                    Authority::local(),
-                    None,
-                ))
-                .collect(),
-        )
-        .validate()
-        .expect("the same tags still validate");
+    /// **The audience note is the only channel from `applies_to` into an emitted
+    /// body.** Delete each scoped rule's announcement from the scoped build and
+    /// what is left must be byte-identical to a build of the same library with
+    /// every audience stripped.
+    ///
+    /// Stated this way round on purpose. "The note appears" is satisfied by an
+    /// emitter that also leaked the audience into a heading, a front-matter field
+    /// or a glob; only a whole-bytes subtraction says the announcement is the
+    /// whole of the difference.
+    #[test]
+    fn scope_reaches_a_body_only_through_the_audience_note(lib in arb_library_scoped()) {
+        let stripped = without_scopes(&lib);
+        for (scoped, plain) in [
+            (emit::claude::emit(&lib), emit::claude::emit(&stripped)),
+            (emit::cursor::emit(&lib), emit::cursor::emit(&stripped)),
+            (emit::copilot::emit(&lib), emit::copilot::emit(&stripped)),
+            (emit::agents::emit(&lib), emit::agents::emit(&stripped)),
+            (emit::claude_rules::emit(&lib), emit::claude_rules::emit(&stripped)),
+        ] {
+            prop_assert_eq!(scoped.len(), plain.len());
+            for (file, bare) in scoped.iter().zip(plain.iter()) {
+                let mut text = file.contents().to_owned();
+                for tag in file.sources() {
+                    let rule = lib
+                        .rules()
+                        .iter()
+                        .find(|r| r.tag().as_str() == tag.as_str())
+                        .expect("a file's source is a rule of the library");
+                    if let Some(note) = expected_audience_note(rule) {
+                        text = text.replacen(&format!("{note}\n\n"), "", 1);
+                    }
+                }
+                prop_assert_eq!(
+                    text,
+                    bare.contents().to_owned(),
+                    "{} differs from its unscoped twin by more than the audience note",
+                    file.path().as_str()
+                );
+            }
+        }
+    }
 
-        prop_assert_eq!(emit::claude::emit(&stripped), emit::claude::emit(&lib));
-        prop_assert_eq!(emit::cursor::emit(&stripped), emit::cursor::emit(&lib));
-        prop_assert_eq!(emit::copilot::emit(&stripped), emit::copilot::emit(&lib));
-        prop_assert_eq!(emit::agents::emit(&stripped), emit::agents::emit(&lib));
-        prop_assert_eq!(emit::claude_rules::emit(&stripped), emit::claude_rules::emit(&lib));
+    /// **An audience is announced in every emitted format, and only where there
+    /// is one.** For any library, every file an emitter produces carries the
+    /// announcement of each scoped rule it names as a source, and carries none
+    /// for a rule that declares no audience.
+    ///
+    /// The wiredness artifact, exactly as `a_recurrence_is_annotated_in_every_
+    /// emitted_format` is for recurrence: `audience_note` is one function and
+    /// there are five independent splice sites, so a unit test of the function
+    /// proves nothing about whether an emitter calls it.
+    #[test]
+    fn an_audience_is_announced_in_every_emitted_format(lib in arb_library_scoped()) {
+        let outputs = [
+            emit::claude::emit(&lib),
+            emit::cursor::emit(&lib),
+            emit::copilot::emit(&lib),
+            emit::agents::emit(&lib),
+            emit::claude_rules::emit(&lib),
+        ];
+        for files in &outputs {
+            for file in files {
+                let mut expected_notes = 0usize;
+                for tag in file.sources() {
+                    let rule = lib
+                        .rules()
+                        .iter()
+                        .find(|r| r.tag().as_str() == tag.as_str())
+                        .expect("a file's source is a rule of the library");
+                    if let Some(note) = expected_audience_note(rule) {
+                        expected_notes += 1;
+                        prop_assert!(
+                            file.contents().contains(&note),
+                            "{} is scoped but {} carries no announcement for it",
+                            tag.as_str(),
+                            file.path().as_str()
+                        );
+                    }
+                }
+                // Counted, not merely "present": a concatenated file holds many
+                // rules, so "an announcement appears somewhere" is the wrong
+                // question. One per scoped source and no more is what says an
+                // unscoped rule was not annotated as though it had an audience.
+                prop_assert_eq!(
+                    file.contents().matches("> Written for the ").count(),
+                    expected_notes,
+                    "{} carries the wrong number of audience announcements",
+                    file.path().as_str()
+                );
+            }
+        }
     }
 
     /// **A cached rule compiles exactly like a local one.** For any library,

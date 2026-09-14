@@ -92,8 +92,16 @@ It is the reference implementation of the error loop described in *Tuning the St
   that Rust and Java engineers both need lives in one file, with one tag and one incident, and is
   compiled into both language builds. A scope is an **audience** (`rust`, `java`, `embedded`),
   never a topic (`performance`, `security`) — a topic is what `error_class` already carries.
-  Scope decides only *whether* a rule is emitted; `Home` alone decides *where*, and
-  `scope_never_reaches_an_emitted_path_or_body` is what keeps that true. **A rule declaring no
+  Scope decides *whether* a rule is emitted and says so in the body; `Home` alone decides
+  *where*, and `scope_never_reaches_an_emitted_path` is what keeps that true. A scoped rule
+  announces its audience — `> Written for the rust and java audiences.`, the same blockquote
+  shape as the graduation and recurrence notes — because a reader of
+  `skills/domain-low-latency/SKILL.md` otherwise cannot tell that the rule in front of them
+  was written for someone in particular (decided 2026-09-14). That announcement is the *only*
+  channel from `applies_to` into emitted text, and
+  `scope_reaches_a_body_only_through_the_audience_note` is what keeps *that* true: it deletes
+  the note from a scoped build and requires what is left to be byte-identical to an unscoped
+  one. **A rule declaring no
   `applies_to` is emitted under every audience**, so adding a scope to one rule can never remove a
   different rule from an existing build — the first invariant above, one layer up.
 - Tags are unique across the library; a duplicate tag is a parse error.
