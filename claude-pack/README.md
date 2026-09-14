@@ -9,6 +9,7 @@ claude-pack/
 └── skills/
     ├── global/SKILL.md                          27 rules — every project, every language
     ├── domain-rust/SKILL.md                     18 rules — the Rust type-driven discipline
+    ├── domain-low-latency/SKILL.md               2 rules — latency-sensitive systems work
     ├── project-relearn/SKILL.md                  2 rules — the relearn repository
     ├── project-stochos-lab/SKILL.md              2 rules — the stochos-lab repository
     └── project-design-architecture-tool/SKILL.md  3 rules — that repository
