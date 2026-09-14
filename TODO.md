@@ -148,8 +148,8 @@
   - Not closed by it: the **four-homes** item above (`~/.claude/CLAUDE.md` and `~/.claude/rules/ecc/rust/*.md` copies), which is a separate edit in a separate repo, and the ten patterns ported 2026-08-24 that `~/.claude/CLAUDE.md` Patterns 1–9 still state in prose — the boot index is now a second home for those too, and retiring that text is the same `~/.claude`-side change.
 - [ ] **`lint` cannot see a competing home — George's call, unchanged.** `lint::lint` takes `&Library<Validated>` and reads only `rules/`, so a rule duplicated into a hand-authored file outside the library is structurally invisible to it: the two-homes problem was found by reading, and so were the ten unported Rust patterns on 2026-08-24. **The trade-off in one paragraph.** Detecting a competing home requires reading files the library does not own — a skill directory, a user-scope `CLAUDE.md`, an arbitrary path — which breaks the invariant that makes every other guarantee here cheap to trust: that `lint` and `emit` are pure functions of validated rules, deterministic, filesystem-free, and testable without fixtures. Granting `lint` a search path turns it into something whose result depends on the machine it ran on, so a finding could not be reproduced from the repository alone and a *clean* result would mean only "clean where I happened to look" — which is precisely the shape of claim this repo exists to refuse. The honest alternatives are a separate tool that is openly filesystem-bound and never confused with `lint`, or an explicit opt-in path list carried in configuration so the search space is at least declared and diffable. Recorded in FEATURES.md as `NOTHING YET — exposed`. **Nothing implemented; no decision taken here.**
 - [x] **`claude-pack/` ships (2026-09-06)** — the library as installable Claude Skills, one folder per home, with a hand-authored README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Generated, never transcribed; `.gitattributes` pins it LF; CI verifies it as a second output root exactly as it does `copilot-pack/`. It could not have existed before the same day, because the skills it packages were over Claude's description cap and therefore uninstallable.
-- [ ] **`claude-pack/README.md` joins the same exposure as `copilot-pack/README.md`** — it names per-home rule counts that nothing checks. Verified two ways when written; stale the day a rule moves home. Same fix as the item below, and they should be closed together: either generate the factual block from the library, or add a check that greps the numbers back out of the emitted artefacts. **Refreshed by hand 2026-09-12**, alongside the copilot pack: 24 / 18 / 2 / 2 → 27 / 18 / 2 / 2 / 3, the fourth home added, per-skill line counts added to a new install prompt, and the collision hazard written down (`cp -r` over a hand-authored skill of the same name destroys it silently — a skill with no `relearn:generated` footer is exactly what nothing here can recognise and refuse). As with the copilot pack, the refresh is the symptom: it was needed because nothing failed when the numbers went stale. Every number now sits beside the command that measures the real one, which is a mitigation, not the check this item asks for.
-- [ ] **`copilot-pack/README.md` states numbers nothing checks.** Added 2026-08-24. The pack's instruction file is generated and CI-verified; its README is hand-authored and asserts a rule count, a line count, a per-home breakdown and the eighteen `domain-rust` tags by name. All of those go stale on the next rule added, with nothing failing. Recorded in FEATURES.md on the same row rather than left implicit. Closing it means either generating the README's factual block from the library or adding a check that greps the numbers back out of the emitted file — the second is cheap and is the likely fix. `[R:doc-currency]` **Refreshed by hand 2026-09-12** (46 → 52 rules, 538 → 746 lines, 24 / 18 / 4 → 27 / 18 / 7, three graduated → eight, four project rules → seven, and a new install prompt that does not assume `.github/`). The refresh is the symptom, not the fix: it was needed because nothing failed when the numbers went stale, and nothing will fail the next time. The README now says so under its own table and points the reader at `grep -c '^## '`, which is the count that cannot rot — a mitigation in prose, not the check this item is asking for.
+- [x] **Closed 2026-09-13 by the same gate, in both directions.** Was: the same exposure — it names per-home rule counts that nothing checks. Verified two ways when written; stale the day a rule moves home. Same fix as the item below, and they should be closed together: either generate the factual block from the library, or add a check that greps the numbers back out of the emitted artefacts. **Refreshed by hand 2026-09-12**, alongside the copilot pack: 24 / 18 / 2 / 2 → 27 / 18 / 2 / 2 / 3, the fourth home added, per-skill line counts added to a new install prompt, and the collision hazard written down (`cp -r` over a hand-authored skill of the same name destroys it silently — a skill with no `relearn:generated` footer is exactly what nothing here can recognise and refuse). As with the copilot pack, the refresh is the symptom: it was needed because nothing failed when the numbers went stale. Every number now sits beside the command that measures the real one, which is a mitigation, not the check this item asks for.
+- [x] **Closed 2026-09-13 by `tests/pack_counts.rs`.** Was: numbers nothing checks. Added 2026-08-24. The pack's instruction file is generated and CI-verified; its README is hand-authored and asserts a rule count, a line count, a per-home breakdown and the eighteen `domain-rust` tags by name. All of those go stale on the next rule added, with nothing failing. Recorded in FEATURES.md on the same row rather than left implicit. Closing it means either generating the README's factual block from the library or adding a check that greps the numbers back out of the emitted file — the second is cheap and is the likely fix. `[R:doc-currency]` **Refreshed by hand 2026-09-12** (46 → 52 rules, 538 → 746 lines, 24 / 18 / 4 → 27 / 18 / 7, three graduated → eight, four project rules → seven, and a new install prompt that does not assume `.github/`). The refresh is the symptom, not the fix: it was needed because nothing failed when the numbers went stale, and nothing will fail the next time. The README now says so under its own table and points the reader at `grep -c '^## '`, which is the count that cannot rot — a mitigation in prose, not the check this item is asking for.
 - [ ] **A path-scoped Copilot target.** Copilot also reads `.github/instructions/*.instructions.md` with `applyTo:` front-matter, which is the same load-semantics idea the Cursor emitter already models in `LoadSemantics` and the rules layer already emits as `paths:`. A `copilot-instructions` target that emitted one file per home with `applyTo: "**/*.rs"` for `domain-rust` would stop the eighteen Rust rules from occupying context in a repository with no Rust in it — the P6 argument that motivated `--home`. Reuse, not new modelling: the per-`Home` glob table exists. Not started; noted 2026-08-24 while building `copilot-pack/`, where the whole library goes into one always-on file because that is the only Copilot shape this tool emits today.
 - [ ] **Third home for the `relearn` skill:** `~/.claude/skills/relearn/` is a stale July copy. Flagged 2026-08-22, deliberately out of scope of that change; fix in the `~/.claude` repo, not here.
 
@@ -347,7 +347,7 @@ and the programme is wrong where the two disagree.
         them, and that exposure — not the staleness — was the real lesson of the item.
         **Closed 2026-09-13** by `tests/pack_counts.rs`, which reads both pack READMEs in both
         directions: every claim must match its file, and every file must be claimed.
-- [ ] **Before B1, not after C2: is there a second install?** Federation's value is entirely in
+- [x] **Answered 2026-09-14: yes, a second corpus — not a second person.** Federation's value is entirely in
       the second person running it. A1 and A2 are worth building regardless; B onward is not.
 
 ## There is a second install (2026-09-13)
@@ -390,7 +390,7 @@ Carried:
       exercised; nothing about whether a rule mined from one person's sessions helps someone
       whose sessions they never saw is. The aggregate stays empty and correctly so: five
       distinct installs, and there is one.
-- [ ] **`mesh-watchdog`'s new `rules/`, `AGENTS.md` and `.claude/` are uncommitted**, left for
+- [x] **Committed 2026-09-14 in that repository, no remote per its own charter.** Was: uncommitted, left for
       review rather than pushed into another repository's history.
 
 ## The public face caught up with the code (2026-09-13)
@@ -602,7 +602,7 @@ Carried, not decided here:
       class in different words never meet. Nothing short of judgement closes that, and a
       fuzzy key dressed as certainty would be worse; the failure is under-matching, never
       a poke about an unrelated rule.
-- [ ] **`contribute` neither requires nor bumps a revision.** A rule contributed today
+- [x] **Closed 2026-09-13: `--version` is required, and must supersede.** Was: neither required nor bumped. A rule contributed today
       publishes with no `version`, so no cache of it can ever be told it is stale — the
       stale-cache trigger is real and has nothing to read. Closing it is a new refusal in
       B2's one constructor, which is a change to a shipped phase. **George's call.**
@@ -736,7 +736,7 @@ impossible. Emission unchanged for all 52 rules (`verify` green, 63 files).
 
 Carried, not decided here:
 
-- [ ] **Nothing creates a cached rule yet.** A cache arrives today only by hand-writing the
+- [x] **Closed 2026-09-13 by `pull`.** Was: nothing creates a cached rule. A cache arrives today only by hand-writing the
       `authority` table; pulling belongs to a later phase, and until it exists `is_behind` has no
       upstream to ask about. The type and the refusal are deliberately in place first — the guard
       that arrives after the thing it guards is the guard somebody has to remember.
@@ -794,7 +794,11 @@ contributions, caches or reports. The emitted tree did not change for any of the
 
 Discovered while building it, deliberately not decided here:
 
-- [ ] **A rule homed in `domain-low-latency` reaches four of the five targets.**
+- [ ] **A rule homed in `domain-low-latency` reaches four of the five targets — measured
+      2026-09-14, no longer a prediction.** Two such rules now exist, and they land in
+      `skills/domain-low-latency/SKILL.md`, both `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`
+      and `AGENTS.md` — and **not** in `.claude/rules/`. The motivating example of A1 is absent
+      from exactly one layer, which is the decision below, now with a real rule behind it.
       `emit::claude_rules` emits project homes and *known language domains* only — a domain with
       no glob table is `LoadSemantics::OnRequest` and is skipped — so the motivating example of
       this very phase is absent from `.claude/rules/`. Skills, Cursor, Copilot and `AGENTS.md`
@@ -820,7 +824,7 @@ Discovered while building it, deliberately not decided here:
       a reader of `skills/domain-low-latency/SKILL.md` cannot see that the rule is scoped. An
       annotation would be the recurrence-note shape, and it would change emitted bytes for scoped
       rules only.
-- [ ] **Candidate rules for `applies_to`.** Reported in the A1 summary, **none applied**: deciding
+- [x] **Answered 2026-09-14: two rules now declare one.** Reported in the A1 summary, **none applied**: deciding
       a rule's audience is a judgement about who is harmed by not seeing it, and that is George's.
 
 ## Phase J — federated relearn (design v2 filed 2026-09-13; **built A1 → C2 the same day**, two items open)
