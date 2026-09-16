@@ -119,7 +119,7 @@ pub fn dangling_citations(
                 .rules()
                 .iter()
                 .find(|held| held.tag() == &cited)
-                .is_some_and(|held| matches!(held.home().federation(), Federation::Withheld));
+                .is_some_and(|held| !held.is_publishable());
             let why = if withheld {
                 Citation::NeverPublishable
             } else {
@@ -225,7 +225,7 @@ impl<'a> Contribution<'a> {
             Federation::Publishable => {}
             Federation::Withheld => return Err(NotContributable::HomeIsWithheld),
         }
-        if let Authority::Cached { .. } = rule.authority() {
+        if !rule.authority().is_editable() {
             return Err(NotContributable::IsACache);
         }
         if rule.origin().is_mandated() {

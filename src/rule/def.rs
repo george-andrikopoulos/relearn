@@ -5,7 +5,7 @@
 
 use super::{
     Authority, Body, Date, ErrorClass, Federation, Home, Incident, Origin, PublishedIncident,
-    RuleTag, ScopeTag, Status, Title,
+    RecurrenceRole, RuleTag, ScopeTag, Status, Title,
 };
 
 /// One later occurrence of the error class a rule already covers — evidence
@@ -276,7 +276,7 @@ impl Rule {
     /// whether prose is holding.
     #[must_use]
     pub fn counts_toward_recurrence_statistics(&self) -> bool {
-        !self.origin.is_mandated()
+        self.origin.recurrence_role() != RecurrenceRole::Excluded
     }
 
     /// Whether this rule is inert evidence: authored rather than mined, and
@@ -289,9 +289,7 @@ impl Rule {
     /// [`Rule::counts_toward_recurrence_statistics`].
     #[must_use]
     pub fn is_inert(&self) -> bool {
-        self.counts_toward_recurrence_statistics()
-            && !self.origin.is_mined()
-            && !self.has_recurred()
+        self.origin.recurrence_role() == RecurrenceRole::Authored && !self.has_recurred()
     }
 
     /// The rule's lifecycle status.

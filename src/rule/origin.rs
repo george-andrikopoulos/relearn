@@ -144,6 +144,26 @@ pub enum OriginError {
     ApprovalWithoutMandate(String),
 }
 
+/// A rule's standing in the recurrence statistics.
+///
+/// The counter-metric turns on a three-way distinction that was previously
+/// computed as `!is_mandated() && !is_mined()` -- two `matches!` composed into
+/// an implicit "everything else", so a fourth `Origin` would have joined the
+/// *inert* bucket without anybody deciding. Naming the three roles in one
+/// exhaustive match makes that a compile error, which matters more here than
+/// elsewhere: this is the number whose entire purpose is to be honest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecurrenceRole {
+    /// Mined from a real failure: it is recurrence evidence, and never inert.
+    Evidence,
+    /// Authored from standing practice: counted *inert* if it has never fired.
+    Authored,
+    /// Outside the statistics in both directions -- a mandate was never mined,
+    /// so it cannot be evidence, and "inert" is a judgement about something
+    /// that was meant to be evidence.
+    Excluded,
+}
+
 impl Origin {
     /// Parse the neutral format's `origin` value **together with** its optional
     /// `approval` table — one perimeter that sees both halves, so the
@@ -192,7 +212,18 @@ impl Origin {
     /// never recurred is a rule that may well be working.
     #[must_use]
     pub fn is_mined(&self) -> bool {
-        matches!(self, Origin::Mined)
+        self.recurrence_role() == RecurrenceRole::Evidence
+    }
+
+    /// This origin's standing in the recurrence statistics -- the single
+    /// exhaustive authority, so a new origin cannot join a bucket by default.
+    #[must_use]
+    pub fn recurrence_role(&self) -> RecurrenceRole {
+        match self {
+            Origin::Mined => RecurrenceRole::Evidence,
+            Origin::Codified => RecurrenceRole::Authored,
+            Origin::Mandated(_) => RecurrenceRole::Excluded,
+        }
     }
 
     /// Whether this rule was mandated rather than learned.
@@ -205,7 +236,7 @@ impl Origin {
     /// says whether prose is holding, with rules that were never about that.
     #[must_use]
     pub fn is_mandated(&self) -> bool {
-        matches!(self, Origin::Mandated(_))
+        self.recurrence_role() == RecurrenceRole::Excluded
     }
 }
 
@@ -308,5 +339,18 @@ mod tests {
     fn only_mined_is_mined() {
         assert!(Origin::Mined.is_mined());
         assert!(!Origin::Codified.is_mined());
+    }
+
+    #[test]
+    fn every_origin_declares_its_role_in_the_statistics() {
+        // This was `!is_mandated() && !is_mined()` -- an implicit "everything
+        // else" that a fourth origin would have joined without anybody
+        // deciding, in the one number whose whole purpose is honesty.
+        assert_eq!(Origin::Mined.recurrence_role(), RecurrenceRole::Evidence);
+        assert_eq!(Origin::Codified.recurrence_role(), RecurrenceRole::Authored);
+        assert_eq!(
+            Origin::Mandated(approval()).recurrence_role(),
+            RecurrenceRole::Excluded
+        );
     }
 }

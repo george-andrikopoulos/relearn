@@ -138,6 +138,23 @@ pub enum AdoptError {
     },
 }
 
+/// Where a rule document came from: this install, or somebody else's.
+///
+/// Three call sites asked this in three spellings and two polarities -- a
+/// `!matches!(.., Local { .. })`, a `matches!(.., Cached | Adopted)`, and an
+/// `if let`. Each would have answered for a new `Authority` variant silently,
+/// and two of them permissively. One exhaustive policy means the next variant
+/// is a compile error at the one place that decides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Provenance {
+    /// Authored here. This install is the rule's home.
+    Own,
+    /// It arrived from another install -- still a copy (`Cached`), or forked
+    /// into a rule of our own (`Adopted`). Either way somebody else wrote it,
+    /// which is what the recurrence report and the retirement poke both turn on.
+    FromUpstream,
+}
+
 impl Authority {
     /// This install's own rule, with no revision recorded — what every rule
     /// file that says nothing about authority is, and what every rule in this
@@ -188,6 +205,20 @@ impl Authority {
         match self {
             Authority::Local { .. } | Authority::Adopted { .. } => true,
             Authority::Cached { .. } => false,
+        }
+    }
+
+    /// Whether this document was authored here or arrived from another install.
+    ///
+    /// `Adopted` counts as `FromUpstream` deliberately: a fork is ours to edit
+    /// -- which is [`Authority::is_editable`], a different question -- but it
+    /// was still somebody else's rule first, and that is what the recurrence
+    /// report attributes and what a retirement upstream is news about.
+    #[must_use]
+    pub fn provenance(&self) -> Provenance {
+        match self {
+            Authority::Local { .. } => Provenance::Own,
+            Authority::Adopted { .. } | Authority::Cached { .. } => Provenance::FromUpstream,
         }
     }
 
@@ -376,9 +407,7 @@ impl DroppableCache {
         }
         let why = match upstream {
             None => Unwanted::GoneUpstream,
-            Some(rule) if matches!(rule.status(), super::Status::Attic { .. }) => {
-                Unwanted::RetiredUpstream
-            }
+            Some(rule) if rule.status().is_withdrawn() => Unwanted::RetiredUpstream,
             Some(_) => return Err(NotDroppable::StillWanted),
         };
         Ok(DroppableCache {
@@ -594,5 +623,30 @@ mod tests {
             Authority::local().adopt(date("2026-09-14")),
             Err(AdoptError::AlreadyLocal)
         );
+    }
+
+    #[test]
+    fn provenance_separates_what_we_wrote_from_what_arrived() {
+        // Three call sites asked this in three spellings and two polarities
+        // before it had a name; two of them would have admitted a new variant
+        // silently. Adopted is FromUpstream even though it is editable -- a
+        // fork is ours to change, and was still somebody else's rule first.
+        assert_eq!(Authority::local().provenance(), Provenance::Own);
+        assert_eq!(cached().provenance(), Provenance::FromUpstream);
+        assert_eq!(
+            cached()
+                .adopt(Date::parse("2026-09-16").expect("valid date"))
+                .expect("a cache can be adopted")
+                .provenance(),
+            Provenance::FromUpstream
+        );
+    }
+
+    fn cached() -> Authority {
+        Authority::cached(
+            SourceId::parse("upstream").expect("non-empty source"),
+            Version::new(1),
+            Date::parse("2026-09-01").expect("valid date"),
+        )
     }
 }

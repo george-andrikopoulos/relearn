@@ -36,7 +36,7 @@ use std::fmt;
 use crate::aggregate::Aggregate;
 use crate::library::{Library, Validated};
 use crate::report::Bucket;
-use crate::rule::{Authority, Date, Rule, RuleTag, ScopeTag, Status, Version};
+use crate::rule::{Date, Provenance, Rule, RuleTag, ScopeTag, Status, Version};
 
 /// Whether a poke is addressed to this install's own evidence, or to everyone.
 ///
@@ -538,9 +538,9 @@ fn cache_behind(local: &Library<Validated>, upstream: &Library<Validated>) -> Ve
         .rules()
         .iter()
         .filter_map(|rule| {
-            let held = match rule.authority() {
-                Authority::Local { .. } => return None,
-                other => other.version()?,
+            let held = match rule.authority().provenance() {
+                Provenance::Own => return None,
+                Provenance::FromUpstream => rule.authority().version()?,
             };
             let upstream = *published.get(rule.tag().as_str())?;
             rule.authority()
@@ -580,7 +580,7 @@ fn cache_retired_upstream(local: &Library<Validated>, upstream: &Library<Validat
     local
         .rules()
         .iter()
-        .filter(|rule| !matches!(rule.authority(), Authority::Local { .. }))
+        .filter(|rule| rule.authority().provenance() == Provenance::FromUpstream)
         .filter_map(|rule| {
             let (reason, since) = retired.get(rule.tag().as_str())?;
             Some(Poke::CacheRetiredUpstream {

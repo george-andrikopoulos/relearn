@@ -36,7 +36,7 @@ use std::collections::BTreeMap;
 use crate::library::{Library, Validated};
 use crate::rule::{
     Date, DroppableCache, NotDroppable, NotPullable, PulledRule, Rule, RuleTag, ScopeTag, SourceId,
-    Status, Version,
+    Version,
 };
 
 /// Whether a bulk pull may remove caches it finds unwanted.
@@ -167,7 +167,7 @@ impl Plan {
         // here** — that case is decided entirely on the held side, as "drop it"
         // or "unwanted and kept", and reporting it from both sides said the
         // same rule was current *and* unwanted in one run.
-        if matches!(rule.status(), Status::Attic { .. }) {
+        if rule.status().is_withdrawn() {
             return;
         }
         let source = from.clone(); // allow:clone: each pulled rule owns the source it names, and the plan may mint many from one borrowed id

@@ -223,6 +223,22 @@ impl Status {
     /// [`ProseCoverage`]. `Partial` answers `Holds` on purpose: naming a control
     /// for half a class does not relieve the prose of the other half, and a
     /// recurrence there is precisely the signal the finding exists to surface.
+    /// Whether this rule's guidance has been withdrawn.
+    ///
+    /// The same partition as [`Emittability::Suppress`] today, and deliberately
+    /// a separate question: that one asks "write this into an instruction
+    /// layer?", this one asks "is this guidance still in force?" -- which is
+    /// what `pull` needs before caching a rule and what a drop plan needs
+    /// before calling a cache unwanted. Both are exhaustive, so a new status
+    /// must answer both rather than inheriting one by accident.
+    #[must_use]
+    pub fn is_withdrawn(&self) -> bool {
+        match self {
+            Status::Attic { .. } => true,
+            Status::Active | Status::Partial { .. } | Status::Graduated { .. } => false,
+        }
+    }
+
     #[must_use]
     pub fn prose_coverage(&self) -> ProseCoverage {
         match self {
@@ -365,5 +381,24 @@ mod tests {
     fn partial_status() -> Status {
         Status::partial("test:a_test", "everything else", date())
             .expect("non-empty control and uncovered part")
+    }
+
+    #[test]
+    fn only_the_attic_is_withdrawn() {
+        // `pull` refuses to cache withdrawn guidance and a drop plan calls a
+        // withdrawn cache unwanted; both used to ask with a `matches!`, which a
+        // new status would have passed through as "still in force".
+        assert!(
+            Status::attic("cold surface", date())
+                .expect("non-empty reason")
+                .is_withdrawn()
+        );
+        assert!(!Status::active().is_withdrawn());
+        assert!(!partial_status().is_withdrawn());
+        assert!(
+            !Status::graduated("hook:a-hook", date())
+                .expect("non-empty destination")
+                .is_withdrawn()
+        );
     }
 }

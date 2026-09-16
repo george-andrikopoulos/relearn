@@ -24,7 +24,7 @@ use std::fmt;
 use std::fmt::Write as _;
 
 use crate::library::{Library, Validated};
-use crate::rule::{Authority, Date, Destination, Rule, RuleTag, Status};
+use crate::rule::{Date, Destination, Provenance, Rule, RuleTag, Status};
 
 /// The number of distinct installs that must have reported a rule before the
 /// aggregate publishes any count for it.
@@ -155,7 +155,13 @@ pub enum Control {
 impl Control {
     /// The kind a status names, if it names exactly one.
     ///
-    /// Active and atticked rules have no control. A destination naming **two**
+    /// Active and atticked rules have no control. A **partial** graduation does
+    /// have one and still reports none: `Status::Partial` names its controls in
+    /// `by`, but this reads only `Graduated`, so a partly-held rule contributes
+    /// its recurrences to the aggregate without a control kind. That is an
+    /// under-report rather than a false one -- it biases the cross-install view
+    /// toward full graduations, and publishing less is the safe direction for a
+    /// report that leaves the machine. `TODO.md` carries it. A destination naming **two**
     /// kinds — this corpus has three such — reports none: the field is
     /// single-valued, and choosing one of the two would be inventing a fact.
     /// Losing the signal is the honest failure; `TODO.md` carries it.
@@ -377,10 +383,7 @@ impl Report {
 /// condition is there; it is written as one function so the four questions are
 /// asked in one place and no caller can ask three of them.
 fn reportable(rule: &Rule) -> bool {
-    let upstream = matches!(
-        rule.authority(),
-        Authority::Cached { .. } | Authority::Adopted { .. }
-    );
+    let upstream = rule.authority().provenance() == Provenance::FromUpstream;
     rule.is_publishable()
         && upstream
         && rule.counts_toward_recurrence_statistics()
