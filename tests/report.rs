@@ -12,10 +12,10 @@
 //! publishing one is the leak this whole flow is shaped to avoid.
 
 use relearn::library::Library;
-use relearn::report::{Bucket, Control, InstallId, K_ANONYMITY_FLOOR, Month, Report};
+use relearn::report::{Bucket, InstallId, K_ANONYMITY_FLOOR, Month, Report, control_of};
 use relearn::rule::{
-    Approval, Approver, Authority, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin,
-    Recurrence, Rule, RuleTag, SourceId, Status, Title, Version,
+    Approval, Approver, Authority, Body, ControlKind, ControlRef, Date, ErrorClass, Home, Incident,
+    Origin, Recurrence, Rule, RuleTag, SourceId, Status, Title, Version,
 };
 
 fn upstream() -> Authority {
@@ -253,27 +253,27 @@ fn a_control_kind_never_carries_the_controls_name() {
             .expect("non-empty destination")
     };
     assert_eq!(
-        Control::of(&graduated("hook:internal-payments-lint")),
-        Some(Control::Hook)
+        control_of(&graduated("hook:internal-payments-lint")),
+        Some(ControlKind::Hook)
     );
     assert_eq!(
-        Control::of(&graduated("test:some_test")),
-        Some(Control::UnitTest)
+        control_of(&graduated("test:some_test")),
+        Some(ControlKind::UnitTest)
     );
     assert_eq!(
-        Control::of(&graduated("gate:verify.sh")),
-        Some(Control::Gate)
+        control_of(&graduated("gate:verify.sh")),
+        Some(ControlKind::Gate)
     );
     assert_eq!(
-        Control::of(&graduated("type:SomeWitness")),
-        Some(Control::Type)
+        control_of(&graduated("type:SomeWitness")),
+        Some(ControlKind::Type)
     );
     assert_eq!(
-        Control::of(&graduated("property:some_law")),
-        Some(Control::PropertyTest)
+        control_of(&graduated("property:some_law")),
+        Some(ControlKind::PropertyTest)
     );
     // Active and atticked rules have no control.
-    assert_eq!(Control::of(&Status::active()), None);
+    assert_eq!(control_of(&Status::active()), None);
 
     let report = report_of(vec![rule(
         "R:g",
@@ -304,7 +304,7 @@ fn a_destination_naming_two_kinds_reports_no_control() {
         Date::parse("2026-08-16").expect("valid date"),
     )
     .expect("non-empty destination");
-    assert_eq!(Control::of(&status), None);
+    assert_eq!(control_of(&status), None);
 }
 
 // ── the pseudonym ───────────────────────────────────────────────────────────

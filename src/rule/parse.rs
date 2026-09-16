@@ -13,9 +13,9 @@
 use serde::Deserialize;
 
 use super::{
-    Approval, Approver, Authority, Body, ControlRef, Date, DateError, EmptyText, ErrorClass, Home,
-    Incident, Origin, OriginError, PublishedIncident, Recurrence, Rule, RuleTag, RuleTagError,
-    ScopeTag, ScopeTagError, SourceId, Status, Title, Version,
+    Approval, Approver, Authority, Body, ControlError, ControlRef, Date, DateError, EmptyText,
+    ErrorClass, Home, Incident, Origin, OriginError, PublishedIncident, Recurrence, Rule, RuleTag,
+    RuleTagError, ScopeTag, ScopeTagError, SourceId, Status, StatusError, Title, Version,
 };
 
 /// Why a rule document failed to parse.
@@ -36,6 +36,12 @@ pub enum ParseError {
     /// A non-empty text field was empty (the message names which).
     #[error("{0}")]
     Text(#[from] EmptyText),
+
+    #[error("field `status`: {0}")]
+    Control(#[from] ControlError),
+
+    #[error("field `status`: {0}")]
+    Status(#[from] StatusError),
     /// A date field held an out-of-range or malformed value.
     #[error("field `{field}`: {source}")]
     Date {

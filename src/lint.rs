@@ -475,7 +475,7 @@ fn recurrence_after_graduation(library: &Library<Validated>) -> Vec<Finding> {
                 .max()?;
             Some(Finding::RecurrenceAfterGraduation {
                 tag: rule.tag().clone(), // allow:clone: the finding owns its tag, outliving the &Library borrow
-                to: to.as_str().to_owned(),
+                to: to.to_string(),
                 graduated: *date,
                 recurred,
             })

@@ -320,10 +320,10 @@ pub(crate) fn emittable(library: &Library<Validated>) -> Vec<&Rule> {
 #[must_use]
 pub(crate) fn enforcement_note(rule: &Rule) -> Option<String> {
     match rule.status() {
-        Status::Graduated { to, .. } => Some(format!("> Also enforced by {}.\n\n", to.as_str())),
+        Status::Graduated { to, .. } => Some(format!("> Also enforced by {to}.\n\n")),
         Status::Partial { by, uncovered, .. } => Some(format!(
             "> Partly enforced by {}; {} is held by this instruction alone.\n\n",
-            by.as_str(),
+            by,
             uncovered.as_str()
         )),
         Status::Active | Status::Attic { .. } => None,

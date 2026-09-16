@@ -24,7 +24,7 @@ use std::fmt;
 use std::fmt::Write as _;
 
 use crate::library::{Library, Validated};
-use crate::rule::{Date, Destination, Provenance, Rule, RuleTag, Status};
+use crate::rule::{ControlKind, Date, Provenance, Rule, RuleTag, Status};
 
 /// The number of distinct installs that must have reported a rule before the
 /// aggregate publishes any count for it.
@@ -131,81 +131,28 @@ impl Bucket {
     }
 }
 
-/// What kind of control a graduated rule moved to.
+/// The kind of control a graduated rule moved to, if it names exactly one.
 ///
-/// **A sealed vocabulary with no free-text variant, and never the control's own
-/// name.** Five values is the whole set; a sixth needs a public schema bump, not
-/// an `Other(String)`. The leak this shape prevents is concrete:
-/// `gate:internal-payments-lint` publishes `gate`, and the rest of that string
-/// stays on the machine.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Control {
-    /// A type makes the mistake unrepresentable.
-    Type,
-    /// A property test states a law over generated input.
-    PropertyTest,
-    /// A unit test pins a past bug.
-    UnitTest,
-    /// A gate in a build or CI run.
-    Gate,
-    /// A hook at write time.
-    Hook,
-}
-
-impl Control {
-    /// The kind a status names, if it names exactly one.
-    ///
-    /// Active and atticked rules have no control. A **partial** graduation does
-    /// have one and still reports none: `Status::Partial` names its controls in
-    /// `by`, but this reads only `Graduated`, so a partly-held rule contributes
-    /// its recurrences to the aggregate without a control kind. That is an
-    /// under-report rather than a false one -- it biases the cross-install view
-    /// toward full graduations, and publishing less is the safe direction for a
-    /// report that leaves the machine. `TODO.md` carries it. A destination naming **two**
-    /// kinds — this corpus has three such — reports none: the field is
-    /// single-valued, and choosing one of the two would be inventing a fact.
-    /// Losing the signal is the honest failure; `TODO.md` carries it.
-    #[must_use]
-    pub fn of(status: &Status) -> Option<Self> {
-        let Status::Graduated { to, .. } = status else {
-            return None;
-        };
-        let mut kinds = kinds_named(to);
-        kinds.dedup();
-        match kinds.as_slice() {
-            [only] => Some(*only),
-            _ => None,
-        }
-    }
-
-    /// The published spelling.
-    #[must_use]
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Control::Type => "type",
-            Control::PropertyTest => "property-test",
-            Control::UnitTest => "unit-test",
-            Control::Gate => "gate",
-            Control::Hook => "hook",
-        }
-    }
-}
-
-/// Every control kind a destination names, in order, from the `kind:` prefixes
-/// it contains. The rest of each token — the control's actual name — is read
-/// and discarded here and never leaves this function.
-fn kinds_named(to: &Destination) -> Vec<Control> {
-    to.as_str()
-        .split_whitespace()
-        .filter_map(|token| match token.split_once(':')?.0 {
-            "type" => Some(Control::Type),
-            "property" | "proptest" => Some(Control::PropertyTest),
-            "test" => Some(Control::UnitTest),
-            "gate" => Some(Control::Gate),
-            "hook" => Some(Control::Hook),
-            _ => None,
-        })
-        .collect()
+/// **Never the control's own name.** `gate:internal-payments-lint` publishes
+/// `gate` and the rest of that string stays on the machine — which is now a
+/// property of the types rather than of this function, because [`Controls`]
+/// holds a control's kind and its name apart instead of in one string that had
+/// to be re-split here.
+///
+/// Active and atticked rules have no control. A **partial** graduation does have
+/// one and still reports none: this reads `Status::whole_class_claim`, which is
+/// `None` for `Partial`, so a partly-held rule contributes its recurrences
+/// without a control kind. That is an under-report rather than a false one, and
+/// publishing less is the safe direction for something that leaves the machine.
+/// `TODO.md` carries it.
+///
+/// A destination naming **two** kinds — this corpus has three such — reports
+/// none: the field is single-valued, and choosing one of the two would be
+/// inventing a fact. Losing the signal is the honest failure.
+pub fn control_of(status: &Status) -> Option<ControlKind> {
+    status
+        .whole_class_claim()
+        .and_then(|(to, _)| to.sole_kind())
 }
 
 /// This install's pseudonym.
@@ -259,7 +206,7 @@ pub struct Observation {
     recurrences: Bucket,
     latest: Month,
     status: &'static str,
-    control: Option<Control>,
+    control: Option<ControlKind>,
 }
 
 impl Observation {
@@ -283,7 +230,7 @@ impl Observation {
 
     /// The kind of control holding the rule, if it names exactly one.
     #[must_use]
-    pub fn control(&self) -> Option<Control> {
+    pub fn control(&self) -> Option<ControlKind> {
         self.control
     }
 }
@@ -329,7 +276,7 @@ impl Report {
                     recurrences: Bucket::of(rule.recurrences().len()),
                     latest: Month::of(rule.latest_recurrence()?),
                     status: status_kind(rule.status()),
-                    control: Control::of(rule.status()),
+                    control: control_of(rule.status()),
                 })
             })
             .collect();
@@ -372,7 +319,7 @@ impl Report {
             let _ = writeln!(out, "latest      = \"{}\"", observation.latest);
             let _ = writeln!(out, "status      = \"{}\"", observation.status);
             if let Some(control) = observation.control {
-                let _ = writeln!(out, "control     = \"{}\"", control.as_str());
+                let _ = writeln!(out, "control     = \"{}\"", control.published());
             }
         }
         out
@@ -431,14 +378,22 @@ mod tests {
         assert_eq!(Bucket::of(0), Bucket::One);
     }
 
+    // Kept, and inverted. This test used to assert that an unknown prefix
+    // *silently named no kind* — the status was constructible and the report
+    // simply had nothing to say about it. Since `Controls` parses at the
+    // perimeter that state is unreachable: the rule stops the build instead.
+    // The weaker guarantee is not deleted, it is superseded, and the test now
+    // pins which of the two holds.
     #[test]
-    fn an_unknown_control_prefix_names_no_kind() {
-        let status = Status::graduated(
-            "ritual:standing-up-slowly",
-            Date::parse("2026-07-21").expect("valid date"),
-        )
-        .expect("non-empty destination");
-        assert_eq!(Control::of(&status), None);
+    fn an_unknown_control_prefix_is_refused_rather_than_silently_unreported() {
+        assert!(
+            Status::graduated(
+                "ritual:standing-up-slowly",
+                Date::parse("2026-07-21").expect("valid date"),
+            )
+            .is_err(),
+            "an unknown control kind must stop the build, not report as absent"
+        );
     }
 
     // Two mentions of the *same* kind are still one kind: `hook:a + hook:b` is
@@ -450,6 +405,6 @@ mod tests {
             Date::parse("2026-09-06").expect("valid date"),
         )
         .expect("non-empty destination");
-        assert_eq!(Control::of(&status), Some(Control::Hook));
+        assert_eq!(control_of(&status), Some(ControlKind::Hook));
     }
 }

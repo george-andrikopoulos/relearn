@@ -22,6 +22,7 @@
 //! never leak into the rule type.
 
 mod authority;
+mod control;
 mod date;
 mod def;
 mod home;
@@ -37,6 +38,7 @@ pub use authority::{
     AdoptError, Authority, CachedIsNotEditable, DroppableCache, EditableRule, NotDroppable,
     NotPullable, Provenance, PulledRule, SourceId, Unwanted, Version,
 };
+pub use control::{Control, ControlError, ControlKind, Controls};
 pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};
 pub use home::{DomainName, Federation, Home, OrgName, ProjectPath};
@@ -44,6 +46,6 @@ pub use origin::{Approval, Approver, ControlRef, Origin, OriginError, Recurrence
 pub use parse::{ParseError, parse_document};
 pub use scope::{ScopeTag, ScopeTagError};
 pub use serialize::to_document;
-pub use status::{Destination, Emittability, ProseCoverage, Reason, Status, Uncovered};
+pub use status::{Emittability, ProseCoverage, Reason, Status, StatusError, Uncovered};
 pub use tag::{RuleTag, RuleTagError};
 pub use text::{Body, EmptyText, ErrorClass, Incident, PublishedIncident, Title};

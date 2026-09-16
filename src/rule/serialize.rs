@@ -171,7 +171,7 @@ fn status_line(status: &Status) -> String {
         Status::Active => "status = { kind = \"active\" }\n".to_owned(),
         Status::Graduated { to, date } => format!(
             "status = {{ kind = \"graduated\", to = {}, date = {} }}\n",
-            toml_basic_string(to.as_str()),
+            toml_basic_string(&to.to_string()),
             toml_basic_string(&date.to_string())
         ),
         Status::Partial {
@@ -180,7 +180,7 @@ fn status_line(status: &Status) -> String {
             date,
         } => format!(
             "status = {{ kind = \"partial\", by = {}, uncovered = {}, date = {} }}\n",
-            toml_basic_string(by.as_str()),
+            toml_basic_string(&by.to_string()),
             toml_basic_string(uncovered.as_str()),
             toml_basic_string(&date.to_string())
         ),

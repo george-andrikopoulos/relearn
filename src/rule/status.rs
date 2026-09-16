@@ -3,24 +3,19 @@
 //! "atticked" cannot exist without a reason and a date, because those live in
 //! the variant and there is no other way to build it.
 
+use super::control::{ControlError, Controls};
 use super::date::Date;
 use super::text::{EmptyText, nonempty};
 
-/// Where a rule graduated to, e.g. `hook:no-narrow-parse` — non-empty.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Destination(String);
-
-impl Destination {
-    /// Parse a non-empty graduation destination.
-    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
-        Ok(Self(nonempty("graduation destination", s)?))
-    }
-
-    /// The destination text.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
+/// Why a status could not be built.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StatusError {
+    /// The controls could not be read.
+    #[error("field `status.by`: {0}")]
+    Control(#[from] ControlError),
+    /// A required text field was empty.
+    #[error("{0}")]
+    Text(#[from] EmptyText),
 }
 
 /// Why a rule was atticked — non-empty.
@@ -133,7 +128,7 @@ pub enum Status {
     /// [`Status::whole_class_claim`].
     Partial {
         /// The controls that hold part of the class.
-        by: Destination,
+        by: Controls,
         /// The part they do not hold, which prose still carries.
         uncovered: Uncovered,
         /// When this became the state of affairs.
@@ -147,8 +142,8 @@ pub enum Status {
     /// stronger control was claimed to hold this and demonstrably did not, which
     /// is a lying artefact rather than a rule merely wanting promotion.
     Graduated {
-        /// Where the guarantee moved to.
-        to: Destination,
+        /// The controls the guarantee moved to.
+        to: Controls,
         /// When it moved there.
         date: Date,
     },
@@ -170,9 +165,9 @@ impl Status {
 
     /// Graduated to `to` on `date`; the destination must be non-empty and the
     /// date is an already-validated [`Date`].
-    pub fn graduated(to: impl Into<String>, date: Date) -> Result<Self, EmptyText> {
+    pub fn graduated(to: impl AsRef<str>, date: Date) -> Result<Self, ControlError> {
         Ok(Status::Graduated {
-            to: Destination::parse(to)?,
+            to: Controls::parse(to)?,
             date,
         })
     }
@@ -182,12 +177,12 @@ impl Status {
     /// and both are required -- a partial graduation that will not say what is
     /// missing is the exact artefact this variant exists to prevent.
     pub fn partial(
-        by: impl Into<String>,
+        by: impl AsRef<str>,
         uncovered: impl Into<String>,
         date: Date,
-    ) -> Result<Self, EmptyText> {
+    ) -> Result<Self, StatusError> {
         Ok(Status::Partial {
-            by: Destination::parse(by)?,
+            by: Controls::parse(by)?,
             uncovered: Uncovered::parse(uncovered)?,
             date,
         })
@@ -256,7 +251,7 @@ impl Status {
     /// claimed that ground. Reporting it as a lying artefact would fail CI for
     /// doing the honest thing.
     #[must_use]
-    pub fn whole_class_claim(&self) -> Option<(&Destination, &Date)> {
+    pub fn whole_class_claim(&self) -> Option<(&Controls, &Date)> {
         match self {
             Status::Graduated { to, date } => Some((to, date)),
             Status::Active | Status::Partial { .. } | Status::Attic { .. } => None,

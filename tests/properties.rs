@@ -86,11 +86,40 @@ fn arb_authority() -> impl Strategy<Value = Authority> {
     ]
 }
 
+/// A well-formed destination: one or two controls of generated kind and name.
+///
+/// Generating `arb_text()` here stopped working the day `Controls` began parsing
+/// at the perimeter, and that is the generator being **corrected rather than
+/// weakened**: a destination was never free text, the type merely used to accept
+/// it. Random prose would now exercise the parse failure over and over and never
+/// reach the emitters these properties are about.
+fn arb_destination() -> impl Strategy<Value = String> {
+    let kind = prop_oneof![
+        Just("type"),
+        Just("property"),
+        Just("test"),
+        Just("gate"),
+        Just("hook"),
+    ];
+    let one = (
+        kind,
+        "[a-z][a-z0-9_]{0,12}",
+        proptest::option::of("[a-z]{1,6}( [a-z]{1,6})?"),
+    )
+        .prop_map(|(kind, name, covers)| match covers {
+            Some(covers) => format!("{kind}:{name} ({covers})"),
+            None => format!("{kind}:{name}"),
+        });
+    proptest::collection::vec(one, 1..=2).prop_map(|parts| parts.join(" + "))
+}
+
 fn arb_status() -> impl Strategy<Value = Status> {
     prop_oneof![
         Just(Status::active()),
-        (arb_text(), arb_date())
-            .prop_map(|(t, d)| Status::graduated(t, d).expect("non-empty destination")),
+        (arb_destination(), arb_date())
+            .prop_map(|(t, d)| Status::graduated(t, d).expect("a generated destination parses")),
+        (arb_destination(), arb_text(), arb_date()).prop_map(|(b, u, d)| Status::partial(b, u, d)
+            .expect("a generated destination and uncovered part parse")),
         (arb_text(), arb_date()).prop_map(|(r, d)| Status::attic(r, d).expect("non-empty reason")),
     ]
 }
