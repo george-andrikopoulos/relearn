@@ -240,6 +240,12 @@ its own tree, and the quotation travelled without it.
       that is none of its business is worse than the gap. There is no design here that
       gives a public repository a committable list: one protected name normalises to four
       characters, so publishing the salt publishes the name.
+      **Partly mitigated 2026-09-16:** `README.md` now carries the install line in
+      *Working in a clone*, which is the one file a reader of a fresh clone actually
+      opens, and states plainly that nothing in the repository can verify the clone ran
+      it. That lowers the odds of an unarmed clone; it does not close the item, because
+      documentation is not a reader `[R:guarantee-needs-a-reader]` — the gap is still
+      that a clone which skipped the line pushes with no warning.
 - [ ] **The term list now exists twice.** `Design-Architecture-Tool/scripts/banned-terms.sha256`
       is the source — it must stay repo-local, or a clone of that repository arrives
       disarmed — and `~/.claude/usage/banned-terms.sha256` is the machine-wide copy this

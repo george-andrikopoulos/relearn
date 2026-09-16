@@ -200,6 +200,39 @@ Recurrence counts can also travel, and that flow is **anonymous, always** — `r
 
 A **worked example with real output** — the same rule published, taken, revised, refreshed and finally forked between two installs — is [`docs/worked-example-two-installs.md`](docs/worked-example-two-installs.md). A real corpus exists at [george-andrikopoulos/relearn-corpus](https://github.com/george-andrikopoulos/relearn-corpus): five rules, one contributor, and an aggregate that is empty because the floor is five distinct installs and there is one. The design behind all of it is [`docs/federated-relearn.md`](docs/federated-relearn.md).
 
+## Working in a clone
+
+One thing is not wired by construction, and a fresh clone arrives without it.
+
+This repository is **public**, and a rule's `incident` field is a verbatim quotation
+from a private working session — `TODO.md` narrates the same material. Provenance is
+mandatory here for good reasons, but the field that makes a correction durable is also
+the one that can carry a private name out of the room it was said in. The push is where
+a name stops being private, so the check lives on `pre-push`:
+
+```sh
+git config core.hooksPath .githooks     # once per clone
+```
+
+The gate reports a **location and a count, never the term** — a scanner that prints what
+it found is another copy of the thing it was hiding. It exits **2 rather than 0 when it
+has no term list**, because a disarmed gate is not a pass, and `pre-push` refuses the
+push on any status it does not recognise.
+
+The term list is deliberately **not committed**: this repository is public, and
+publishing the list would publish what it protects. It is read from `$BANNED_TERMS_FILE`,
+or `~/.claude/usage/banned-terms.sha256`. CI therefore cannot run this gate — a fork has
+no list, and failing every fork for a reason that is none of its business is worse than
+the gap — so `FEATURES.md` records it as configuration-dependent rather than claiming a
+CI gate it does not have.
+
+Consequences worth stating plainly: **nothing in this repository can verify that your
+clone did this.** `cargo test` will not tell you, CI will not tell you, and a clone that
+skipped it pushes with no warning. Run the line above before your first push, and before
+writing any `incident`, ask which repository's detector covers the file you are about to
+write *into* — if the answer is the repository the quotation came *from*, nothing covers
+the destination.
+
 ## Design
 
 - One rule, one file, neutral format — TOML front-matter, markdown body.
