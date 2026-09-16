@@ -263,7 +263,10 @@ impl Rule {
     /// exclusion somebody has to remember to apply to it.
     #[must_use]
     pub fn is_publishable(&self) -> bool {
-        matches!(self.home.federation(), Federation::Publishable)
+        match self.home.federation() {
+            Federation::Publishable => true,
+            Federation::Withheld => false,
+        }
     }
 
     /// Whether this rule belongs in the recurrence statistics at all.
