@@ -1,0 +1,33 @@
+---
+description: Match the scope before contradicting a recorded figure (Measuring a subset, comparing it to a claim about the superset, and overwriting a true recorded figure with a false one that now carries the authority of having been measured)
+globs: 
+alwaysApply: true
+---
+
+# Match the scope before contradicting a recorded figure [R:measure-the-claim-not-a-subset]
+
+A figure is already written down, your measurement disagrees, and you are about to declare
+the document wrong. Usually it is. When it is not, you replace a true figure with a false
+one -- and the false one now carries the authority of having been measured, pushed there
+by the very rules that tell you to keep documents current (`[R:doc-currency]`,
+`[R:repair-the-lying-artefact]`). This is their failure mode.
+
+State the scope the recorded figure claims, then show that your measurement covers exactly
+that scope -- no wider, no narrower. A filter, an include pattern, a package flag, a module
+path, a date range: each one silently defines a subset, and comparing a subset's count to a
+superset's claim manufactures a discrepancy out of nothing.
+
+**Prefer an enumeration you can read to a count you can only trust.** A list flag, printing
+the matches, thirty lines you can eyeball -- all beat one integer you believe, because the
+excluded set is usually visible at a glance in the enumeration and invisible in the total.
+
+Failure-mode check: **what would my measurement miss that the claim includes?** If you
+cannot name the excluded set, you have not established the scope, and you are not entitled
+to overwrite the number.
+
+Where a figure is load-bearing enough to be worth arguing about, it is worth a check that
+owns its own denominator. The durable fix moves the scope definition out of the reader's
+hands and into a gate, so the claim and the measurement can no longer drift apart --
+`[R:prefer-by-construction]` applied to a number.
+
+<!-- relearn:generated v0.1.0 sha256=5f8605762dd67e5dc7a5f109e1e7e37a7a097412fa8c477ab4d74d113197be48 rules=R:measure-the-claim-not-a-subset -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -1,0 +1,31 @@
+---
+description: Search your own work before specifying a component (Writing the requirement for a component whose need has only been asserted, without first asking whether the thing already exists -- and searching third-party sources when the most likely author of it is you)
+globs: 
+alwaysApply: true
+---
+
+# Search your own work before specifying a component [R:search-before-you-build]
+
+Before writing the requirement for any component, ask whether it already exists -- and
+search **your own work first**.
+
+This is a different question from "does this work?", and it fails at a different moment:
+earlier, before the mechanism is evaluated at all, while its need is still merely
+asserted. A design review that starts once the requirement is written has already
+accepted the premise that something must be built.
+
+The usual research step points outward -- public code search, vendor documentation,
+package registries -- and that is the wrong end of the search space. For a tool built to
+your own discipline, *you* are the most likely author of the thing you are about to
+specify. Grep your own repositories first, and read the charter of anything adjacent,
+including whatever is already open in this session.
+
+Failure-mode check: **if this already existed, where would it be -- and have I looked
+there?** If you cannot name the place you looked, you have not searched; you have
+assumed.
+
+Note what this is not. It is not an argument against building, and it is not satisfied by
+a vague sense that something similar exists somewhere. It asks for a location and a
+result: the path you grepped, the repository you read, and what was or was not there.
+
+<!-- relearn:generated v0.1.0 sha256=b34c17e3b97b519e889c7c67775b16d23751a7521b9945f1849570b052984453 rules=R:search-before-you-build -- DO NOT EDIT; regenerate with `relearn build` -->

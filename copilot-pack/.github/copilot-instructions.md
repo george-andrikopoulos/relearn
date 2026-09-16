@@ -48,6 +48,37 @@ When a request conflicts with the discipline -- *just patch it quickly* -- do th
 
 Checks 1 and 2 do not apply to every change, and saying so is part of doing them. A documentation-only change has no enforcing artefact to ship. Declaring a check inapplicable is honest; quietly omitting it and reporting five greens is the failure this rule names.
 
+## Delegate a fan-out once the work has been enumerated [R:delegate-a-fan-out]
+
+Compiler-driven repair is genuinely serial while you are still deriving what is broken:
+each fix changes the next error. It stops being serial the moment a build, a gate or a plan
+has **enumerated** N independent follow-ups. From there the edits do not depend on each
+other, and walking them one at a time buys nothing. The fan-out point is after the list
+exists, not before.
+
+The same shape covers a documentation set updated once per release, a review that reads
+several files against one contract, and research needing several independent sources.
+
+**When delegation is disabled, put the choice -- do not merely announce the cost.** This
+rule is routinely overridden: a session's harness policy may forbid delegation outright,
+and that policy wins by default. What it does not do is make the cost disappear, and a
+notice issued after you have already chosen is information rather than a decision. At the
+first real fan-out, state the fork in one line -- what would be delegated, roughly how many
+serial round trips it replaces, and what turns it on -- then carry on serially unless told
+otherwise, without repeating the offer. Pointing at a settings toggle does not count: a
+global switch someone must go and change is a regime change, not a choice about *this*
+task.
+
+Failure-mode check: **has something already listed this work for me?** If a build, a gate
+or a plan produced the list, the serial walk is a choice you are making on somebody else's
+budget.
+
+Sibling, deliberately not merged. `[R:no-silent-spend]` is the general form -- every trade
+of the user's time against their money against thoroughness. This rule is kept to the
+delegation instance so the two carry separate metrics: two rules with distinct surfaces can
+be told apart by a review and each carries its own evidence, where one wide rule that fires
+for either reason is falsifiable by nothing.
+
 ## A detector excludes its own definitions from its scan [R:detector-excludes-own-definitions]
 
 Any check whose subject matter is text it must itself contain -- a linter, a secret scanner, a policy grep, a rules sweep -- matches itself by construction. Exclude the detector's own source, comments, and docstrings from its scan, strip comments before matching, and normalise paths to placeholders so documentation *about* a pattern is never read as an instance of it.
@@ -125,6 +156,32 @@ Before writing logic, design the types so invalid states cannot be constructed: 
 ## Measure cost-per-completed-task; never choose by price tier [R:measure-cost-per-task]
 
 Do not pick a mechanism or model by reputation or sticker price. State what it actually costs to complete the task -- tokens consumed times price, including retries -- and choose on that measured cost. After choosing, run one failure-mode check: under what configuration does this cause the exact harm it was chosen to prevent? Then bound that configuration.
+
+## Match the scope before contradicting a recorded figure [R:measure-the-claim-not-a-subset]
+
+A figure is already written down, your measurement disagrees, and you are about to declare
+the document wrong. Usually it is. When it is not, you replace a true figure with a false
+one -- and the false one now carries the authority of having been measured, pushed there
+by the very rules that tell you to keep documents current (`[R:doc-currency]`,
+`[R:repair-the-lying-artefact]`). This is their failure mode.
+
+State the scope the recorded figure claims, then show that your measurement covers exactly
+that scope -- no wider, no narrower. A filter, an include pattern, a package flag, a module
+path, a date range: each one silently defines a subset, and comparing a subset's count to a
+superset's claim manufactures a discrepancy out of nothing.
+
+**Prefer an enumeration you can read to a count you can only trust.** A list flag, printing
+the matches, thirty lines you can eyeball -- all beat one integer you believe, because the
+excluded set is usually visible at a glance in the enumeration and invisible in the total.
+
+Failure-mode check: **what would my measurement miss that the claim includes?** If you
+cannot name the excluded set, you have not established the scope, and you are not entitled
+to overwrite the number.
+
+Where a figure is load-bearing enough to be worth arguing about, it is worth a check that
+owns its own denominator. The durable fix moves the scope definition out of the reader's
+hands and into a gate, so the claim and the measurement can no longer drift apart --
+`[R:prefer-by-construction]` applied to a number.
 
 ## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
 
@@ -369,6 +426,30 @@ Two methods defeat author blindness where rereading cannot. Give the passage to 
 Prefer structure that cannot carry the defect. A heading that states a count goes stale on the next addition, so write the heading without the count rather than remembering to update it -- R:prefer-by-construction applied to prose.
 
 This is the prose sibling of R:wired-artifact: a locally correct change with a silent non-local effect. Ask, every time: *what did this edit quietly leave pointing at nothing?*
+
+## Search your own work before specifying a component [R:search-before-you-build]
+
+Before writing the requirement for any component, ask whether it already exists -- and
+search **your own work first**.
+
+This is a different question from "does this work?", and it fails at a different moment:
+earlier, before the mechanism is evaluated at all, while its need is still merely
+asserted. A design review that starts once the requirement is written has already
+accepted the premise that something must be built.
+
+The usual research step points outward -- public code search, vendor documentation,
+package registries -- and that is the wrong end of the search space. For a tool built to
+your own discipline, *you* are the most likely author of the thing you are about to
+specify. Grep your own repositories first, and read the charter of anything adjacent,
+including whatever is already open in this session.
+
+Failure-mode check: **if this already existed, where would it be -- and have I looked
+there?** If you cannot name the place you looked, you have not searched; you have
+assumed.
+
+Note what this is not. It is not an argument against building, and it is not satisfied by
+a vague sense that something similar exists somewhere. It asks for a location and a
+result: the path you grepped, the repository you read, and what was or was not there.
 
 ## Describe a practice from the artefact that defines it, never from the genre [R:source-practice-from-its-artefact]
 
@@ -819,4 +900,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=818374325fe513716e5b2a46a5ae9386b7dfa761e37d1c285700712e4bfb939b rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=65b628e6a45868a6ab65db0be6a1b1f6e10c9350eec0db03c4e15f535a8d501e rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:search-before-you-build,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
