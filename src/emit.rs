@@ -318,9 +318,14 @@ pub(crate) fn emittable(library: &Library<Validated>) -> Vec<&Rule> {
 /// rules never reach an emitter. Returns the note plus its trailing blank line,
 /// so a caller splices it between a rule's heading and body with one `push_str`.
 #[must_use]
-pub(crate) fn graduation_note(rule: &Rule) -> Option<String> {
+pub(crate) fn enforcement_note(rule: &Rule) -> Option<String> {
     match rule.status() {
         Status::Graduated { to, .. } => Some(format!("> Also enforced by {}.\n\n", to.as_str())),
+        Status::Partial { by, uncovered, .. } => Some(format!(
+            "> Partly enforced by {}; {} is held by this instruction alone.\n\n",
+            by.as_str(),
+            uncovered.as_str()
+        )),
         Status::Active | Status::Attic { .. } => None,
     }
 }
@@ -330,7 +335,7 @@ pub(crate) fn graduation_note(rule: &Rule) -> Option<String> {
 /// most recent one. `None` for a rule with no recurrences, so an unrecurred rule
 /// emits exactly what it emitted before the field existed.
 ///
-/// Same category, same place, same reason as [`graduation_note`]. An assistant
+/// Same category, same place, same reason as [`enforcement_note`]. An assistant
 /// reading the corpus should weight a rule that has bitten three times above one
 /// written once and never seen again; without this the two are indistinguishable
 /// in the instruction layer, which is where the weighting actually happens.
@@ -352,7 +357,7 @@ pub(crate) fn recurrence_note(rule: &Rule) -> Option<String> {
 /// not been told. A rule with no audience is emitted under *every* audience;
 /// annotating it "applies to all" would be a claim the rule does not make.
 ///
-/// Third of the same family as [`graduation_note`] and [`recurrence_note`], and
+/// Third of the same family as [`enforcement_note`] and [`recurrence_note`], and
 /// the last of the three by rank on purpose: the reader's first question about a
 /// rule is whether it is theirs, the second is how firmly it is held, the third
 /// is whether it has bitten. Returns the note plus its trailing blank line, so a
@@ -456,21 +461,48 @@ mod tests {
     }
 
     #[test]
-    fn graduation_note_only_annotates_graduated_rules() {
+    fn a_partial_rule_is_annotated_with_both_halves() {
+        // The reader of an instruction layer must be able to tell "a control
+        // holds this" from "a control holds HALF of this", because the second
+        // means they are still the control for the other half. One sentence
+        // carries both, and the uncovered part is in it by construction.
+        let note = enforcement_note(&rule_with_status(
+            "R:p",
+            Status::partial(
+                "test:ledger.rs::every_enforced_by_row",
+                "any guarantee outside FEATURES.md",
+                Date::parse("2026-09-16").expect("valid date"),
+            )
+            .expect("non-empty control and uncovered part"),
+        ))
+        .expect("a partial rule carries an enforcement note");
+
+        assert_eq!(
+            note,
+            "> Partly enforced by test:ledger.rs::every_enforced_by_row; any guarantee outside FEATURES.md is held by this instruction alone.\n\n"
+        );
+        assert!(
+            !note.contains("Also enforced by"),
+            "a partial graduation must never render as a full one"
+        );
+    }
+
+    #[test]
+    fn enforcement_note_only_annotates_graduated_rules() {
         let date = Date::parse("2026-09-01").expect("valid date");
         assert_eq!(
-            graduation_note(&rule_with_status("R:a", Status::active())),
+            enforcement_note(&rule_with_status("R:a", Status::active())),
             None
         );
         assert_eq!(
-            graduation_note(&rule_with_status(
+            enforcement_note(&rule_with_status(
                 "R:x",
                 Status::attic("retired", date).expect("non-empty reason"),
             )),
             None
         );
         assert_eq!(
-            graduation_note(&rule_with_status(
+            enforcement_note(&rule_with_status(
                 "R:g",
                 Status::graduated(
                     "hook:no-unwrap-in-src",
@@ -534,7 +566,7 @@ mod tests {
                 .expect("non-empty destination"),
             vec![recurrence("2026-08-24")],
         );
-        assert!(graduation_note(&r).is_some());
+        assert!(enforcement_note(&r).is_some());
         assert!(recurrence_note(&r).is_some());
     }
 
@@ -604,7 +636,7 @@ mod tests {
     fn the_audience_note_is_independent_of_the_other_two() {
         let scoped = rule_scoped("R:s", &["rust"]);
         assert!(audience_note(&scoped).is_some());
-        assert!(graduation_note(&scoped).is_none());
+        assert!(enforcement_note(&scoped).is_none());
         assert!(recurrence_note(&scoped).is_none());
 
         let recurred =

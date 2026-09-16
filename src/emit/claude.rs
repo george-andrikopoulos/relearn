@@ -14,8 +14,8 @@
 use std::collections::BTreeMap;
 
 use super::{
-    HomeSlug, OutputFile, RelativePath, audience_note, emittable, graduation_note, recurrence_note,
-    yaml_double_quote,
+    HomeSlug, OutputFile, RelativePath, audience_note, emittable, enforcement_note,
+    recurrence_note, yaml_double_quote,
 };
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule};
@@ -194,7 +194,7 @@ fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
         if let Some(note) = audience_note(r) {
             out.push_str(&note);
         }
-        if let Some(note) = graduation_note(r) {
+        if let Some(note) = enforcement_note(r) {
             out.push_str(&note);
         }
         if let Some(note) = recurrence_note(r) {

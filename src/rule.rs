@@ -44,6 +44,6 @@ pub use origin::{Approval, Approver, ControlRef, Origin, OriginError};
 pub use parse::{ParseError, parse_document};
 pub use scope::{ScopeTag, ScopeTagError};
 pub use serialize::to_document;
-pub use status::{Destination, Emittability, Reason, Status};
+pub use status::{Destination, Emittability, ProseCoverage, Reason, Status, Uncovered};
 pub use tag::{RuleTag, RuleTagError};
 pub use text::{Body, EmptyText, ErrorClass, Incident, PublishedIncident, Title};

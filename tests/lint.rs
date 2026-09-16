@@ -752,3 +752,135 @@ fn a_scope_near_duplicate_is_a_warning() {
         "the message names both scopes: {finding}"
     );
 }
+
+// -- partial graduation -------------------------------------------------------
+//
+// `Status::Partial` exists because a rule can be held by real controls over part
+// of its class and by prose alone over the rest. These four tests are the whole
+// argument for the variant: it must report like `Active` and annotate like
+// `Graduated`, and the two must not bleed into each other.
+
+/// A rule with an explicit status and recurrence history.
+fn rule_with(tag: &str, status: Status, recurrences: Vec<Recurrence>) -> Rule {
+    Rule::new(
+        RuleTag::parse(tag).expect("valid tag"),
+        Title::parse("A title").expect("non-empty title"),
+        ErrorClass::parse("some class").expect("non-empty error class"),
+        Home::global(),
+        Date::parse("2026-08-13").expect("valid date"),
+        Origin::Mined,
+        status,
+        Incident::parse("an incident").expect("non-empty incident"),
+        Body::parse("Body.").expect("non-empty body"),
+        recurrences,
+        Vec::new(),
+        Authority::local(),
+        None,
+    )
+}
+
+fn recurrence(date: &str) -> Recurrence {
+    Recurrence::new(
+        Date::parse(date).expect("valid date"),
+        Incident::parse("it happened again").expect("non-empty incident"),
+    )
+}
+
+fn partial(date: &str) -> Status {
+    Status::partial(
+        "test:a_real_test",
+        "the other half of the class",
+        Date::parse(date).expect("valid date"),
+    )
+    .expect("non-empty by and uncovered")
+}
+
+#[test]
+fn a_partial_rule_that_recurred_is_still_an_unheld_recurrence() {
+    // Naming a control for half a class does not relieve the prose of the other
+    // half. If this ever stops firing, recording an honest partial graduation
+    // becomes a way to silence the warning, which would make the status a place
+    // to hide rather than a place to be precise.
+    let findings = lint(&validated(vec![rule_with(
+        "R:partly-held",
+        partial("2026-09-01"),
+        vec![recurrence("2026-09-10")],
+    )]));
+
+    assert!(
+        findings.iter().any(|f| matches!(
+            f,
+            Finding::UnheldRecurrence { tag, .. } if tag.as_str() == "R:partly-held"
+        )),
+        "a partly-held rule that recurred must still be reported: {findings:?}"
+    );
+}
+
+#[test]
+fn a_partial_rule_that_recurred_after_its_date_is_not_a_lying_artefact() {
+    // The sharp finding — `RecurrenceAfterGraduation` — is an Error that fails
+    // CI, and it means a named control CLAIMED this ground and did not hold it.
+    // A partial graduation never claimed the uncovered part, so a recurrence
+    // there must not fail the build. Recording the truth cannot be the thing
+    // that turns a warning red.
+    let findings = lint(&validated(vec![rule_with(
+        "R:partly-held",
+        partial("2026-09-01"),
+        vec![recurrence("2026-09-10")],
+    )]));
+
+    assert!(
+        !findings
+            .iter()
+            .any(|f| matches!(f, Finding::RecurrenceAfterGraduation { .. })),
+        "a partial graduation makes no whole-class claim, so it cannot lie: {findings:?}"
+    );
+}
+
+#[test]
+fn a_graduated_rule_that_recurred_after_its_date_still_is_one() {
+    // The companion to the test above: the distinction must be the STATUS, not
+    // a weakening of the finding. Same dates, same recurrence, full graduation.
+    let graduated = Status::graduated(
+        "hook:a-real-hook",
+        Date::parse("2026-09-01").expect("valid date"),
+    )
+    .expect("non-empty destination");
+    let findings = lint(&validated(vec![rule_with(
+        "R:fully-held",
+        graduated,
+        vec![recurrence("2026-09-10")],
+    )]));
+
+    assert!(
+        findings
+            .iter()
+            .any(|f| matches!(f, Finding::RecurrenceAfterGraduation { .. })),
+        "a graduated rule that recurred after graduating is the sharpest finding: {findings:?}"
+    );
+}
+
+#[test]
+fn citing_a_partial_rule_is_not_a_retired_reference() {
+    // A partly-held rule is live guidance, so pointing at it is ordinary. The
+    // previous predicate was `!matches!(status, Active)`, which would have
+    // flagged every citation of a partial rule the day the variant landed —
+    // silently, because adding an enum variant does not break a `matches!`.
+    let citing = rule(
+        "R:cites",
+        Home::global(),
+        "some class",
+        "See [R:partly-held] for the rest.",
+    );
+    let findings = lint(&validated(vec![
+        citing,
+        rule_with("R:partly-held", partial("2026-09-01"), Vec::new()),
+    ]));
+
+    assert!(
+        !findings
+            .iter()
+            .any(|f| matches!(f, Finding::RetiredReference { .. })),
+        "a partial rule has not retired or moved: {findings:?}"
+    );
+}

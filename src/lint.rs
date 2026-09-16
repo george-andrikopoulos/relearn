@@ -22,7 +22,7 @@ use std::fmt;
 
 use crate::emit::HomeSlug;
 use crate::library::{Library, Validated};
-use crate::rule::{Date, Home, Rule, RuleTag, ScopeTag, Status};
+use crate::rule::{Date, Home, ProseCoverage, Rule, RuleTag, ScopeTag, Status};
 
 /// How much a finding matters. Ordered so `Error > Warning > Info`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -126,6 +126,11 @@ pub enum Finding {
     UnheldRecurrence {
         /// The rule that keeps firing.
         tag: RuleTag,
+        /// Which status it is in -- `active` (prose holds all of it) or
+        /// `partial` (prose holds the part its controls do not). Carried rather
+        /// than assumed: this message said "is `active`" unconditionally, which
+        /// `Status::Partial` made false on arrival.
+        status: &'static str,
         /// How many recurrences it records.
         times: usize,
         /// The date of the most recent one.
@@ -204,11 +209,28 @@ impl fmt::Display for Finding {
             // States what the finding *means*, not what it found. The count is
             // evidence; the actionable fact is that prose is the only thing
             // holding this rule and prose has already been shown to fail.
-            Finding::UnheldRecurrence { tag, times, latest } => write!(
-                f,
-                "unheld recurrence: {} is `active`, so prose is the only thing holding it — and it has fired {times} more time(s) since it was written, most recently {latest}. Promote it to a control that can hold it (a type, a property test, a gate check) and record that with `status = {{ kind = \"graduated\", to = \"...\" }}`",
-                tag.as_str()
-            ),
+            Finding::UnheldRecurrence {
+                tag,
+                status,
+                times,
+                latest,
+            } => {
+                let holding = if *status == "partial" {
+                    "so prose alone holds the part its controls do not"
+                } else {
+                    "so prose is the only thing holding it"
+                };
+                let remedy = if *status == "partial" {
+                    "Extend its controls over the uncovered part, or narrow what `uncovered` claims is still exposed"
+                } else {
+                    "Promote it to a control that can hold it (a type, a property test, a gate check) and record that with `status = { kind = \"graduated\", to = \"...\" }`"
+                };
+                write!(
+                    f,
+                    "unheld recurrence: {} is `{status}`, {holding} — and it has fired {times} more time(s) since it was written, most recently {latest}. {remedy}",
+                    tag.as_str()
+                )
+            }
         }
     }
 }
@@ -385,7 +407,7 @@ fn reference_checks(library: &Library<Validated>) -> Vec<Finding> {
                     to: cited,
                 }),
                 Some(target) => {
-                    if !matches!(target.status(), Status::Active) {
+                    if target.status().prose_coverage() == ProseCoverage::None {
                         findings.push(Finding::RetiredReference {
                             from: rule.tag().clone(), // allow:clone: the finding owns its tags, outliving the &Library borrow
                             to: cited,
@@ -399,8 +421,8 @@ fn reference_checks(library: &Library<Validated>) -> Vec<Finding> {
     findings
 }
 
-/// Rules that are still `Active` — held by prose alone — and have recurred
-/// since they were written.
+/// Rules whose prose still holds them — wholly (`Active`), or the part no named
+/// control covers (`Partial`) — and which have recurred since they were written.
 ///
 /// **No count threshold.** The first recurrence already proves the prose failed;
 /// two is not more actionable than one, and any cut-off would be a magic number
@@ -412,11 +434,12 @@ fn unheld_recurrences(library: &Library<Validated>) -> Vec<Finding> {
     library
         .rules()
         .iter()
-        .filter(|rule| matches!(rule.status(), Status::Active))
+        .filter(|rule| rule.status().prose_coverage() == ProseCoverage::Holds)
         .filter_map(|rule| {
             let latest = rule.latest_recurrence()?;
             Some(Finding::UnheldRecurrence {
                 tag: rule.tag().clone(), // allow:clone: the finding owns its tag, outliving the &Library borrow
+                status: status_kind(rule.status()),
                 times: rule.recurrences().len(),
                 latest,
             })
@@ -431,14 +454,19 @@ fn unheld_recurrences(library: &Library<Validated>) -> Vec<Finding> {
 /// a finding — it is very often the incident that prompted the graduation, and
 /// flagging it would punish exactly the response the library wants. Only a
 /// recurrence strictly after the date says the stronger control did not hold.
+///
+/// A `Partial` rule is deliberately never reported here, which is why this reads
+/// [`Status::whole_class_claim`] rather than matching `Graduated` directly. Its
+/// controls never claimed the uncovered part, so a recurrence there is the prose
+/// failing — reported by `unheld_recurrences` as a warning — and not a named
+/// control lying, which is an `Error` that fails CI. Recording an honest partial
+/// graduation must never turn a warning into a build failure.
 fn recurrence_after_graduation(library: &Library<Validated>) -> Vec<Finding> {
     library
         .rules()
         .iter()
         .filter_map(|rule| {
-            let Status::Graduated { to, date } = rule.status() else {
-                return None;
-            };
+            let (to, date) = rule.status().whole_class_claim()?;
             let recurred = rule
                 .recurrences()
                 .iter()
@@ -542,6 +570,7 @@ pub fn tally(library: &Library<Validated>) -> Tally {
 fn status_kind(status: &Status) -> &'static str {
     match status {
         Status::Active => "active",
+        Status::Partial { .. } => "partial",
         Status::Graduated { .. } => "graduated",
         Status::Attic { .. } => "atticked",
     }

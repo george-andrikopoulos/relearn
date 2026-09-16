@@ -21,7 +21,7 @@
 //! **Must NOT:** read the filesystem, or read anything not carried by the rule.
 
 use super::{
-    LoadSemantics, OutputFile, RelativePath, audience_note, emittable, graduation_note,
+    LoadSemantics, OutputFile, RelativePath, audience_note, emittable, enforcement_note,
     recurrence_note,
 };
 use crate::library::{Library, Validated};
@@ -85,7 +85,7 @@ fn render_mdc(rule: &Rule, scope: &LoadSemantics) -> String {
     if let Some(note) = audience_note(rule) {
         out.push_str(&note);
     }
-    if let Some(note) = graduation_note(rule) {
+    if let Some(note) = enforcement_note(rule) {
         out.push_str(&note);
     }
     if let Some(note) = recurrence_note(rule) {

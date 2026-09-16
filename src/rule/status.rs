@@ -40,6 +40,55 @@ impl Reason {
     }
 }
 
+/// What a *partial* graduation does **not** cover -- non-empty.
+///
+/// Mandatory in [`Status::Partial`] rather than optional, and that is the whole
+/// point of the variant. A partial graduation that does not say which part is
+/// still uncovered reads exactly like a full one: it names a control, the reader
+/// stops looking, and the uncovered half is protected by nothing while appearing
+/// to be held -- `[R:guarantee-needs-a-reader]` wearing a status. Living in the
+/// variant means "partly held, but I will not say what is missing" cannot be
+/// constructed at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Uncovered(String);
+
+impl Uncovered {
+    /// Parse a non-empty statement of what a partial graduation leaves uncovered.
+    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
+        Ok(Self(nonempty("uncovered part", s)?))
+    }
+
+    /// The uncovered-part text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Whether prose is still holding any part of a rule.
+///
+/// The authority for two of [`crate::lint`]'s questions: whether a recurrence is
+/// an *unheld* one, and whether a citation points at a rule whose prose has
+/// stopped carrying it. `Active` and `Partial` answer `Holds` for both -- a
+/// partly-held rule is live guidance and perfectly ordinary to cite.
+///
+/// Produced by an exhaustive match on [`Status`] for the same reason as
+/// [`Emittability`]: a future status variant cannot compile until somebody
+/// decides whether prose still carries it. The previous form was a
+/// `matches!(status, Status::Active)` at the call site, which would have
+/// answered "no" for a new variant *silently* -- the failure mode this codebase
+/// pushes into the type system rather than leaving to review.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProseCoverage {
+    /// Prose holds this rule: the whole of it (`Active`), or the part no named
+    /// control covers (`Partial`). A recurrence therefore says the prose did not
+    /// hold, which is exactly the unheld-recurrence finding.
+    Holds,
+    /// Prose holds none of it -- a stronger control claims the whole class
+    /// (`Graduated`), or the guidance has been withdrawn (`Attic`).
+    None,
+}
+
 /// Whether a rule's lifecycle status permits writing it into an active
 /// instruction layer (a skill, `AGENTS.md`, a project `CLAUDE.md`, …).
 ///
@@ -67,6 +116,29 @@ pub enum Emittability {
 pub enum Status {
     /// Live and enforced.
     Active,
+    /// Partly held: the controls named in `by` cover only some of the class, and
+    /// `uncovered` states what prose is still carrying alone, as of `date`.
+    ///
+    /// This variant exists because the two honest options without it were both
+    /// wrong. Recording such a rule as `Graduated` emits *"Also enforced by X"*
+    /// into five instruction layers for a class X only half covers, and arms
+    /// `RecurrenceAfterGraduation` -- an `Error` that fails CI -- against a
+    /// recurrence in the part X never claimed. Recording it as `Active` throws
+    /// away the fact that real controls exist and were built.
+    ///
+    /// So `Partial` reports like `Active` and annotates like `Graduated`: prose
+    /// still holds part of it, so a recurrence is still an unheld recurrence; a
+    /// named control still holds part of it, so the reader is told which. What it
+    /// deliberately does **not** do is claim the whole class -- see
+    /// [`Status::whole_class_claim`].
+    Partial {
+        /// The controls that hold part of the class.
+        by: Destination,
+        /// The part they do not hold, which prose still carries.
+        uncovered: Uncovered,
+        /// When this became the state of affairs.
+        date: Date,
+    },
     /// Superseded by a stronger control at `to` (e.g. a hook), on `date`.
     ///
     /// The date is not decoration. Without it nothing can ask the question that
@@ -105,6 +177,22 @@ impl Status {
         })
     }
 
+    /// Partly held as of `date`: `by` names the controls that cover part of the
+    /// class and `uncovered` states the part they do not. Both must be non-empty,
+    /// and both are required -- a partial graduation that will not say what is
+    /// missing is the exact artefact this variant exists to prevent.
+    pub fn partial(
+        by: impl Into<String>,
+        uncovered: impl Into<String>,
+        date: Date,
+    ) -> Result<Self, EmptyText> {
+        Ok(Status::Partial {
+            by: Destination::parse(by)?,
+            uncovered: Uncovered::parse(uncovered)?,
+            date,
+        })
+    }
+
     /// Atticked with `reason` on `date`; the reason must be non-empty and the
     /// date is an already-validated [`Date`].
     pub fn attic(reason: impl Into<String>, date: Date) -> Result<Self, EmptyText> {
@@ -121,8 +209,41 @@ impl Status {
     #[must_use]
     pub fn emittability(&self) -> Emittability {
         match self {
-            Status::Active | Status::Graduated { .. } => Emittability::Emit,
+            Status::Active | Status::Partial { .. } | Status::Graduated { .. } => {
+                Emittability::Emit
+            }
             Status::Attic { .. } => Emittability::Suppress,
+        }
+    }
+
+    /// Whether prose still holds any part of this rule, and therefore whether a
+    /// recurrence is an *unheld* recurrence.
+    ///
+    /// The single authority for that policy, exhaustive by design -- see
+    /// [`ProseCoverage`]. `Partial` answers `Holds` on purpose: naming a control
+    /// for half a class does not relieve the prose of the other half, and a
+    /// recurrence there is precisely the signal the finding exists to surface.
+    #[must_use]
+    pub fn prose_coverage(&self) -> ProseCoverage {
+        match self {
+            Status::Active | Status::Partial { .. } => ProseCoverage::Holds,
+            Status::Graduated { .. } | Status::Attic { .. } => ProseCoverage::None,
+        }
+    }
+
+    /// The claim, if any, that a named control holds the **whole** of this rule's
+    /// class from a given date -- what `recurrence-after-graduation` tests.
+    ///
+    /// `None` for `Partial`, and that asymmetry with [`Self::prose_coverage`] is
+    /// the point of the variant: a recurrence in a partly-held rule says the
+    /// prose failed, never that the named control lied, because the control never
+    /// claimed that ground. Reporting it as a lying artefact would fail CI for
+    /// doing the honest thing.
+    #[must_use]
+    pub fn whole_class_claim(&self) -> Option<(&Destination, &Date)> {
+        match self {
+            Status::Graduated { to, date } => Some((to, date)),
+            Status::Active | Status::Partial { .. } | Status::Attic { .. } => None,
         }
     }
 }
@@ -175,5 +296,74 @@ mod tests {
                 .emittability(),
             Emittability::Suppress,
         );
+    }
+
+    // -- partial graduation ------------------------------------------------
+
+    #[test]
+    fn partial_requires_a_control() {
+        assert!(
+            Status::partial("", "the rest", date()).is_err(),
+            "a partial graduation naming no control is not partial, it is active"
+        );
+    }
+
+    #[test]
+    fn partial_requires_the_uncovered_part() {
+        // The whole argument for the variant: a partial graduation that will not
+        // say what is missing reads exactly like a full one, and the reader stops
+        // looking. Unconstructible rather than discouraged.
+        assert!(
+            Status::partial("test:a_test", "", date()).is_err(),
+            "a partial graduation must state what it does not cover"
+        );
+    }
+
+    #[test]
+    fn partial_is_emitted() {
+        assert_eq!(
+            partial_status().emittability(),
+            Emittability::Emit,
+            "a partly-held rule is live guidance and belongs in the instruction layer"
+        );
+    }
+
+    #[test]
+    fn partial_prose_still_holds() {
+        assert_eq!(partial_status().prose_coverage(), ProseCoverage::Holds);
+    }
+
+    #[test]
+    fn partial_makes_no_whole_class_claim() {
+        // The asymmetry with the test above IS the variant. Prose holds part, so
+        // a recurrence is reported; no control claims the whole, so that report
+        // is a warning about the prose and never an Error about a lying control.
+        assert!(partial_status().whole_class_claim().is_none());
+    }
+
+    #[test]
+    fn graduated_claims_the_whole_class() {
+        let status = Status::graduated("hook:a-hook", date()).expect("non-empty destination");
+        assert!(status.whole_class_claim().is_some());
+    }
+
+    #[test]
+    fn active_and_atticked_claim_nothing() {
+        assert!(Status::active().whole_class_claim().is_none());
+        assert!(
+            Status::attic("cold surface", date())
+                .expect("non-empty reason")
+                .whole_class_claim()
+                .is_none()
+        );
+    }
+
+    fn date() -> Date {
+        Date::parse("2026-09-16").expect("valid date")
+    }
+
+    fn partial_status() -> Status {
+        Status::partial("test:a_test", "everything else", date())
+            .expect("non-empty control and uncovered part")
     }
 }

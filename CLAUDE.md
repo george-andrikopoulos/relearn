@@ -73,6 +73,16 @@ It is the reference implementation of the error loop described in *Tuning the St
   the other half of that question is `Authority::Local`'s optional revision, which is how a
   published rule says which revision it *is*. One field, one meaning, so a cached file never
   carries the number twice; absent, no cache of it can be told it is stale and nothing guesses.
+- **A rule can be *partly* held, and the status must then say what is not held.** Controls
+  routinely cover part of an error class and prose covers the rest; with only `Active` and
+  `Graduated`, recording that honestly was impossible, and the dishonest option was worse than
+  silence — `Graduated` prints "Also enforced by X" into five instruction layers for ground X
+  never claimed, and makes the next recurrence there a CI failure. `Status::Partial` carries
+  `uncovered` as a field of the variant, so a partial graduation that will not name the gap is
+  unconstructible. It reports like `Active` and annotates like `Graduated`, and those two halves
+  are decided by `prose_coverage` and `whole_class_claim` — exhaustive matches, so a new status
+  variant cannot compile until both are answered. Recording the truth must never turn a warning
+  into a build failure, or the honest status becomes the one nobody uses.
 - **A poke is news, never a verdict.** The federation's signal is surfaced inside `lint`, carries
   no severity, and is printed after the exit code has been decided — a signal from strangers that
   could fail CI would have made federation required. One trigger is reactive (a rule fired *here*,

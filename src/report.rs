@@ -392,6 +392,7 @@ fn reportable(rule: &Rule) -> bool {
 fn status_kind(status: &Status) -> &'static str {
     match status {
         Status::Active => "active",
+        Status::Partial { .. } => "partial",
         Status::Graduated { .. } => "graduated",
         Status::Attic { .. } => "attic",
     }

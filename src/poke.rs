@@ -573,7 +573,7 @@ fn cache_retired_upstream(local: &Library<Validated>, upstream: &Library<Validat
         .iter()
         .filter_map(|rule| match rule.status() {
             Status::Attic { reason, date } => Some((rule.tag().as_str(), (reason.as_str(), *date))),
-            Status::Active | Status::Graduated { .. } => None,
+            Status::Active | Status::Partial { .. } | Status::Graduated { .. } => None,
         })
         .collect();
 

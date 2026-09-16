@@ -199,6 +199,8 @@ struct RawHome {
 struct RawStatus {
     kind: String,
     to: Option<String>,
+    by: Option<String>,
+    uncovered: Option<String>,
     reason: Option<String>,
     date: Option<String>,
 }
@@ -475,6 +477,27 @@ impl RawStatus {
                     source,
                 })?;
                 Ok(Status::graduated(to, date)?)
+            }
+            "partial" => {
+                let by = self.by.ok_or(ParseError::MissingField {
+                    context: "status partial",
+                    field: "by",
+                })?;
+                // Required, not defaulted. A partial graduation that does not say
+                // which part is still uncovered reads exactly like a full one.
+                let uncovered = self.uncovered.ok_or(ParseError::MissingField {
+                    context: "status partial",
+                    field: "uncovered",
+                })?;
+                let date_str = self.date.ok_or(ParseError::MissingField {
+                    context: "status partial",
+                    field: "date",
+                })?;
+                let date = Date::parse(&date_str).map_err(|source| ParseError::Date {
+                    field: "status.date",
+                    source,
+                })?;
+                Ok(Status::partial(by, uncovered, date)?)
             }
             "attic" => {
                 let reason = self.reason.ok_or(ParseError::MissingField {

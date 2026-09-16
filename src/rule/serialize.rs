@@ -174,6 +174,16 @@ fn status_line(status: &Status) -> String {
             toml_basic_string(to.as_str()),
             toml_basic_string(&date.to_string())
         ),
+        Status::Partial {
+            by,
+            uncovered,
+            date,
+        } => format!(
+            "status = {{ kind = \"partial\", by = {}, uncovered = {}, date = {} }}\n",
+            toml_basic_string(by.as_str()),
+            toml_basic_string(uncovered.as_str()),
+            toml_basic_string(&date.to_string())
+        ),
         Status::Attic { reason, date } => format!(
             "status = {{ kind = \"attic\", reason = {}, date = {} }}\n",
             toml_basic_string(reason.as_str()),
