@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Put the costed fork; never resolve a trade of the user's resources silently [R:no-silent-spend]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-16.
+
 Time, money and thoroughness trade against each other on nearly every task: a longer
 commit message, a fuller documentation pass, re-running a whole verification suite where
 a fast subset would have served, ten sequential steps where one batched pass would do.
@@ -32,4 +34,4 @@ discharged by a documented default or a settings toggle. A switch someone must g
 change is a regime change, not a choice about *this* task; the lever has to be pullable
 in the moment, or it is not a lever.
 
-<!-- relearn:generated v0.1.0 sha256=99defb1f18ee1636d9243e459d7556a6092336b545cf5784f4edce6ac7102570 rules=R:no-silent-spend -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=9e3874c827ae415d7c76ae42035cf4d6af22b50e81567cd9af8699cc40126889 rules=R:no-silent-spend -- DO NOT EDIT; regenerate with `relearn build` -->
