@@ -1,6 +1,6 @@
 ---
 name: project-design-architecture-tool
-description: "Engineering discipline for the design-architecture-tool repository. Covers: A role belongs to an edge endpoint, never to the thing at the end of it; Seed data reaches only the installations that did not exist yet; A character the UI draws must have a glyph in the faces the app actually loads"
+description: "Engineering discipline for the design-architecture-tool repository. Covers: role is an edge property; seeded data needs a migration; verify the glyph exists"
 ---
 
 # project: design-architecture-tool rules
@@ -92,4 +92,4 @@ Failure-mode check, before any non-ASCII character reaches a widget: **which of 
 loaded faces has this glyph, and what asserted that?** If the answer is that it looked
 fine where it was typed, nothing has been verified.
 
-<!-- relearn:generated v0.1.0 sha256=9fd9a80d73a276b815537611722502ce72e300db2cb08eaec67c2e78d5d6801a rules=R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=a9995b0696dca541c4989462668451fd4c71757894b65b227db6d9b513bebf08 rules=R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists -- DO NOT EDIT; regenerate with `relearn build` -->

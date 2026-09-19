@@ -1,6 +1,6 @@
 ---
 name: project-relearn
-description: "Engineering discipline for the relearn repository. Covers: A generator never overwrites content it did not generate; Order by an explicit rank, not an incidental string sort"
+description: "Engineering discipline for the relearn repository. Covers: generate guards unversioned; order by explicit rank"
 ---
 
 # project: relearn rules
@@ -13,4 +13,4 @@ A generator that writes into a directory shared with hand-authored files must ne
 
 When output has a meaningful order, derive it from an explicit rank that states the intent (general to specific, most to least severe), not from an incidental lexical sort of some string field. An alphabetical accident is not an ordering decision, and it changes silently the day the underlying strings change.
 
-<!-- relearn:generated v0.1.0 sha256=56ef6e6ddc26d51977410f250a436340369761a09b6ff4877c91bd99b358ca2d rules=R:generate-guards-unversioned,R:order-by-explicit-rank -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=1063d860e854de705f0af2062126e8f1cc0ee1b9fb04b49ed06e084fc243c7c7 rules=R:generate-guards-unversioned,R:order-by-explicit-rank -- DO NOT EDIT; regenerate with `relearn build` -->

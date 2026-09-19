@@ -91,17 +91,32 @@ impl SkillDescription {
     /// Build a description from a lead sentence and the home's rule titles,
     /// keeping as many titles as fit and naming the count of those dropped.
     ///
-    /// **Titles, not error classes.** The error class states the *failure* in a
-    /// subordinate clause written for a reviewer ("Encoding a distinct state as
-    /// a magic value of an existing type ... that downstream logic must
-    /// remember to special-case"); the title states the *practice* in a few
-    /// words ("No sentinel values: absent states are enum variants"). A matcher
-    /// reads the description looking for the subject at hand, so the title is
-    /// the useful token and the error class is ballast — it is also what made
-    /// the field seven times too long.
+    /// **Subjects, not titles, and certainly not error classes.** Each entry is
+    /// the rule's tag body with its hyphens turned into spaces — `no coordinated
+    /// omission`, `a view is not a copy`. The three candidates differ by an
+    /// order of magnitude in what they cost per rule and barely at all in what
+    /// a matcher can do with them:
     ///
-    /// Truncation is deterministic (titles arrive in the caller's tag order), so
-    /// re-emitting an unchanged library reproduces the same bytes.
+    /// * the **error class** states the failure in a clause written for a
+    ///   reviewer, and is what made this field seven times too long in the
+    ///   first place;
+    /// * the **title** states the practice as a sentence, at sixty-odd
+    ///   characters — over thirty rules that is 1824 characters against a 1024
+    ///   budget, so more than half of `global` was replaced by `+N more`;
+    /// * the **tag body** states the same subject in half the space (749 for
+    ///   those same thirty), because it was authored as a keyword phrase and
+    ///   carries no articles, no verbs of being, and no qualifying clause.
+    ///
+    /// The hyphens become spaces so the matcher sees separate word tokens rather
+    /// than one identifier, and so a human reading the skill list sees a phrase.
+    /// This is not a heuristic compression of the title: the tag is a field the
+    /// author wrote, it is unique, and it is the rule's identity, so nothing is
+    /// being inferred or thrown away.
+    ///
+    /// Truncation remains possible and is no longer expected. It is ordered by
+    /// [`description_order`] rather than by the alphabet, and
+    /// `tests/description_reaches_every_rule.rs` fails the build if any home
+    /// ever reaches it again.
     fn build(lead: &str, titles: &[&str]) -> Self {
         const JOIN: &str = "; ";
         let mut out = format!("{lead} Covers: ");
@@ -207,11 +222,12 @@ fn description_order<'a>(rules: &[&'a Rule]) -> Vec<&'a Rule> {
 
 fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
     let label = home_label(home);
-    let titles: Vec<&str> = description_order(rules)
+    let owned: Vec<String> = description_order(rules)
         .iter()
-        .map(|r| r.title().as_str())
+        .map(|r| r.tag().body().replace('-', " "))
         .collect();
-    let description = SkillDescription::build(&description_lead(home), &titles)
+    let subjects: Vec<&str> = owned.iter().map(String::as_str).collect();
+    let description = SkillDescription::build(&description_lead(home), &subjects)
         .as_str()
         .to_owned();
 
@@ -415,8 +431,15 @@ mod tests {
             .find(|f| f.path().as_str() == "skills/domain-rust/SKILL.md")
             .expect("the rust skill is present");
         let description = description_of(rust.contents());
-        assert!(description.contains("Rust one"), "{description}");
-        assert!(description.contains("Rust two"), "{description}");
+        // The rule's *subject* — its tag body, hyphens turned to spaces — not
+        // its title. Half the characters for the same matchable words, which is
+        // what lets a thirty-rule home fit inside the cap at all.
+        assert!(description.contains("r1"), "{description}");
+        assert!(description.contains("r2"), "{description}");
+        // And the title is now absent, so the saving is real rather than
+        // additive.
+        assert!(!description.contains("Rust one"), "{description}");
+        assert!(!description.contains("Rust two"), "{description}");
         // Error classes are deliberately absent: they are reviewer-facing prose
         // about the *failure*, they say nothing a matcher can trigger on, and
         // including them is what pushed the real corpus past the cap.
@@ -450,23 +473,36 @@ mod tests {
             .to_owned()
     }
 
+    /// The description value is double-quoted, so a colon inside it stays valid
+    /// YAML rather than reading as a second key.
+    ///
+    /// **This test's channel changed and the test changed with it.** It used to
+    /// put the colon in a rule *title*, which was how a title reached the
+    /// description. Titles no longer do — the field lists tag bodies, and a tag
+    /// is `[a-z0-9][a-z0-9-]*`, so it cannot carry a colon at all. Left as it
+    /// was, the test would have gone on passing while asserting nothing: the
+    /// colon would simply never have arrived.
+    ///
+    /// The colon can still arrive, by the one route left open — a **project
+    /// path**, which `description_lead` interpolates and which on Windows begins
+    /// `C:`. So the quoting is still load-bearing, and this now exercises the
+    /// channel that actually exists. `[R:verify-through-production-path]`
     #[test]
-    fn description_is_quoted_so_a_colon_in_a_title_stays_valid_yaml() {
-        let lib = validated(vec![rule(
-            "R:x",
-            Home::global(),
-            "Title: with colon",
-            "err",
-            "b",
-        )]);
+    fn description_is_quoted_so_a_colon_in_a_home_label_stays_valid_yaml() {
+        let home = Home::project("C:/repo").expect("non-empty project path");
+        let lib = validated(vec![rule("R:x", home, "A title", "err", "b")]);
         let files = emit(&lib);
         let c = files[0].contents();
         assert!(
-            c.contains(
-                "description: \"Engineering discipline that applies to every project and language. Covers: Title: with colon\""
-            ),
+            c.contains(r#"description: "Engineering discipline for the C:/repo repository."#),
             "the description value is double-quoted, so an inner colon is safe: {c}"
         );
+        // The colon is inside the quoted scalar, not ending the key.
+        let line = c
+            .lines()
+            .find(|l| l.starts_with("description:"))
+            .expect("a description line");
+        assert!(line.ends_with('"'), "the value is closed: {line}");
     }
 
     #[test]
@@ -644,8 +680,10 @@ mod tests {
 
         let desc_end = c.find("\n---\n\n").expect("front-matter is closed");
         let (front, body) = c.split_at(desc_end);
+        // The description names subjects (tag bodies), so the tags appear there
+        // without their `R:` prefix; the body's headings keep the full tag.
         assert!(
-            front.find("R:zzz").expect("zzz is described") < front.find("R:aaa").expect("aaa too"),
+            front.find("zzz").expect("zzz is described") < front.find("aaa").expect("aaa too"),
             "the description is ranked: {front}"
         );
         assert!(

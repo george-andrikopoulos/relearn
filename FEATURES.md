@@ -768,6 +768,51 @@ rules, and the claude inventory had no line for the new `domain-java` skill at a
 `domain-java` sits at 884/1024 characters with no truncation, and 13 rules was chosen to keep it
 there. `domain-low-latency` at 15 rules **does** truncate, dropping 2. That is the open
 description-as-inventory question in `TODO.md`, not a defect in these rules.
+
+### A skill description names every rule in its home, and no longer truncates
+
+What: the `description` lists each rule's **tag body with hyphens turned into spaces** —
+`no coordinated omission`, `a view is not a copy` — rather than its title. Every home now fits
+inside the 1024-character cap with room, and the remainder counter is gone from the corpus.
+
+| Home | Rules | Description | Dropped before | Dropped now |
+|---|---:|---:|---:|---:|
+| `global` | 30 | 884 | **15** | 0 |
+| `domain-rust` | 18 | 508 | 0 | 0 |
+| `domain-low-latency` | 15 | 612 | **2** | 0 |
+| `domain-java` | 13 | 457 | 0 | 0 |
+
+**The field had two jobs fighting over one budget** — be a trigger, and be an inventory — and the
+inventory job was never its own: the skill body already lists every rule, and a matcher loads a
+whole home or none of it. Listing titles cost sixty-odd characters each, so `global`'s thirty came
+to 1824 against a 1024 budget; the same thirty tag bodies cost 749. The saving is not compression:
+a tag is a field the author wrote, unique and stable, already a keyword phrase with no articles and
+no qualifying clause. Turning the hyphens into spaces is what makes a matcher see separate word
+tokens and a human see a phrase.
+
+This is what the truncation **rank** could not do. Ordering decides *which* rules are dropped when
+the field overflows, and it was necessary — `[R:order-by-explicit-rank]`, since the alphabet was
+choosing — but at 1824 characters against 1024 no ordering makes the field hold them. The rank
+remains, for the residual case.
+
+**Enforced by:** `tests/description_reaches_every_rule.rs` over the **real corpus** — a *budget*
+check rather than a formatting one, asserting the outcome that matters (no rule is unmatchable)
+and failing on the day a home grows past what the field can hold, which is the warning that was
+missing + `no_skill_description_has_had_to_truncate`, the symptom half, naming the home + the
+`emit::claude` unit pins, which hold the formatting (`description_covers_each_rule_in_the_home`
+now asserts the subject is present **and the title is absent**, so the saving is real rather than
+additive).
+
+**Two tests had their premise changed and were rewritten rather than relaxed.**
+`description_is_quoted_so_a_colon_in_a_title_stays_valid_yaml` put a colon in a *title* to prove
+the YAML quoting was load-bearing; titles no longer reach the field and a tag cannot contain a
+colon, so left alone it would have passed while asserting nothing. The colon can still arrive by
+one route — a **project path**, which `description_lead` interpolates and which on Windows begins
+`C:` — so it now exercises that channel (`[R:verify-through-production-path]`). And the truncation
+detector first matched the word `" more"`, which reported `global` as truncated when all thirty
+rules were present, because `five-files-no-more` renders as `five files no more`: a detector whose
+pattern occurs in the data it counts (`[R:detector-excludes-own-definitions]`). It matches
+`+<digit>` now.
 ### An audience no rule declares is an error for `build` and `verify`, and an empty listing for `list`
 
 What: `relearn build --scope rsut` fails naming the declared scopes rather than emitting. The reason is **sharper than the unknown-home one and is recorded as such**: an unknown home produces an empty emission, which at least looks wrong; an unknown scope produces a tree that is *quietly missing every scoped rule* while every unscoped rule is still present — output that looks like success. `list --scope` mirrors `list --home` instead: printing nothing *is* an answer for a listing, and is not one for a gate.

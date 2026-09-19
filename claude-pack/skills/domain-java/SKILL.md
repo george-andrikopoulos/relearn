@@ -1,6 +1,6 @@
 ---
 name: domain-java
-description: "Engineering discipline for working in java. Covers: A path optimised on yesterday's inputs deoptimises when today's arrive; A collection view is a window onto someone else's data; A wrapper type costs an object until escape analysis removes it; A resource is closed by the construct that opened it, on every path; A class is final, or its inheritance is designed and documented; equals and hashCode are one decision, and a mutable key breaks both; Catch what you can answer; never catch Exception; Comparing boxed numbers with == works until the value exceeds 127; A class that hands out its own mutable state has no invariant; Never return null to mean absent; An object handed to another thread is published safely, or it arrives half-built; A closed set of alternatives is a sealed hierarchy, matched exhaustively; Implementing Serializable adds a constructor that checks nothing"
+description: "Engineering discipline for working in java. Covers: a speculated path deoptimises when the input changes; a view is not a copy; a wrapper type is not free here; close what you open; design for inheritance or forbid it; equality is one contract; exceptions name what failed; identity is not equality for boxes; no reference to internals escapes; null is not a value; publish safely or not at all; seal the alternatives; serializable is a second constructor"
 ---
 
 # domain: java rules
@@ -532,4 +532,4 @@ serializable.
 Failure-mode check, before adding the interface: **what does this class's constructor check,
 and am I content for a byte stream to skip it?**
 
-<!-- relearn:generated v0.1.0 sha256=f6819f10058c86242c3b8ef8721e4fbabc4aa1240a79b60c8aa553ad7bae0a1b rules=R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=c74f63e330cbcea9b40d8300d537a079341c08210a1f3122ae29fa88df75bef6 rules=R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
