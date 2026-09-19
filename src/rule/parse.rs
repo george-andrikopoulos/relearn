@@ -15,7 +15,8 @@ use serde::Deserialize;
 use super::{
     Approval, Approver, Authority, Body, ControlError, ControlRef, Date, DateError, EmptyText,
     ErrorClass, Home, Incident, Origin, OriginError, PublishedIncident, Recurrence, Rule, RuleTag,
-    RuleTagError, ScopeTag, ScopeTagError, SourceId, Status, StatusError, Title, Version,
+    RuleTagError, ScopeTag, ScopeTagError, SourceArtefact, SourceId, Status, StatusError, Title,
+    Version,
 };
 
 /// Why a rule document failed to parse.
@@ -141,6 +142,16 @@ struct RawRule {
     /// contains; the parsed shape may not.
     #[serde(default)]
     approval: Option<RawApproval>,
+    /// The artefact a **codified** rule was written down from.
+    ///
+    /// `default` and absent for every rule that predates the field, which is
+    /// all of them — the absent case is the common one and must stay free.
+    /// Present on any other origin, `Origin::parse` refuses it rather than
+    /// dropping it, exactly as it refuses a stray `approval`: a provenance
+    /// field the parser silently discards reads back, to the next person, as
+    /// an artefact the rule cited.
+    #[serde(default)]
+    source: Option<String>,
     /// Whether this install is the rule's home, holds a cache of one whose home
     /// is elsewhere, or holds a deliberate fork.
     ///
@@ -261,7 +272,11 @@ impl RawRule {
         // errors (`approval.by must not be empty`), and handed to `Origin::parse`
         // as the other half of the pair it has to judge.
         let approval = self.approval.map(RawApproval::into_approval).transpose()?;
-        let origin = Origin::parse(&self.origin, approval)?;
+        // Parsed before `Origin::parse` for the same reason the approval is: a
+        // blank source reports as its own field (`source must not be empty`)
+        // rather than as a mismatched origin.
+        let source = self.source.map(SourceArtefact::parse).transpose()?;
+        let origin = Origin::parse(&self.origin, approval, source)?;
         let status = self.status.into_status()?;
         let body = Body::parse(body)?;
         // Collected with `?`, not filtered: a malformed recurrence stops the

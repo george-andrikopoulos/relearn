@@ -1,7 +1,7 @@
 +++
 tag = "R:verify-the-abstraction-compiled-away"
-title = "Verify a zero-cost claim; never assert it"
-error_class = "Claiming an abstraction is zero-cost from its reputation -- newtype, iterator chain, generic wrapper -- without inspecting what the compiler emitted, so a real cost such as a bounds check, a heap allocation, or a missed inline ships as a claimed absence of cost"
+title = "Verify an absent cost; reputation and a fast benchmark both lie"
+error_class = "Reading an absence of cost out of an optimiser nobody inspected -- asserting an abstraction is zero-cost from its reputation, or accepting a benchmark that returned near-zero because the work was optimised away -- so a real cost ships as a claimed absence, or an absence of work is reported as an absence of cost"
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
 origin = "codified"
@@ -15,5 +15,9 @@ published_incident = "Codified from standing practice rather than mined from a f
 Where the cost is load-bearing -- a hot path, a latency budget, an allocation-free claim -- look at what was emitted. `cargo asm` for the function, `cargo bloat` for the binary, a benchmark on the profile that actually ships. A debug build proves nothing about a release binary: a newtype that is free at `opt-level = 3` need not be at `opt-level = 0`, and the two are different programs.
 
 Then run the failure-mode check R:measure-cost-per-task states in the general case -- under what configuration does this cost exactly what it was chosen not to cost? A `#[repr(transparent)]` newtype crossing an FFI boundary, an iterator chain that fails to fuse because the closure captures by reference, a generic that is never monomorphised because it went out through a trait object. Bound that configuration, or drop the claim.
+
+The same optimiser runs the other way, and that half is more dangerous because it arrives carrying a measurement. A microbenchmark whose result is never used, or whose input is a compile-time constant, is dead code: the optimiser deletes the work and the harness times an empty loop. The reading is not "this is fast" but "this did not happen", and the two are indistinguishable in the output -- an implausibly good number is the only signal, and an implausibly good number is exactly what the author was hoping for. So read the emitted code for a benchmark as readily as for a claim, consume every result through a black box the optimiser cannot see through (`std::hint::black_box`, JMH's `Blackhole`), and treat a figure at or near zero as a defect report on the harness until the assembly says otherwise.
+
+Both halves are one act: an absent cost is a fact about emitted code, so it is established by reading emitted code. Reputation asserts it without measuring; a deleted benchmark measures without establishing it.
 
 This is R:verify-through-production-path applied to code generation: a claim measured on a build the user never runs is evidence about that build alone. Where the cost is not load-bearing, do not make the claim at all -- an unverified performance assertion in a doc comment is read as a measured one.

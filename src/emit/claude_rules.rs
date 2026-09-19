@@ -46,7 +46,7 @@ use std::collections::BTreeMap;
 
 use super::{
     HomeSlug, LoadSemantics, OutputFile, RelativePath, audience_note, emittable, enforcement_note,
-    recurrence_note, yaml_double_quote,
+    recurrence_note, source_note, yaml_double_quote,
 };
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule, RuleTag};
@@ -164,6 +164,9 @@ fn render_layer(home: &Home, rules: &[&Rule]) -> String {
             out.push_str(&note);
         }
         if let Some(note) = recurrence_note(r) {
+            out.push_str(&note);
+        }
+        if let Some(note) = source_note(r) {
             out.push_str(&note);
         }
         out.push_str(&format!("{}\n", r.body().as_str()));

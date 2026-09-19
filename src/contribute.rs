@@ -261,6 +261,32 @@ impl<'a> Contribution<'a> {
         self.published_incident
     }
 
+    /// Every free-text field a **contributor authors** that travels with this
+    /// contribution, each paired with its field name for a scan's report.
+    ///
+    /// The enumeration lives here, beside the projection that decides what
+    /// travels, rather than at the call site that scans it. When `source`
+    /// joined the format on 2026-09-18 it became a third authored field that
+    /// leaves the machine, and the caller's list — written when there were two,
+    /// and commented "both fields a contributor authors" — would have gone on
+    /// scanning two and reporting clean. A list of what travels belongs where
+    /// travelling is decided. `[R:names-travel-with-the-quote]`
+    ///
+    /// **Scope, stated rather than implied** (`[R:measure-the-claim-not-a-subset]`).
+    /// This is the set the contribution path scans today, not every authored
+    /// string in the struct: `title` and `error_class` are also authored, also
+    /// travel, and are **not** here. Widening it would newly refuse
+    /// contributions that pass now, which is a policy change rather than a
+    /// repair — carried in `TODO.md` as George's call.
+    pub fn authored_texts(self) -> impl Iterator<Item = (&'static str, &'a str)> {
+        [
+            ("published_incident", self.published_incident.as_str()),
+            ("body", self.body.as_str()),
+        ]
+        .into_iter()
+        .chain(self.origin.source().map(|s| ("source", s.as_str())))
+    }
+
     /// Render the contribution as a rule document.
     ///
     /// It **is** a rule — upstream parses it, lints it and emits it with the

@@ -42,7 +42,9 @@ pub use control::{Control, ControlError, ControlKind, Controls};
 pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};
 pub use home::{DomainName, Federation, Home, OrgName, ProjectPath};
-pub use origin::{Approval, Approver, ControlRef, Origin, OriginError, RecurrenceRole};
+pub use origin::{
+    Approval, Approver, ControlRef, Origin, OriginError, RecurrenceRole, SourceArtefact,
+};
 pub use parse::{ParseError, parse_document};
 pub use scope::{ScopeTag, ScopeTagError};
 pub use serialize::to_document;

@@ -1,6 +1,6 @@
 ---
 name: domain-low-latency
-description: "Engineering discipline for working in low-latency. Covers: Answer a requirement at the layer it lives at; Attack the design in a separate pass, and build nothing in it"
+description: "Engineering discipline for working in low-latency. Covers: Attack the design in a separate pass, and build nothing in it; Answer a requirement at the layer it lives at"
 ---
 
 # domain: low-latency rules
@@ -77,4 +77,4 @@ page under load still passes every functional test, and the cost appears as unex
 tail latency somewhere else entirely -- attributable to nothing, days later, by somebody
 who was not there.
 
-<!-- relearn:generated v0.1.0 sha256=f74bb7e2532c499d1a62c76275622ea8618af99b74e6acea0ba889460a4e36bb rules=R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=bfbf4f96b2dd362cb03c2bff7361da034ac8738255e707dcb7e3a7da6d793788 rules=R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass -- DO NOT EDIT; regenerate with `relearn build` -->

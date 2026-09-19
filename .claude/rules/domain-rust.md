@@ -151,13 +151,17 @@ Beyond three or four required fields the parameter list costs more than the prob
 
 When a sequence has rules -- connect before authenticate, init before run, configure before start -- encode the stage in the type, not in a field. Each step consumes the value in one state and produces it in the next, so a method that is invalid in the current state simply does not exist and calling it is a compile error. This is R:make-illegal-states-unrepresentable applied to time rather than to structure: the illegal thing is not a contradictory pair of fields but an operation at the wrong moment, and the same remedy applies -- make it unrepresentable rather than guarded. A runtime `if !self.authenticated { return Err(...) }` in a method that should not exist yet is the shape to look for.
 
-## Verify a zero-cost claim; never assert it [R:verify-the-abstraction-compiled-away]
+## Verify an absent cost; reputation and a fast benchmark both lie [R:verify-the-abstraction-compiled-away]
 
 "Zero-cost" is a property of a particular abstraction, under a particular optimiser, on a particular build profile. In Rust it is usually true, which is precisely why it gets asserted instead of checked, and why the cases where it is false survive review.
 
 Where the cost is load-bearing -- a hot path, a latency budget, an allocation-free claim -- look at what was emitted. `cargo asm` for the function, `cargo bloat` for the binary, a benchmark on the profile that actually ships. A debug build proves nothing about a release binary: a newtype that is free at `opt-level = 3` need not be at `opt-level = 0`, and the two are different programs.
 
 Then run the failure-mode check R:measure-cost-per-task states in the general case -- under what configuration does this cost exactly what it was chosen not to cost? A `#[repr(transparent)]` newtype crossing an FFI boundary, an iterator chain that fails to fuse because the closure captures by reference, a generic that is never monomorphised because it went out through a trait object. Bound that configuration, or drop the claim.
+
+The same optimiser runs the other way, and that half is more dangerous because it arrives carrying a measurement. A microbenchmark whose result is never used, or whose input is a compile-time constant, is dead code: the optimiser deletes the work and the harness times an empty loop. The reading is not "this is fast" but "this did not happen", and the two are indistinguishable in the output -- an implausibly good number is the only signal, and an implausibly good number is exactly what the author was hoping for. So read the emitted code for a benchmark as readily as for a claim, consume every result through a black box the optimiser cannot see through (`std::hint::black_box`, JMH's `Blackhole`), and treat a figure at or near zero as a defect report on the harness until the assembly says otherwise.
+
+Both halves are one act: an absent cost is a fact about emitted code, so it is established by reading emitted code. Reputation asserts it without measuring; a deleted benchmark measures without establishing it.
 
 This is R:verify-through-production-path applied to code generation: a claim measured on a build the user never runs is evidence about that build alone. Where the cost is not load-bearing, do not make the claim at all -- an unverified performance assertion in a doc comment is read as a measured one.
 
@@ -202,4 +206,4 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=e8702cc4ba06f73921d79021a08caee02e810f01253c08c74f32716a1f8368f0 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=2c1c9b7a463ef6914cf4223c55480dbcbfd2d0309149d559b65956cac765ad1f rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

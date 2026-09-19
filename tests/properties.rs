@@ -12,8 +12,8 @@ use relearn::emit;
 use relearn::library::{Library, Validated};
 use relearn::rule::{
     Approval, Approver, Authority, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin,
-    Recurrence, Rule, RuleTag, ScopeTag, SourceId, Status, Title, Version, parse_document,
-    to_document,
+    Recurrence, Rule, RuleTag, ScopeTag, SourceArtefact, SourceId, Status, Title, Version,
+    parse_document, to_document,
 };
 
 /// Non-empty, edge-trimmed text (parsing trims, so generated values must have no
@@ -53,10 +53,18 @@ fn arb_home() -> impl Strategy<Value = Home> {
 /// Every origin kind, mandates included. The approval is fixed rather than
 /// generated: what the properties here care about is that a mandate *has* one
 /// and travels with it, not what it says.
+///
+/// Both codified shapes are generated, because they are two origins that share
+/// one spelling. `Origin::as_str` returns `"codified"` for each, so a
+/// round-trip that only ever saw the payload-free one would pass while the
+/// serializer dropped every source in the corpus.
 fn arb_origin() -> impl Strategy<Value = Origin> {
     prop_oneof![
         Just(Origin::Mined),
-        Just(Origin::Codified),
+        Just(Origin::Codified(None)),
+        arb_text().prop_map(|s| Origin::Codified(Some(
+            SourceArtefact::parse(s).expect("non-empty source")
+        ))),
         Just(Origin::Mandated(Approval::new(
             Approver::parse("the change board").expect("non-empty approver"),
             Date::parse("2026-07-11").expect("valid date"),
@@ -320,6 +328,83 @@ fn without_scopes(lib: &Library<Validated>) -> Library<Validated> {
     )
     .validate()
     .expect("the same tags still validate")
+}
+
+/// The note a rule naming a source artefact is expected to carry, without its
+/// trailing blank line. `None` for every other origin.
+///
+/// Spelled out here rather than imported from `emit`, deliberately: a property
+/// that asked the production function what to expect would agree with it
+/// however wrong it was.
+fn expected_source_note(rule: &Rule) -> Option<String> {
+    rule.origin()
+        .source()
+        .map(|s| format!("> Written down from {}.", s.as_str()))
+}
+
+/// The same library with every codified rule's source removed and nothing else
+/// touched — the control group the source properties compare against.
+fn without_sources(lib: &Library<Validated>) -> Library<Validated> {
+    Library::from_rules(
+        lib.rules()
+            .iter()
+            .map(|r| {
+                let origin = match r.origin() {
+                    Origin::Codified(_) => Origin::Codified(None),
+                    other => other.clone(), // allow:clone: the rebuilt rule owns its fields, and the source library must stay intact for the comparison
+                };
+                Rule::new(
+                    r.tag().clone(),         // allow:clone: same
+                    r.title().clone(),       // allow:clone: same
+                    r.error_class().clone(), // allow:clone: same
+                    r.home().clone(),        // allow:clone: same
+                    r.created(),
+                    origin,
+                    r.status().clone(),   // allow:clone: same
+                    r.incident().clone(), // allow:clone: same
+                    r.body().clone(),     // allow:clone: same
+                    r.recurrences().to_vec(),
+                    r.applies_to().to_vec(),
+                    r.authority().clone(),           // allow:clone: same
+                    r.published_incident().cloned(), // allow:clone: same
+                )
+            })
+            .collect(),
+    )
+    .validate()
+    .expect("the same tags still validate")
+}
+
+/// A validated library whose rules carry every origin shape, sources included.
+fn arb_library_sourced() -> impl Strategy<Value = Library<Validated>> {
+    proptest::collection::vec((arb_tag_body(), arb_home(), arb_text(), arb_origin()), 0..5)
+        .prop_map(|items| {
+            let mut seen = BTreeSet::new();
+            let mut rules = Vec::new();
+            for (tag_body, home, text, origin) in items {
+                if !seen.insert(tag_body.clone()) {
+                    continue; // keep tags distinct so validation succeeds
+                }
+                rules.push(Rule::new(
+                    RuleTag::parse(format!("R:{tag_body}")).expect("valid tag"),
+                    Title::parse(text).expect("non-empty title"),
+                    ErrorClass::parse("error class").expect("non-empty error class"),
+                    home,
+                    Date::parse("2026-09-18").expect("valid date"),
+                    origin,
+                    Status::active(),
+                    Incident::parse("incident").expect("non-empty incident"),
+                    Body::parse("body").expect("non-empty body"),
+                    Vec::new(),
+                    Vec::new(),
+                    Authority::local(),
+                    None,
+                ));
+            }
+            Library::from_rules(rules)
+                .validate()
+                .expect("distinct tags validate")
+        })
 }
 
 /// The tags of every atticked rule in a library.
@@ -894,6 +979,104 @@ proptest! {
                 "{} carries an on-request domain rule",
                 file.path().as_str()
             );
+        }
+    }
+
+    /// **A source reaches an emitted body only through the source note.** For
+    /// any library, deleting each rule's expected note from every emitted file
+    /// leaves output byte-identical to the same library with every source
+    /// removed.
+    ///
+    /// The same shape as `scope_reaches_a_body_only_through_the_audience_note`,
+    /// and it holds the same line: provenance annotates, it never rewrites. An
+    /// emitter that began interpolating the artefact into a body, reordering
+    /// around it, or suppressing a rule that names one would fail here even
+    /// though every note was still present and correct.
+    #[test]
+    fn a_source_reaches_a_body_only_through_the_source_note(lib in arb_library_sourced()) {
+        let stripped = without_sources(&lib);
+        for (sourced, plain) in [
+            (emit::claude::emit(&lib), emit::claude::emit(&stripped)),
+            (emit::cursor::emit(&lib), emit::cursor::emit(&stripped)),
+            (emit::copilot::emit(&lib), emit::copilot::emit(&stripped)),
+            (emit::agents::emit(&lib), emit::agents::emit(&stripped)),
+            (emit::claude_rules::emit(&lib), emit::claude_rules::emit(&stripped)),
+        ] {
+            prop_assert_eq!(sourced.len(), plain.len());
+            for (file, bare) in sourced.iter().zip(plain.iter()) {
+                let mut text = file.contents().to_owned();
+                for tag in file.sources() {
+                    let rule = lib
+                        .rules()
+                        .iter()
+                        .find(|r| r.tag().as_str() == tag.as_str())
+                        .expect("a file's source is a rule of the library");
+                    if let Some(note) = expected_source_note(rule) {
+                        text = text.replacen(&format!("{note}\n\n"), "", 1);
+                    }
+                }
+                prop_assert_eq!(
+                    text,
+                    bare.contents().to_owned(),
+                    "{} differs from its sourceless twin by more than the source note",
+                    file.path().as_str()
+                );
+            }
+        }
+    }
+
+    /// **An artefact is announced in every emitted format, and only where there
+    /// is one.** Every file an emitter produces carries the announcement of each
+    /// sourced rule it names as a source, and carries none for a rule that names
+    /// no artefact.
+    ///
+    /// The wiredness artifact: `source_note` is one function and there are five
+    /// independent splice sites, so a unit test of the function proves nothing
+    /// about whether an emitter calls it. `[R:wired-artifact]`
+    #[test]
+    fn an_artefact_is_announced_in_every_emitted_format(lib in arb_library_sourced()) {
+        let outputs = [
+            emit::claude::emit(&lib),
+            emit::cursor::emit(&lib),
+            emit::copilot::emit(&lib),
+            emit::agents::emit(&lib),
+            emit::claude_rules::emit(&lib),
+        ];
+        for files in &outputs {
+            for file in files {
+                let mut expected_notes = 0usize;
+                for tag in file.sources() {
+                    let rule = lib
+                        .rules()
+                        .iter()
+                        .find(|r| r.tag().as_str() == tag.as_str())
+                        .expect("a file's source is a rule of the library");
+                    if let Some(note) = expected_source_note(rule) {
+                        expected_notes += 1;
+                        prop_assert!(
+                            file.contents().contains(&note),
+                            "{} names an artefact but {} carries no announcement for it",
+                            tag.as_str(),
+                            file.path().as_str()
+                        );
+                    }
+                }
+                // Counted, not merely "present", for the reason the audience
+                // twin is: a concatenated file holds many rules, so "an
+                // announcement appears somewhere" is the wrong question and a
+                // file-wide negative is simply false the moment one rule in it
+                // names an artefact. One per sourced rule and no more is what
+                // says an unsourced rule was not annotated as though it cited
+                // something. The first version of this property asserted the
+                // negative file-wide and proptest produced the two-rule
+                // counterexample on the eighth case.
+                prop_assert_eq!(
+                    file.contents().matches("> Written down from ").count(),
+                    expected_notes,
+                    "{} carries the wrong number of artefact announcements",
+                    file.path().as_str()
+                );
+            }
         }
     }
 }

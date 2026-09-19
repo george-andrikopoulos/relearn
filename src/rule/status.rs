@@ -84,6 +84,43 @@ pub enum ProseCoverage {
     None,
 }
 
+/// How much a rule depends on the instruction layer actually being loaded.
+///
+/// **The rank behind a truncation, and it exists because a truncation must not
+/// be alphabetical.** A skill `description` has a hard character cap, so past
+/// roughly a dozen rules per home it cannot name them all and some are dropped
+/// — and a dropped title is a rule the matcher cannot fire on, which for a home
+/// reachable only by description is a rule that may never load at all. Choosing
+/// which to drop by tag order means choosing by the alphabet, which states no
+/// intent and changes silently the day a rule is renamed
+/// (`[R:order-by-explicit-rank]`).
+///
+/// The intent this states: **keep the titles whose absence costs most.** A rule
+/// held by prose alone loses everything if its layer does not load; one with a
+/// named control holding the whole class still has that control, and loses only
+/// the tuning the instruction layer would have added before the fact.
+///
+/// Ordered least-reliant last, so a plain ascending sort puts the rules that
+/// need the layer most at the front of the description.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum InstructionReliance {
+    /// `Active`: prose is the only thing holding this rule. If the layer does
+    /// not load, nothing holds it.
+    Sole,
+    /// `Partial`: named controls hold part of the class and prose holds the
+    /// rest, so the layer's absence costs the uncovered part.
+    Shared,
+    /// `Graduated`: a named control claims the whole class and still fires
+    /// whether or not the layer loads. The instruction tunes generation before
+    /// the fact; the control catches after it.
+    Backstop,
+    /// `Attic`: withdrawn guidance, which `Emittability` already keeps out of
+    /// every layer. Decided here rather than left to a catch-all so the
+    /// exhaustive match stays exhaustive — this variant is unreachable from the
+    /// emitters, and that is a property of the caller, not of this policy.
+    Withdrawn,
+}
+
 /// Whether a rule's lifecycle status permits writing it into an active
 /// instruction layer (a skill, `AGENTS.md`, a project `CLAUDE.md`, …).
 ///
@@ -239,6 +276,24 @@ impl Status {
         match self {
             Status::Active | Status::Partial { .. } => ProseCoverage::Holds,
             Status::Graduated { .. } | Status::Attic { .. } => ProseCoverage::None,
+        }
+    }
+
+    /// How much this rule depends on its instruction layer being loaded — the
+    /// rank a description's truncation orders by.
+    ///
+    /// A third policy over `Status` rather than a reuse of
+    /// [`Self::prose_coverage`], which is two-valued and puts `Active` and
+    /// `Partial` in one bucket. That is right for its own question ("did the
+    /// prose fail?") and wrong for this one: a partly-held rule has controls a
+    /// wholly-unheld rule does not, so it is not equally costly to drop.
+    #[must_use]
+    pub fn instruction_reliance(&self) -> InstructionReliance {
+        match self {
+            Status::Active => InstructionReliance::Sole,
+            Status::Partial { .. } => InstructionReliance::Shared,
+            Status::Graduated { .. } => InstructionReliance::Backstop,
+            Status::Attic { .. } => InstructionReliance::Withdrawn,
         }
     }
 

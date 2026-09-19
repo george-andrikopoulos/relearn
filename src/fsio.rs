@@ -205,8 +205,18 @@ pub fn write_rule(rules_dir: &Path, rule: &EditableRule<'_>) -> Result<PathBuf, 
 /// not parse, or parses to a different tag, is somebody else's file. No witness
 /// can know that, because a witness is minted from rules and this is a fact
 /// about a directory.
+/// The file a rule occupies in a rules directory: the tag **body** plus `.md`.
+///
+/// One definition, because two callers now need it and a second copy of a path
+/// derivation is a thing that drifts. `guarded_write` uses it to find the target
+/// it must protect; `cli::new_rule` uses it to refuse a rule that already
+/// exists, which is a different question asked of the same path.
+pub(crate) fn rule_path(dir: &Path, tag: &RuleTag) -> PathBuf {
+    dir.join(format!("{}.md", tag.body()))
+}
+
 fn guarded_write(dir: &Path, tag: &RuleTag, document: &str) -> Result<PathBuf, RuleWriteError> {
-    let path = dir.join(format!("{}.md", tag.body()));
+    let path = rule_path(dir, tag);
 
     match fs::read_to_string(&path) {
         Ok(existing) => {

@@ -386,6 +386,33 @@ pub(crate) fn audience_note(rule: &Rule) -> Option<String> {
     Some(format!("> Written for the {list} {noun}.\n\n"))
 }
 
+/// The one-line annotation a **codified** rule that names its artefact carries
+/// in every emitted format: a markdown blockquote naming the document the
+/// practice was written down from. `None` for every other origin, and for a
+/// codified rule that names none — so a rule that cites nothing emits exactly
+/// what it emitted before this existed.
+///
+/// Fourth of the same family as [`enforcement_note`], [`recurrence_note`] and
+/// [`audience_note`], and **last by rank on purpose**. The first three answer
+/// operational questions in the order a reader asks them — is this rule mine,
+/// how firmly is it held, has it bitten before. Provenance answers none of
+/// those: it is what a reader follows when they want to check the rule against
+/// the thing that defines it, which is the question asked last and least often.
+/// `[R:order-by-explicit-rank]` — the position is a decision, not where it
+/// happened to land.
+///
+/// **This is the only channel from a source into emitted text**, which
+/// `a_source_reaches_a_body_only_through_the_source_note` holds: provenance
+/// annotates, it never rewrites a body, reorders around one, or decides whether
+/// a rule is emitted at all. Returns the note plus its trailing blank line, so a
+/// caller splices it in with one `push_str`.
+#[must_use]
+pub(crate) fn source_note(rule: &Rule) -> Option<String> {
+    rule.origin()
+        .source()
+        .map(|s| format!("> Written down from {}.\n\n", s.as_str()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

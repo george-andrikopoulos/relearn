@@ -44,9 +44,10 @@ use crate::poke::{self, BroadcastCap, Reach, Trigger, UnknownTrigger};
 use crate::pull::{Plan, Prune};
 use crate::report::{InstallId, InstallIdError, K_ANONYMITY_FLOOR, Month, MonthError, Report};
 use crate::rule::{
-    AdoptError, Authority, CachedIsNotEditable, Date, DateError, EditableRule, EmptyText,
-    NotPullable, PulledRule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceId, Unwanted,
-    Version, to_document,
+    AdoptError, Approval, Approver, Authority, Body, CachedIsNotEditable, ControlRef, Date,
+    DateError, EditableRule, EmptyText, ErrorClass, Home, Incident, NotPullable, Origin,
+    OriginError, PulledRule, Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceArtefact,
+    SourceId, Status, Title, Unwanted, Version, to_document,
 };
 use crate::scrub::{ScrubError, TermList};
 
@@ -63,6 +64,17 @@ struct Cli {
 }
 
 /// The subcommands.
+///
+/// `large_enum_variant` is allowed here, with its reason, rather than answered
+/// by boxing fields. The lint's cost model is about an enum held in quantity or
+/// passed in a loop, where the largest variant sets the size of every instance.
+/// This one is constructed **once per process** by `clap` from `argv` and
+/// destructured immediately; the entire cost is a few hundred bytes of stack in
+/// `main`, once. Boxing `Option<PathBuf>` fields to satisfy it would add an
+/// allocation and a layer of indirection to buy nothing measurable, which is the
+/// shape `[R:measure-cost-per-task]` exists to refuse — and an unexamined lint
+/// obeyed is as much an unverified claim as an unexamined lint suppressed.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Validate the rule library and write nothing; non-zero exit on any failure.
@@ -113,11 +125,101 @@ enum Command {
         #[arg(long)]
         scope: Vec<String>,
     },
+    /// Author a new rule file from its fields, refusing to overwrite an
+    /// existing one.
+    ///
+    /// **This is a scaffold for the front matter, never a substitute for
+    /// writing the rule.** The body and the incident are the rule; what this
+    /// removes is the part that is mechanical and easy to get subtly wrong —
+    /// eight required keys, a date that must parse, a home that must be
+    /// well-formed, and the two payload rules (`source` only on a codified
+    /// rule, `approval` only on a mandate) that are a parse error rather than
+    /// a warning. Getting those wrong is how an authoring session ends in a
+    /// diagnostic instead of a rule.
+    ///
+    /// The status is always `active` and is not an argument: a rule that is
+    /// graduated or atticked on the day it is written is not a rule anyone
+    /// learned anything from. `published_incident` is also absent, because it
+    /// is authored when a rule is contributed and not before — and a rule file
+    /// is hand-editable by design, so adding it later is the ordinary path
+    /// rather than a gap.
+    New {
+        /// Directory of `*.md` rule files — where the new rule lands.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+        /// The rule's tag, e.g. `R:no-allocation-on-the-hot-path`.
+        #[arg(long)]
+        tag: String,
+        /// The one-line practice, imperative, as it will head every emitted
+        /// format.
+        #[arg(long)]
+        title: String,
+        /// What goes wrong without this rule, and the observable harm. The
+        /// field that individuates a rule: if it cannot be stated, the material
+        /// is reference knowledge rather than a rule.
+        #[arg(long = "error-class")]
+        error_class: String,
+        /// The one home that owns this rule: `global`, `domain=<name>`,
+        /// `org=<name>` or `project=<path>`.
+        ///
+        /// **Deliberately not the slug that `list --home` takes.** A slug is a
+        /// filesystem-safe *identity* with no inverse — `HomeSlug` turns a
+        /// project path's separators into dashes, so `project-c-repo-sub` names
+        /// a home it cannot reconstruct. A slug can select an existing home; it
+        /// cannot construct one, and a parser that pretended otherwise would
+        /// silently invent a different project path.
+        #[arg(long)]
+        home: String,
+        /// The date the rule was written, `YYYY-MM-DD`. Given, never read from
+        /// a clock — the same invariant as `adopt --on`.
+        #[arg(long)]
+        on: String,
+        /// `mined` (a real failure sits behind it), `codified` (standing
+        /// practice written down) or `mandated` (a control framework requires
+        /// it, and `--approved-by`/`--approval-control`/`--approved-on` are
+        /// then required).
+        #[arg(long, default_value = "mined")]
+        origin: String,
+        /// The artefact a **codified** rule was written down from. A parse
+        /// error on any other origin, never a dropped field.
+        #[arg(long)]
+        source: Option<String>,
+        /// Who signed off a mandated rule.
+        #[arg(long = "approved-by")]
+        approved_by: Option<String>,
+        /// The control-framework reference a mandate implements.
+        #[arg(long = "approval-control")]
+        approval_control: Option<String>,
+        /// The date a mandate was approved, `YYYY-MM-DD`.
+        #[arg(long = "approved-on")]
+        approved_on: Option<String>,
+        /// The provenance prose: the dated incident, or the codification note.
+        #[arg(long, conflicts_with = "incident_file")]
+        incident: Option<String>,
+        /// The provenance prose, read from a file — the usual choice, because
+        /// it is a paragraph and a shell is a poor editor for one.
+        #[arg(long = "incident-file", conflicts_with = "incident")]
+        incident_file: Option<PathBuf>,
+        /// The rule body, in markdown.
+        #[arg(long, conflicts_with = "body_file")]
+        body: Option<String>,
+        /// The rule body, read from a file.
+        #[arg(long = "body-file", conflicts_with = "body")]
+        body_file: Option<PathBuf>,
+        /// An audience this rule serves; repeatable. A rule declaring none is
+        /// emitted under every audience.
+        #[arg(long)]
+        scope: Vec<String>,
+        /// Render the rule document to stdout and write nothing.
+        #[arg(long = "dry-run")]
+        dry_run: bool,
+    },
     /// Take a deliberate fork of a cached rule: it becomes editable and records
     /// what it was forked from, at which upstream version, and when.
     ///
-    /// The only command that writes a rule file. Editing a cache in place is a
-    /// silent fork; this is the loud one.
+    /// One of the two commands that write a rule file — this one rewrites an
+    /// existing rule's authority, `new` creates one. Editing a cache in place
+    /// is a silent fork; this is the loud one.
     Adopt {
         /// Directory of `*.md` rule files.
         #[arg(long, default_value = "rules")]
@@ -598,6 +700,95 @@ pub enum CliError {
     /// derived source would print the same sentence twice.
     #[error("--from: {0}")]
     Source(EmptyText),
+    /// A `new` text field was empty. The message names the field, because
+    /// `EmptyText` already carries it.
+    #[error(transparent)]
+    Text(EmptyText),
+    /// `new --home` was not one of the four authorable forms.
+    #[error(
+        "--home `{requested}` is not a home (expected `global`, `domain=<name>`, \
+         `org=<name>` or `project=<path>`)"
+    )]
+    UnknownHomeSpec {
+        /// What was asked for.
+        requested: String,
+    },
+    /// `new --home` named a kind with an empty value.
+    #[error("--home: {0}")]
+    HomeText(EmptyText),
+    /// A `new` date field did not parse. Names which one, because `new` takes
+    /// two of them and a range error that does not say which is a guess.
+    #[error("--{field}: {source}")]
+    FieldDate {
+        /// The flag, without its dashes.
+        field: &'static str,
+        /// The underlying date error.
+        source: DateError,
+    },
+    /// `new` was given a mandate's approval in part. All three of `--approved-by`,
+    /// `--approval-control` and `--approved-on` are required together, because a
+    /// mandate with a half-built signature is the unenforced guarantee `Approval`
+    /// exists to prevent.
+    #[error(
+        "a mandate needs all three of --approved-by, --approval-control and --approved-on, \
+         or none of them"
+    )]
+    PartialApproval,
+    /// `new` was given neither a literal nor a file for a required prose field.
+    ///
+    /// Refused rather than defaulted: a rule whose body or incident is a
+    /// placeholder parses, emits, and says nothing — which is the silently
+    /// useless rule the provenance requirement exists to prevent.
+    #[error("--{field} or --{field}-file is required")]
+    MissingProse {
+        /// The field, without its dashes.
+        field: &'static str,
+    },
+    /// A `new` prose file could not be read. Names the field and the path.
+    #[error("--{field}-file {}: {source}", path.display())]
+    ReadProse {
+        /// The field, without its dashes.
+        field: &'static str,
+        /// The path that could not be read.
+        path: PathBuf,
+        /// The underlying I/O error.
+        source: std::io::Error,
+    },
+    /// The same audience was given twice to `new --scope`.
+    ///
+    /// A parse error for the same reason it is in a rule file: one written
+    /// intent with two behaviours, where the second entry is silently inert.
+    #[error("--scope `{scope}` is given twice")]
+    DuplicateScope {
+        /// The repeated audience.
+        scope: String,
+    },
+    /// The origin, its approval and its source did not describe a valid origin.
+    #[error("--origin: {0}")]
+    Origin(OriginError),
+    /// `new` was asked to create a rule whose file already exists.
+    ///
+    /// Refused rather than overwritten, and this is the one refusal `new` adds
+    /// over the shared write guard. That guard permits replacing the *same*
+    /// rule, because `adopt` must; a create must not, since replacing a rule
+    /// silently discards the incident, the recurrences and the body that made it
+    /// worth having — a correction lost, which is the failure this tool exists
+    /// to prevent.
+    /// The message says only what is known — that the path is taken. It does
+    /// **not** say a rule is there, because this fires before anything has
+    /// parsed the file and the occupant may be a rule, a cache, or something
+    /// unrelated. Naming it would be a guess printed as a fact.
+    #[error(
+        "{tag} would be written to {}, and something is already there — \
+         `new` never writes over anything; edit it, or `adopt` it if it is a cache",
+        path.display()
+    )]
+    RuleExists {
+        /// The tag that is already taken.
+        tag: String,
+        /// The occupied path.
+        path: PathBuf,
+    },
     /// The upstream rule cannot be taken as a cache. Carries the refusal, which
     /// says which of the four it was and what to do instead.
     #[error(transparent)]
@@ -670,6 +861,46 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
         }
         Command::List { rules, home, scope } => {
             list(&rules, home.as_deref(), &scope)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::New {
+            rules,
+            tag,
+            title,
+            error_class,
+            home,
+            on,
+            origin,
+            source,
+            approved_by,
+            approval_control,
+            approved_on,
+            incident,
+            incident_file,
+            body,
+            body_file,
+            scope,
+            dry_run,
+        } => {
+            new_rule(NewRule {
+                rules: &rules,
+                tag: &tag,
+                title: &title,
+                error_class: &error_class,
+                home: &home,
+                on: &on,
+                origin: &origin,
+                source: source.as_deref(),
+                approved_by: approved_by.as_deref(),
+                approval_control: approval_control.as_deref(),
+                approved_on: approved_on.as_deref(),
+                incident: incident.as_deref(),
+                incident_file: incident_file.as_deref(),
+                body: body.as_deref(),
+                body_file: body_file.as_deref(),
+                scope: &scope,
+                dry_run,
+            })?;
             Ok(ExitCode::SUCCESS)
         }
         Command::Adopt { rules, tag, on } => {
@@ -888,6 +1119,186 @@ fn verify(
 /// local or already adopted), or the date is not a date. The library is loaded
 /// and validated first, so adoption cannot run against a corpus that does not
 /// parse.
+/// The arguments of `relearn new`, as one struct.
+///
+/// Seventeen of them, which `clippy::too_many_arguments` would reject and which
+/// would be a genuine hazard as a positional list: `title`, `error_class`,
+/// `home`, `on`, `origin`, `incident` and `body` are all `&str`, so a swapped
+/// pair compiles and produces a rule whose body is its title. Naming every
+/// field at the one call site is what makes the swap visible, and it is the
+/// same reasoning `[R:typestate-builder-for-required-fields]` records for a
+/// required-arguments struct over a long parameter list.
+struct NewRule<'a> {
+    rules: &'a Path,
+    tag: &'a str,
+    title: &'a str,
+    error_class: &'a str,
+    home: &'a str,
+    on: &'a str,
+    origin: &'a str,
+    source: Option<&'a str>,
+    approved_by: Option<&'a str>,
+    approval_control: Option<&'a str>,
+    approved_on: Option<&'a str>,
+    incident: Option<&'a str>,
+    incident_file: Option<&'a Path>,
+    body: Option<&'a str>,
+    body_file: Option<&'a Path>,
+    scope: &'a [String],
+    dry_run: bool,
+}
+
+/// Parse the `--home` argument: `global`, `domain=<name>`, `org=<name>` or
+/// `project=<path>`.
+///
+/// Exhaustive over the four kinds with no catch-all, so a fifth `Home` variant
+/// cannot be silently unauthorable — it becomes a compile error here, which is
+/// the only place that would otherwise notice.
+fn parse_home_spec(spec: &str) -> Result<Home, CliError> {
+    let unknown = || CliError::UnknownHomeSpec {
+        requested: spec.to_owned(),
+    };
+    match spec.split_once('=') {
+        None if spec.trim() == "global" => Ok(Home::global()),
+        None => Err(unknown()),
+        Some(("domain", name)) => Home::domain(name).map_err(CliError::HomeText),
+        Some(("org", name)) => Home::org(name).map_err(CliError::HomeText),
+        Some(("project", path)) => Home::project(path).map_err(CliError::HomeText),
+        Some(_) => Err(unknown()),
+    }
+}
+
+/// Read one of the two prose fields from a literal or a file, refusing the
+/// neither case.
+///
+/// `clap`'s `conflicts_with` already refuses *both*, so only the empty case
+/// reaches here — and it is refused rather than defaulted, because a rule whose
+/// body or incident defaulted to a placeholder is the silently-wrong rule this
+/// tool exists to prevent.
+fn prose(
+    field: &'static str,
+    literal: Option<&str>,
+    file: Option<&Path>,
+) -> Result<String, CliError> {
+    match (literal, file) {
+        (Some(text), _) => Ok(text.to_owned()),
+        (None, Some(path)) => std::fs::read_to_string(path).map_err(|source| CliError::ReadProse {
+            field,
+            path: path.to_path_buf(),
+            source,
+        }),
+        (None, None) => Err(CliError::MissingProse { field }),
+    }
+}
+
+/// Author a new rule file: parse every field at this perimeter, assemble the
+/// `Rule`, and write it through the same guarded path `adopt` uses.
+///
+/// **Nothing here is a new way to write a rule file.** The witness is minted the
+/// same way, the clobber refusal is the same one, and the document is rendered
+/// by the same serializer — so a rule this command produces is byte-identical to
+/// the same rule typed by hand, and `check` is the arbiter of both.
+fn new_rule(args: NewRule<'_>) -> Result<(), CliError> {
+    let tag = RuleTag::parse(args.tag).map_err(CliError::Tag)?;
+    let title = Title::parse(args.title).map_err(CliError::Text)?;
+    let error_class = ErrorClass::parse(args.error_class).map_err(CliError::Text)?;
+    let home = parse_home_spec(args.home)?;
+    let created = Date::parse(args.on).map_err(|source| CliError::FieldDate {
+        field: "on",
+        source,
+    })?;
+
+    // The approval is assembled before `Origin::parse` so each of its own
+    // fields reports its own error, exactly as the rule parser does — and so
+    // that a mandate missing one of the three is refused here rather than
+    // producing an origin with a half-built signature.
+    let approval = match (args.approved_by, args.approval_control, args.approved_on) {
+        (None, None, None) => None,
+        (Some(by), Some(control), Some(on)) => Some(Approval::new(
+            Approver::parse(by).map_err(CliError::Text)?,
+            Date::parse(on).map_err(|source| CliError::FieldDate {
+                field: "approved-on",
+                source,
+            })?,
+            ControlRef::parse(control).map_err(CliError::Text)?,
+        )),
+        _ => return Err(CliError::PartialApproval),
+    };
+    let source = args
+        .source
+        .map(SourceArtefact::parse)
+        .transpose()
+        .map_err(CliError::Text)?;
+    let origin = Origin::parse(args.origin, approval, source).map_err(CliError::Origin)?;
+
+    let incident = Incident::parse(prose("incident", args.incident, args.incident_file)?)
+        .map_err(CliError::Text)?;
+    let body = Body::parse(prose("body", args.body, args.body_file)?).map_err(CliError::Text)?;
+
+    let mut applies_to = Vec::new();
+    for s in args.scope {
+        let parsed = ScopeTag::parse(s).map_err(CliError::Scope)?;
+        if applies_to.contains(&parsed) {
+            return Err(CliError::DuplicateScope {
+                scope: parsed.as_str().to_owned(),
+            });
+        }
+        applies_to.push(parsed);
+    }
+
+    let rule = Rule::new(
+        tag,
+        title,
+        error_class,
+        home,
+        created,
+        origin,
+        // Always active. A rule graduated or atticked on the day it was written
+        // is not a rule anyone learned anything from.
+        Status::active(),
+        incident,
+        body,
+        Vec::new(),
+        applies_to,
+        Authority::local(),
+        None,
+    );
+
+    let document = to_document(&rule);
+    if args.dry_run {
+        print!("{document}");
+        return Ok(());
+    }
+
+    // **`new` creates; it never replaces**, and this is the half that
+    // `fsio::write_rule` deliberately does not hold. That guard refuses a target
+    // occupied by a *different* rule and permits overwriting the *same* one —
+    // which is exactly right for `adopt`, whose whole job is rewriting an
+    // existing rule's authority in place, and exactly wrong here: replacing a
+    // rule discards its incident, its recurrences and its body, which is a
+    // correction lost. The two commands want different answers to "may I write
+    // over this?", so the second question is asked here rather than by widening
+    // the shared guard and breaking `adopt`.
+    //
+    // Found through the binary and not by the unit tests, which had only
+    // exercised the foreign-file case — `[R:verify-through-production-path]`.
+    let target = fsio::rule_path(args.rules, rule.tag());
+    if target.exists() {
+        return Err(CliError::RuleExists {
+            tag: rule.tag().as_str().to_owned(),
+            path: target,
+        });
+    }
+
+    let editable = EditableRule::of(&rule).map_err(CliError::NotEditable)?;
+    let path = fsio::write_rule(args.rules, &editable)?;
+    println!(
+        "wrote {} — run `relearn check` before you trust it",
+        path.display()
+    );
+    Ok(())
+}
+
 fn adopt(rules: &Path, tag: &str, on: &str) -> Result<(), CliError> {
     let tag = RuleTag::parse(tag).map_err(CliError::Tag)?;
     let on = Date::parse(on).map_err(CliError::AdoptDate)?;
@@ -1191,16 +1602,12 @@ fn contribute(
 
     let contribution = Contribution::of(rule).map_err(CliError::NotContributable)?;
 
-    // Both fields a contributor authors, checked before either is printed. The
-    // body travels too, and a name in it leaks exactly as far as one in the
-    // published incident.
-    for (field, text) in [
-        (
-            "published_incident",
-            contribution.published_incident().as_str(),
-        ),
-        ("body", rule.body().as_str()),
-    ] {
+    // Every field a contributor authors, checked before any of them is printed.
+    // The list is the contribution's own, not one written out here: a name in
+    // the body or the source leaks exactly as far as one in the published
+    // incident, and a field added to the format must not be able to reach the
+    // drive by being absent from a list at the call site.
+    for (field, text) in contribution.authored_texts() {
         if let Some(hit) = list.find(text) {
             return Err(CliError::BannedName {
                 field,
@@ -2084,6 +2491,255 @@ mod tests {
         assert!(matches!(
             list(&missing, None, &[]),
             Err(CliError::Load(LoadError::ReadDir { .. }))
+        ));
+    }
+
+    // ── `new` ───────────────────────────────────────────────────────────────
+
+    // These live in this module rather than in a second test module of their
+    // own. `tests/exhaustiveness.rs` truncates a source file at its first test
+    // marker and scans what precedes it; a second marker would leave the
+    // production code after it unscanned, and the gate refuses to run rather
+    // than pass while measuring less than it claims.
+    //
+    // This comment does not spell the marker out, and that is deliberate: the
+    // gate counts occurrences textually, so a comment explaining the rule would
+    // itself be the second occurrence and fail it. Which is exactly what
+    // happened while writing this.
+
+    /// The minimum viable `new` invocation, with every optional field absent.
+    fn minimal<'a>(rules: &'a Path, tag: &'a str) -> NewRule<'a> {
+        NewRule {
+            rules,
+            tag,
+            title: "A title",
+            error_class: "an error class",
+            home: "global",
+            on: "2026-09-18",
+            origin: "mined",
+            source: None,
+            approved_by: None,
+            approval_control: None,
+            approved_on: None,
+            incident: Some("what went wrong"),
+            incident_file: None,
+            body: Some("Do the thing."),
+            body_file: None,
+            scope: &[],
+            dry_run: false,
+        }
+    }
+
+    /// The load-bearing assertion: what `new` writes is a rule the library
+    /// accepts. Not "a file appeared" — `check` is the arbiter for a hand-typed
+    /// rule and must be the arbiter for this one, or the command is a second
+    /// way to produce a rule that only mostly parses.
+    #[test]
+    fn what_new_writes_is_a_rule_the_library_validates() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        new_rule(minimal(rules.path(), "R:x")).expect("new succeeds");
+
+        let library = fsio::load_rules(rules.path())
+            .expect("the written file loads")
+            .validate()
+            .expect("and validates");
+        assert_eq!(library.rules().len(), 1);
+        let rule = &library.rules()[0];
+        assert_eq!(rule.tag().as_str(), "R:x");
+        assert_eq!(rule.body().as_str(), "Do the thing.");
+        assert!(rule.origin().source().is_none());
+    }
+
+    /// `--dry-run` writes nothing. A preview that leaves a file behind is worse
+    /// than no preview, because the directory now holds a rule nobody decided to
+    /// keep.
+    #[test]
+    fn a_dry_run_writes_nothing() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let mut args = minimal(rules.path(), "R:x");
+        args.dry_run = true;
+        new_rule(args).expect("dry run succeeds");
+
+        let library = fsio::load_rules(rules.path())
+            .expect("the directory loads")
+            .validate()
+            .expect("an empty library validates");
+        assert!(
+            library.rules().is_empty(),
+            "a dry run must leave the rules directory untouched"
+        );
+    }
+
+    /// **`new` never replaces an existing rule, even with itself.**
+    ///
+    /// The regression pin for a real defect, found by running the binary twice
+    /// and not by the sibling test below, which had only exercised the
+    /// foreign-file case. `fsio::write_rule`'s guard permits overwriting the
+    /// *same* rule — correct for `adopt`, which rewrites a rule's authority in
+    /// place — so `new` silently replaced a rule with a changed title, throwing
+    /// away its incident, its recurrences and its body. A correction lost, by
+    /// the tool whose subject is not losing corrections.
+    /// `[R:verify-through-production-path]`
+    #[test]
+    fn new_never_replaces_an_existing_rule_even_with_itself() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        new_rule(minimal(rules.path(), "R:x")).expect("the first create succeeds");
+
+        let mut again = minimal(rules.path(), "R:x");
+        again.title = "A different title";
+        let err = new_rule(again).expect_err("the second create is refused");
+        assert!(
+            matches!(err, CliError::RuleExists { .. }),
+            "expected a create refusal, got {err:?}"
+        );
+
+        let library = fsio::load_rules(rules.path())
+            .expect("loads")
+            .validate()
+            .expect("validates");
+        assert_eq!(
+            library.rules()[0].title().as_str(),
+            "A title",
+            "the original rule must survive the refused create"
+        );
+    }
+
+    /// An occupied target is refused whatever occupies it, and the occupant is
+    /// left alone.
+    ///
+    /// The sibling above covers the occupant being the same rule; this covers a
+    /// file that is not a rule at all. Both now raise the same refusal, which is
+    /// the honest shape: `new` asks whether the path is free, and that question
+    /// is answered before anything has parsed what is there — which is why the
+    /// message reports the path and declines to say what is in it.
+    #[test]
+    fn an_occupied_target_is_refused_and_left_untouched() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        std::fs::write(rules.path().join("x.md"), "not a rule at all\n").expect("seed the target");
+
+        let err = new_rule(minimal(rules.path(), "R:x")).expect_err("the target is occupied");
+        assert!(
+            matches!(err, CliError::RuleExists { .. }),
+            "expected a create refusal, got {err:?}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(rules.path().join("x.md")).expect("still there"),
+            "not a rule at all\n",
+            "the occupying file must be untouched"
+        );
+    }
+
+    /// `--home` takes the authorable form, not the slug `list --home` takes.
+    #[test]
+    fn every_home_kind_is_authorable_and_a_slug_is_not_a_home() {
+        for (spec, expected) in [
+            ("global", "global"),
+            ("domain=low-latency", "domain-low-latency"),
+            ("org=acme", "org-acme"),
+            ("project=relearn", "project-relearn"),
+        ] {
+            let home = parse_home_spec(spec).expect("a well-formed home spec");
+            assert_eq!(crate::emit::HomeSlug::of(&home).as_str(), expected);
+        }
+        // The slug is a one-way identity, so feeding one back in is refused
+        // rather than guessed at.
+        assert!(matches!(
+            parse_home_spec("domain-low-latency"),
+            Err(CliError::UnknownHomeSpec { .. })
+        ));
+        assert!(matches!(
+            parse_home_spec("domain="),
+            Err(CliError::HomeText(_))
+        ));
+    }
+
+    /// A source reaches the written rule, and only on a codified origin — the
+    /// perimeter's rule, reached through this command rather than restated by it.
+    #[test]
+    fn a_source_is_written_for_a_codified_rule_and_refused_otherwise() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let mut args = minimal(rules.path(), "R:c");
+        args.origin = "codified";
+        args.source = Some("a page");
+        new_rule(args).expect("a codified rule may name its source");
+        let library = fsio::load_rules(rules.path())
+            .expect("loads")
+            .validate()
+            .expect("validates");
+        assert_eq!(
+            library.rules()[0]
+                .origin()
+                .source()
+                .map(SourceArtefact::as_str),
+            Some("a page")
+        );
+
+        let other = tempfile::tempdir().expect("rules tempdir");
+        let mut args = minimal(other.path(), "R:m");
+        args.source = Some("a page");
+        assert!(matches!(
+            new_rule(args),
+            Err(CliError::Origin(OriginError::SourceWithoutCodification(_)))
+        ));
+    }
+
+    /// A mandate needs all three halves of its approval or none.
+    #[test]
+    fn a_half_given_approval_is_refused() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let mut args = minimal(rules.path(), "R:m");
+        args.origin = "mandated";
+        args.approved_by = Some("the change board");
+        assert!(matches!(new_rule(args), Err(CliError::PartialApproval)));
+    }
+
+    /// Prose is required, never defaulted. A placeholder body parses, emits, and
+    /// says nothing.
+    #[test]
+    fn a_missing_body_is_refused_rather_than_defaulted() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let mut args = minimal(rules.path(), "R:x");
+        args.body = None;
+        assert!(matches!(
+            new_rule(args),
+            Err(CliError::MissingProse { field: "body" })
+        ));
+    }
+
+    /// Prose reads from a file, because a paragraph is not a shell argument.
+    #[test]
+    fn prose_reads_from_a_file() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let body_path = rules.path().join("body.txt");
+        std::fs::write(&body_path, "A body from a file.\n").expect("write body");
+
+        let mut args = minimal(rules.path(), "R:x");
+        args.body = None;
+        args.body_file = Some(&body_path);
+        new_rule(args).expect("new succeeds");
+
+        let library = fsio::load_rules(rules.path())
+            .expect("loads")
+            .validate()
+            .expect("validates");
+        let rule = library
+            .rules()
+            .iter()
+            .find(|r| r.tag().as_str() == "R:x")
+            .expect("the rule was written");
+        assert_eq!(rule.body().as_str(), "A body from a file.");
+    }
+
+    /// A repeated audience is refused, not silently deduplicated.
+    #[test]
+    fn a_repeated_scope_is_refused() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let scopes = vec!["rust".to_owned(), "rust".to_owned()];
+        let mut args = minimal(rules.path(), "R:x");
+        args.scope = &scopes;
+        assert!(matches!(
+            new_rule(args),
+            Err(CliError::DuplicateScope { .. })
         ));
     }
 }

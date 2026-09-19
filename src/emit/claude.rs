@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use super::{
     HomeSlug, OutputFile, RelativePath, audience_note, emittable, enforcement_note,
-    recurrence_note, yaml_double_quote,
+    recurrence_note, source_note, yaml_double_quote,
 };
 use crate::library::{Library, Validated};
 use crate::rule::{Home, Rule};
@@ -169,9 +169,48 @@ fn description_lead(home: &Home) -> String {
 }
 
 /// Render one skill file: YAML front-matter then a markdown section per rule.
+/// The order titles are offered to [`SkillDescription::build`], which keeps as
+/// many as fit and drops the rest.
+///
+/// **This exists because the truncation had no stated intent.** `build` walks
+/// its input and stops at the cap, so whatever order it is handed decides which
+/// rules stay discoverable — and it was handed the caller's tag order, which is
+/// the alphabet. Measured on a sixteen-rule home, the three titles dropped were
+/// the three whose tags sort last, and nothing about `p`, `t` or `v` says "least
+/// worth loading". `[R:order-by-explicit-rank]`
+///
+/// Three keys, most significant first:
+///
+/// 1. [`Status::instruction_reliance`] — a rule held by prose alone loses
+///    everything if its layer does not load; one with a named control holding
+///    the whole class still has that control.
+/// 2. Recurrence count, **descending** — a rule that has fired again is one this
+///    reader has already needed, and the count is the corpus's only evidence of
+///    that.
+/// 3. Tag, ascending — the tiebreak, so emission stays a deterministic function
+///    of the library and re-emitting unchanged rules reproduces the same bytes.
+///
+/// The **body** of the skill is deliberately not reordered: it stays in tag
+/// order, where a reader can find a rule by name and a diff stays readable. This
+/// orders which titles survive a truncation, and nothing else.
+fn description_order<'a>(rules: &[&'a Rule]) -> Vec<&'a Rule> {
+    let mut ordered: Vec<&Rule> = rules.to_vec();
+    ordered.sort_by(|a, b| {
+        a.status()
+            .instruction_reliance()
+            .cmp(&b.status().instruction_reliance())
+            .then(b.recurrences().len().cmp(&a.recurrences().len()))
+            .then(a.tag().as_str().cmp(b.tag().as_str()))
+    });
+    ordered
+}
+
 fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
     let label = home_label(home);
-    let titles: Vec<&str> = rules.iter().map(|r| r.title().as_str()).collect();
+    let titles: Vec<&str> = description_order(rules)
+        .iter()
+        .map(|r| r.title().as_str())
+        .collect();
     let description = SkillDescription::build(&description_lead(home), &titles)
         .as_str()
         .to_owned();
@@ -198,6 +237,9 @@ fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
             out.push_str(&note);
         }
         if let Some(note) = recurrence_note(r) {
+            out.push_str(&note);
+        }
+        if let Some(note) = source_note(r) {
             out.push_str(&note);
         }
         out.push_str(r.body().as_str());
@@ -272,7 +314,8 @@ mod tests {
     use super::*;
     use crate::library::Library;
     use crate::rule::{
-        Authority, Body, Date, ErrorClass, Home, Incident, Origin, RuleTag, Status, Title,
+        Authority, Body, Date, ErrorClass, Home, Incident, Origin, Recurrence, RuleTag, Status,
+        Title,
     };
 
     fn rule(tag: &str, home: Home, title: &str, error_class: &str, body: &str) -> Rule {
@@ -491,5 +534,124 @@ mod tests {
         let c = rust.contents();
         assert!(c.contains("[R:grad]"));
         assert!(c.contains("> Also enforced by hook:no-unwrap-in-src."));
+    }
+
+    // ── which titles survive a truncation ───────────────────────────────────
+
+    /// A rule with the given tag, status and recurrence count, for ordering
+    /// tests. Titles are made long on purpose so a handful of rules overflows
+    /// the cap and the truncation is reached.
+    fn ranked(tag: &str, status: Status, recurrences: usize) -> Rule {
+        let padded = format!(
+            "A title for {tag} long enough that a few of these overflow the description cap"
+        );
+        let recs: Vec<Recurrence> = (0..recurrences)
+            .map(|_| {
+                Recurrence::new(
+                    Date::parse("2026-09-01").expect("valid date"),
+                    Incident::parse("it fired again").expect("non-empty incident"),
+                )
+            })
+            .collect();
+        Rule::new(
+            RuleTag::parse(tag).expect("valid tag"),
+            Title::parse(padded).expect("non-empty title"),
+            ErrorClass::parse("an error class").expect("non-empty error class"),
+            Home::global(),
+            Date::parse("2026-08-13").expect("valid date"),
+            Origin::Mined,
+            status,
+            Incident::parse("an incident").expect("non-empty incident"),
+            Body::parse("Body.").expect("non-empty body"),
+            recs,
+            Vec::new(),
+            Authority::local(),
+            None,
+        )
+    }
+
+    fn graduated() -> Status {
+        Status::graduated("hook:something", Date::parse("2026-08-01").expect("date"))
+            .expect("a valid destination")
+    }
+
+    /// **The defect this rank exists for.** A rule held by prose alone outranks
+    /// a graduated one whatever the alphabet says — so a truncation drops the
+    /// rule that still has a control firing for it, not the one that has
+    /// nothing else.
+    ///
+    /// `R:aaa` is graduated and sorts first by tag; `R:zzz` is active and sorts
+    /// last. Under the old tag ordering `R:aaa` was kept and `R:zzz` dropped,
+    /// which is the exact inversion measured on the real corpus.
+    #[test]
+    fn a_rule_prose_alone_holds_outranks_a_graduated_one_whatever_the_tag_says() {
+        let rules = [
+            ranked("R:aaa", graduated(), 0),
+            ranked("R:zzz", Status::active(), 0),
+        ];
+        let refs: Vec<&Rule> = rules.iter().collect();
+        let ordered = description_order(&refs);
+        assert_eq!(
+            ordered.iter().map(|r| r.tag().as_str()).collect::<Vec<_>>(),
+            ["R:zzz", "R:aaa"],
+            "the actively-held rule must come first"
+        );
+    }
+
+    /// Within one reliance tier, a rule that has fired again outranks one that
+    /// never has — the corpus's only evidence that a reader has needed it.
+    #[test]
+    fn a_recurred_rule_outranks_one_that_has_never_fired() {
+        let rules = [
+            ranked("R:aaa", Status::active(), 0),
+            ranked("R:zzz", Status::active(), 2),
+        ];
+        let refs: Vec<&Rule> = rules.iter().collect();
+        let ordered = description_order(&refs);
+        assert_eq!(
+            ordered.iter().map(|r| r.tag().as_str()).collect::<Vec<_>>(),
+            ["R:zzz", "R:aaa"],
+            "the rule that has bitten must come first"
+        );
+    }
+
+    /// The tag is the tiebreak and nothing more, so emission stays a
+    /// deterministic function of the library.
+    #[test]
+    fn equal_rank_falls_back_to_the_tag_so_emission_stays_deterministic() {
+        let rules = [
+            ranked("R:zzz", Status::active(), 1),
+            ranked("R:aaa", Status::active(), 1),
+        ];
+        let refs: Vec<&Rule> = rules.iter().collect();
+        let ordered = description_order(&refs);
+        assert_eq!(
+            ordered.iter().map(|r| r.tag().as_str()).collect::<Vec<_>>(),
+            ["R:aaa", "R:zzz"]
+        );
+    }
+
+    /// The rank orders the **description** and leaves the body alone: a reader
+    /// finds a rule by name in tag order, and a diff stays readable.
+    #[test]
+    fn the_rank_reorders_the_description_and_never_the_body() {
+        let lib = validated(vec![
+            ranked("R:aaa", graduated(), 0),
+            ranked("R:zzz", Status::active(), 0),
+        ]);
+        let files = emit(&lib);
+        let c = files[0].contents();
+
+        let desc_end = c.find("\n---\n\n").expect("front-matter is closed");
+        let (front, body) = c.split_at(desc_end);
+        assert!(
+            front.find("R:zzz").expect("zzz is described") < front.find("R:aaa").expect("aaa too"),
+            "the description is ranked: {front}"
+        );
+        assert!(
+            body.find("[R:aaa]").expect("aaa is in the body")
+                < body.find("[R:zzz]").expect("zzz is in the body"),
+            "the body stays in tag order: {body}"
+        );
     }
 }

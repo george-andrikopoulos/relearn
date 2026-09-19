@@ -22,7 +22,7 @@
 
 use super::{
     LoadSemantics, OutputFile, RelativePath, audience_note, emittable, enforcement_note,
-    recurrence_note,
+    recurrence_note, source_note,
 };
 use crate::library::{Library, Validated};
 use crate::rule::Rule;
@@ -89,6 +89,9 @@ fn render_mdc(rule: &Rule, scope: &LoadSemantics) -> String {
         out.push_str(&note);
     }
     if let Some(note) = recurrence_note(rule) {
+        out.push_str(&note);
+    }
+    if let Some(note) = source_note(rule) {
         out.push_str(&note);
     }
     out.push_str(rule.body().as_str());

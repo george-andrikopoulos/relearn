@@ -151,7 +151,7 @@ fn a_mandate_carries_its_approval() {
     }
     assert!(mandated.is_mandated());
     assert!(!Origin::Mined.is_mandated());
-    assert!(!Origin::Codified.is_mandated());
+    assert!(!Origin::Codified(None).is_mandated());
 }
 
 /// A mandate is not evidence. It was never mined from a failure, so counting it
@@ -172,7 +172,7 @@ fn a_mandated_rule_is_neither_recurrence_evidence_nor_inert() {
         "a mandate is not recurrence evidence"
     );
 
-    let codified = rule("R:c", Home::global(), Origin::Codified);
+    let codified = rule("R:c", Home::global(), Origin::Codified(None));
     assert!(codified.is_inert());
     assert!(codified.counts_toward_recurrence_statistics());
 }

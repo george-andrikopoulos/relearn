@@ -21,7 +21,7 @@
 use relearn::contribute::{Contribution, NotContributable, SupersedingVersion};
 use relearn::rule::{
     Approval, Approver, Authority, Body, ControlRef, Date, ErrorClass, Home, Incident, Origin,
-    PublishedIncident, Recurrence, Rule, RuleTag, SourceId, Status, Title, Version,
+    PublishedIncident, Recurrence, Rule, RuleTag, SourceArtefact, SourceId, Status, Title, Version,
 };
 
 const RAW: &str =
@@ -405,4 +405,54 @@ fn a_citation_of_a_tag_nobody_holds_is_still_reported() {
     let rule = citing("This builds on R:ghost, which was never written.");
     let dangling = dangling_citations(&rule, &[], &library(Vec::new()));
     assert_eq!(dangling[0].1, Citation::NotPublishedYet);
+}
+
+// ── what a scan must see ────────────────────────────────────────────────────
+
+/// Every authored field that travels is offered to the banned-terms scan, and
+/// the enumeration lives beside the projection rather than at the call site.
+///
+/// `source` is the reason this test exists. It joined the format on 2026-09-18
+/// as a third authored field that leaves the machine, while the CLI's scan list
+/// named two and carried a comment asserting there were only two. A provenance
+/// field that travels unscanned is the exact shape of
+/// `[R:names-travel-with-the-quote]`.
+#[test]
+fn every_authored_field_that_travels_is_offered_to_the_scan() {
+    let rule = rule_with(
+        Home::global(),
+        Origin::Codified(Some(
+            SourceArtefact::parse("an internal spec").expect("non-empty source"),
+        )),
+        Authority::local(),
+        Some(PUBLISHED),
+        Vec::new(),
+    );
+    let contribution = Contribution::of(&rule).expect("contributable");
+
+    let fields: Vec<&str> = contribution.authored_texts().map(|(f, _)| f).collect();
+    assert_eq!(fields, ["published_incident", "body", "source"]);
+
+    let source_text = contribution
+        .authored_texts()
+        .find(|(f, _)| *f == "source")
+        .map(|(_, t)| t);
+    assert_eq!(source_text, Some("an internal spec"));
+}
+
+/// A rule naming no artefact offers two fields, not three with a blank — an
+/// empty string would scan clean and read, in any report, as a field checked.
+#[test]
+fn a_contribution_with_no_source_offers_no_source_to_the_scan() {
+    let rule = rule_with(
+        Home::global(),
+        Origin::Codified(None),
+        Authority::local(),
+        Some(PUBLISHED),
+        Vec::new(),
+    );
+    let contribution = Contribution::of(&rule).expect("contributable");
+
+    let fields: Vec<&str> = contribution.authored_texts().map(|(f, _)| f).collect();
+    assert_eq!(fields, ["published_incident", "body"]);
 }

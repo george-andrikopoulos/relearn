@@ -43,6 +43,14 @@ pub fn to_document(rule: &Rule) -> String {
     if let Some(approval) = rule.origin().approval() {
         out.push_str(&approval_line(approval));
     }
+    // The other origin payload, beside `origin` for the same reason and emitted
+    // the same way — by matching the variant, never by testing an option that
+    // could disagree with the spelling. A rule that names no artefact renders
+    // exactly as it did before the field existed, which is why none of the
+    // fifty-seven committed rules needed editing.
+    if let Some(source) = rule.origin().source() {
+        out.push_str(&kv("source", source.as_str()));
+    }
     out.push_str(&status_line(rule.status()));
     // Emitted **only** when the rule is not local, so every rule written before
     // the field existed renders exactly as it did — and, more importantly, a

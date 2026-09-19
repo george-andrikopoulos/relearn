@@ -31,6 +31,40 @@ impl Approver {
     }
 }
 
+/// The artefact a **codified** rule was written down from: a page, a paper, a
+/// specification clause, a section of a standing instruction file.
+///
+/// Free text rather than a URL type, and deliberately. The artefact that
+/// defines a practice is as often `~/.claude/CLAUDE.md, Reasoning &
+/// Methodology` or a chapter of a book as it is something with a scheme and a
+/// host, so a `Url` newtype would make the commonest source unrepresentable
+/// while proving nothing about the uncommon one — a well-formed URL is not a
+/// reachable one, and this field's job is to tell a reader where to look, not
+/// to promise the look will succeed. What the type holds is the invariant
+/// worth holding: a source that is present is not blank.
+///
+/// Named `SourceArtefact` rather than `Source` because [`SourceId`] already
+/// means something else in this crate — which install a cached rule came
+/// *from*. Two meanings of "source" one module apart is exactly the collision
+/// `[R:newtype-liberally]` exists to prevent.
+///
+/// [`SourceId`]: super::SourceId
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceArtefact(String);
+
+impl SourceArtefact {
+    /// Parse a non-empty source artefact.
+    pub fn parse(s: impl Into<String>) -> Result<Self, EmptyText> {
+        Ok(Self(nonempty("source", s)?))
+    }
+
+    /// The artefact text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// The control-framework requirement a mandated rule implements, in whatever
 /// vocabulary the organisation's framework uses — `AC-6(9)`, `A.9.2.3`, a
 /// policy clause number.
@@ -96,11 +130,22 @@ impl Approval {
 
 /// Where a rule came from.
 ///
-/// **`Codified` deliberately does not carry a source**: a practice written down
-/// from standing doctrine is meaningful without naming a document, so "codified
-/// without a source" is not an illegal state and there is nothing for a payload
-/// to make unrepresentable. Where the source matters it is already in the rule's
-/// `incident` prose.
+/// **`Codified` carries an *optional* source, and the optionality is the whole
+/// design.** Until 2026-09-18 it carried none, on the stated ground that "a
+/// practice written down from standing doctrine is meaningful without naming a
+/// document". That reasoning was sound for the corpus it was written against —
+/// every codified rule had been ported out of the author's own always-loaded
+/// instruction file, where the `incident` prose already said so. It stopped
+/// being sound the first time a practice was codified from **someone else's**
+/// published artefact, because there the document is not a footnote to the
+/// provenance, it *is* the provenance, and a reader who cannot reach it cannot
+/// check the practice against the thing that defines it.
+///
+/// So "codified without a source" is still not an illegal state — it is the
+/// common one, and twenty-two rule files depend on it staying free. What the
+/// payload buys is the other half: a source that is *present* is non-blank by
+/// construction, and a source on an origin that has no use for one is a parse
+/// error rather than a field the parser quietly drops.
 ///
 /// **`Mandated` does carry its approval, and that is the point.** An
 /// organisation's control-framework requirements are not corrections: they have
@@ -119,7 +164,18 @@ pub enum Origin {
     /// Written down from existing practice or doctrine rather than from a
     /// single incident — the `incident` field records when and from where it
     /// was codified, not a failure it retired.
-    Codified,
+    ///
+    /// **The source is optional, and that is not the same decision as the
+    /// mandate's.** `Mandated` carries its approval because a mandate with no
+    /// signer is an unenforced guarantee. A codified rule with no named
+    /// artefact is not the analogous defect: a practice ported out of the
+    /// author's own standing instruction file is fully accounted for by its
+    /// `incident`, and twenty-two such rules predate this field. What the
+    /// payload adds is the case that convention could not hold — a practice
+    /// codified from *someone else's* published artefact, where the document
+    /// is the provenance rather than a footnote to it.
+    /// `[R:source-practice-from-its-artefact]`
+    Codified(Option<SourceArtefact>),
     /// Required by an organisation's control framework and signed off, rather
     /// than learned from anything. Carries the approval that is its provenance.
     Mandated(Approval),
@@ -142,6 +198,14 @@ pub enum OriginError {
     /// rule that was signed off when it was not.
     #[error("`approval` is only valid with `origin = \"mandated\"` (got `{0}`)")]
     ApprovalWithoutMandate(String),
+    /// A `source` field on a rule that is not codified. Refused rather than
+    /// ignored, for the same reason as the approval above: a source the parser
+    /// drops reads back, to the next person, as an artefact the rule cited. A
+    /// mined rule's provenance is its incident and a mandate's is its approval,
+    /// so a `source` beside either is a mistake or a mislabelled origin — both
+    /// worth stopping the build for.
+    #[error("`source` is only valid with `origin = \"codified\"` (got `{0}`)")]
+    SourceWithoutCodification(String),
 }
 
 /// A rule's standing in the recurrence statistics.
@@ -166,20 +230,31 @@ pub enum RecurrenceRole {
 
 impl Origin {
     /// Parse the neutral format's `origin` value **together with** its optional
-    /// `approval` table — one perimeter that sees both halves, so the
-    /// mandate-approval correspondence is settled where the evidence is rather
+    /// `approval` table and its optional `source` — one perimeter that sees all
+    /// three, so each correspondence is settled where the evidence is rather
     /// than re-checked later by something holding only one of them.
-    pub fn parse(s: &str, approval: Option<Approval>) -> Result<Self, OriginError> {
+    ///
+    /// Both payloads are refused on the origins they have no meaning for, and
+    /// the match has no catch-all over the pair, so a fourth origin cannot
+    /// acquire either payload's policy by default.
+    pub fn parse(
+        s: &str,
+        approval: Option<Approval>,
+        source: Option<SourceArtefact>,
+    ) -> Result<Self, OriginError> {
         let kind = s.trim();
-        match (kind, approval) {
-            ("mined", None) => Ok(Origin::Mined),
-            ("codified", None) => Ok(Origin::Codified),
-            ("mandated", Some(approval)) => Ok(Origin::Mandated(approval)),
-            ("mandated", None) => Err(OriginError::MandateWithoutApproval),
-            ("mined" | "codified", Some(_)) => {
+        match (kind, approval, source) {
+            ("mined", None, None) => Ok(Origin::Mined),
+            ("codified", None, source) => Ok(Origin::Codified(source)),
+            ("mandated", Some(approval), None) => Ok(Origin::Mandated(approval)),
+            ("mandated", None, _) => Err(OriginError::MandateWithoutApproval),
+            ("mined" | "codified", Some(_), _) => {
                 Err(OriginError::ApprovalWithoutMandate(kind.to_owned()))
             }
-            (other, _) => Err(OriginError::Unknown(other.to_owned())),
+            ("mined" | "mandated", _, Some(_)) => {
+                Err(OriginError::SourceWithoutCodification(kind.to_owned()))
+            }
+            (other, _, _) => Err(OriginError::Unknown(other.to_owned())),
         }
     }
 
@@ -190,8 +265,20 @@ impl Origin {
     pub fn as_str(&self) -> &'static str {
         match self {
             Origin::Mined => "mined",
-            Origin::Codified => "codified",
+            Origin::Codified(_) => "codified",
             Origin::Mandated(_) => "mandated",
+        }
+    }
+
+    /// The artefact this practice was written down from, for a codified rule
+    /// that names one; `None` for every other origin — which is not a sentinel
+    /// but the honest reading, exactly as for [`Origin::approval`]. A mined
+    /// rule has an incident instead, and a mandate has a signer.
+    #[must_use]
+    pub fn source(&self) -> Option<&SourceArtefact> {
+        match self {
+            Origin::Mined | Origin::Mandated(_) => None,
+            Origin::Codified(source) => source.as_ref(),
         }
     }
 
@@ -200,7 +287,7 @@ impl Origin {
     #[must_use]
     pub fn approval(&self) -> Option<&Approval> {
         match self {
-            Origin::Mined | Origin::Codified => None,
+            Origin::Mined | Origin::Codified(_) => None,
             Origin::Mandated(approval) => Some(approval),
         }
     }
@@ -221,7 +308,7 @@ impl Origin {
     pub fn recurrence_role(&self) -> RecurrenceRole {
         match self {
             Origin::Mined => RecurrenceRole::Evidence,
-            Origin::Codified => RecurrenceRole::Authored,
+            Origin::Codified(_) => RecurrenceRole::Authored,
             Origin::Mandated(_) => RecurrenceRole::Excluded,
         }
     }
@@ -254,19 +341,25 @@ mod tests {
 
     #[test]
     fn parses_both_spellings() {
-        assert_eq!(Origin::parse("mined", None), Ok(Origin::Mined));
-        assert_eq!(Origin::parse("codified", None), Ok(Origin::Codified));
+        assert_eq!(Origin::parse("mined", None, None), Ok(Origin::Mined));
+        assert_eq!(
+            Origin::parse("codified", None, None),
+            Ok(Origin::Codified(None))
+        );
     }
 
     #[test]
     fn trims_before_matching() {
-        assert_eq!(Origin::parse("  codified  ", None), Ok(Origin::Codified));
+        assert_eq!(
+            Origin::parse("  codified  ", None, None),
+            Ok(Origin::Codified(None))
+        );
     }
 
     #[test]
     fn a_mandate_parses_with_its_approval() {
         assert_eq!(
-            Origin::parse("mandated", Some(approval())),
+            Origin::parse("mandated", Some(approval()), None),
             Ok(Origin::Mandated(approval()))
         );
     }
@@ -278,7 +371,7 @@ mod tests {
     #[test]
     fn a_mandate_without_an_approval_is_refused() {
         assert_eq!(
-            Origin::parse("mandated", None),
+            Origin::parse("mandated", None, None),
             Err(OriginError::MandateWithoutApproval)
         );
     }
@@ -286,11 +379,11 @@ mod tests {
     #[test]
     fn an_approval_without_a_mandate_is_refused_and_names_the_origin() {
         assert_eq!(
-            Origin::parse("mined", Some(approval())),
+            Origin::parse("mined", Some(approval()), None),
             Err(OriginError::ApprovalWithoutMandate("mined".to_owned()))
         );
         assert_eq!(
-            Origin::parse("codified", Some(approval())),
+            Origin::parse("codified", Some(approval()), None),
             Err(OriginError::ApprovalWithoutMandate("codified".to_owned()))
         );
     }
@@ -301,21 +394,21 @@ mod tests {
         assert!(!mandated.is_mined());
         assert!(mandated.is_mandated());
         assert!(!Origin::Mined.is_mandated());
-        assert!(!Origin::Codified.is_mandated());
+        assert!(!Origin::Codified(None).is_mandated());
     }
 
     #[test]
     fn only_a_mandate_has_an_approval() {
         assert!(Origin::Mandated(approval()).approval().is_some());
         assert!(Origin::Mined.approval().is_none());
-        assert!(Origin::Codified.approval().is_none());
+        assert!(Origin::Codified(None).approval().is_none());
     }
 
     // The error names the offending value and the alternatives, so a typo in a
     // rule file reports what to write rather than only that it was wrong.
     #[test]
     fn an_unknown_value_is_named() {
-        let err = Origin::parse("invented", None).expect_err("not an origin");
+        let err = Origin::parse("invented", None, None).expect_err("not an origin");
         let text = err.to_string();
         assert!(text.contains("invented"), "{text}");
         assert!(text.contains("mined | codified | mandated"), "{text}");
@@ -325,20 +418,27 @@ mod tests {
     fn as_str_round_trips_through_parse() {
         for origin in [
             Origin::Mined,
-            Origin::Codified,
+            Origin::Codified(None),
+            Origin::Codified(Some(
+                SourceArtefact::parse("a page").expect("non-empty source"),
+            )),
             Origin::Mandated(approval()),
         ] {
-            // The approval travels beside the spelling, which is exactly how the
-            // serializer writes it: `origin = "mandated"` then the table.
+            // Both payloads travel beside the spelling, which is exactly how the
+            // serializer writes them: `origin = "..."` then the table or the
+            // field. The codified-with-source case is in the list because
+            // `as_str` is lossy for it — two distinct origins share the spelling
+            // `codified`, and only the payload tells them apart.
             let approval = origin.approval().cloned(); // allow:clone: the round trip needs an owned approval to hand back to `parse`, and the original must stay for the comparison
-            assert_eq!(Origin::parse(origin.as_str(), approval), Ok(origin));
+            let source = origin.source().cloned(); // allow:clone: same — `parse` takes the source by value while the original is still needed for the comparison
+            assert_eq!(Origin::parse(origin.as_str(), approval, source), Ok(origin));
         }
     }
 
     #[test]
     fn only_mined_is_mined() {
         assert!(Origin::Mined.is_mined());
-        assert!(!Origin::Codified.is_mined());
+        assert!(!Origin::Codified(None).is_mined());
     }
 
     #[test]
@@ -347,7 +447,10 @@ mod tests {
         // else" that a fourth origin would have joined without anybody
         // deciding, in the one number whose whole purpose is honesty.
         assert_eq!(Origin::Mined.recurrence_role(), RecurrenceRole::Evidence);
-        assert_eq!(Origin::Codified.recurrence_role(), RecurrenceRole::Authored);
+        assert_eq!(
+            Origin::Codified(None).recurrence_role(),
+            RecurrenceRole::Authored
+        );
         assert_eq!(
             Origin::Mandated(approval()).recurrence_role(),
             RecurrenceRole::Excluded

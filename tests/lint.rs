@@ -604,8 +604,13 @@ fn the_tally_counts_recurred_and_inert_separately() {
     let lib = validated(vec![
         with_origin("R:a", Origin::Mined, Status::active(), &["2026-08-24"]),
         with_origin("R:b", Origin::Mined, Status::active(), &[]),
-        with_origin("R:c", Origin::Codified, Status::active(), &[]),
-        with_origin("R:d", Origin::Codified, Status::active(), &["2026-08-24"]),
+        with_origin("R:c", Origin::Codified(None), Status::active(), &[]),
+        with_origin(
+            "R:d",
+            Origin::Codified(None),
+            Status::active(),
+            &["2026-08-24"],
+        ),
     ]);
     let t = relearn::lint::tally(&lib);
     assert_eq!(t.total(), 4);

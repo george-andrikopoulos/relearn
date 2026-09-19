@@ -1,10 +1,10 @@
 ---
-description: Verify a zero-cost claim; never assert it (Claiming an abstraction is zero-cost from its reputation -- newtype, iterator chain, generic wrapper -- without inspecting what the compiler emitted, so a real cost such as a bounds check, a heap allocation, or a missed inline ships as a claimed absence of cost)
+description: Verify an absent cost; reputation and a fast benchmark both lie (Reading an absence of cost out of an optimiser nobody inspected -- asserting an abstraction is zero-cost from its reputation, or accepting a benchmark that returned near-zero because the work was optimised away -- so a real cost ships as a claimed absence, or an absence of work is reported as an absence of cost)
 globs: **/*.rs
 alwaysApply: false
 ---
 
-# Verify a zero-cost claim; never assert it [R:verify-the-abstraction-compiled-away]
+# Verify an absent cost; reputation and a fast benchmark both lie [R:verify-the-abstraction-compiled-away]
 
 "Zero-cost" is a property of a particular abstraction, under a particular optimiser, on a particular build profile. In Rust it is usually true, which is precisely why it gets asserted instead of checked, and why the cases where it is false survive review.
 
@@ -12,6 +12,10 @@ Where the cost is load-bearing -- a hot path, a latency budget, an allocation-fr
 
 Then run the failure-mode check R:measure-cost-per-task states in the general case -- under what configuration does this cost exactly what it was chosen not to cost? A `#[repr(transparent)]` newtype crossing an FFI boundary, an iterator chain that fails to fuse because the closure captures by reference, a generic that is never monomorphised because it went out through a trait object. Bound that configuration, or drop the claim.
 
+The same optimiser runs the other way, and that half is more dangerous because it arrives carrying a measurement. A microbenchmark whose result is never used, or whose input is a compile-time constant, is dead code: the optimiser deletes the work and the harness times an empty loop. The reading is not "this is fast" but "this did not happen", and the two are indistinguishable in the output -- an implausibly good number is the only signal, and an implausibly good number is exactly what the author was hoping for. So read the emitted code for a benchmark as readily as for a claim, consume every result through a black box the optimiser cannot see through (`std::hint::black_box`, JMH's `Blackhole`), and treat a figure at or near zero as a defect report on the harness until the assembly says otherwise.
+
+Both halves are one act: an absent cost is a fact about emitted code, so it is established by reading emitted code. Reputation asserts it without measuring; a deleted benchmark measures without establishing it.
+
 This is R:verify-through-production-path applied to code generation: a claim measured on a build the user never runs is evidence about that build alone. Where the cost is not load-bearing, do not make the claim at all -- an unverified performance assertion in a doc comment is read as a measured one.
 
-<!-- relearn:generated v0.1.0 sha256=57e7e941046df6c0d5f086afb6c6add0fdf9b7064ff9d6954ad010b128f92d64 rules=R:verify-the-abstraction-compiled-away -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=117785de762236dffba77abc8aafd3d509e27825e11181804a4b170c0acd4636 rules=R:verify-the-abstraction-compiled-away -- DO NOT EDIT; regenerate with `relearn build` -->

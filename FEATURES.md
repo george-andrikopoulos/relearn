@@ -567,6 +567,169 @@ the surviving half of the old byte-identity property + `emit` unit tests
 + `tests/scope_filter.rs::the_announcement_names_every_audience_in_house_prose` and
 `an_unscoped_rule_announces_nothing`, which pin the sentence a human actually reads.
 
+
+### A codified rule may name the artefact it was written down from
+
+What: `Origin::Codified` carries an optional `SourceArtefact` — `source = "..."` beside `origin`,
+exactly as `approval` sits beside a mandate. It is refused on any other origin
+(`OriginError::SourceWithoutCodification`), and refused blank. The absent case stays free: all
+fifty-seven committed rules parse and emit unchanged, and `relearn verify` reported 69 files up to
+date across the change.
+
+Until 2026-09-18 the variant deliberately carried no payload, on the recorded ground that "a
+practice written down from standing doctrine is meaningful without naming a document". That was
+sound for the corpus it was written against — every codified rule had been ported out of the
+author's own always-loaded instruction file, and the `incident` prose already said so. It stopped
+being sound the first time a practice was codified from **someone else's** published artefact,
+where the document is not a footnote to the provenance but *is* the provenance
+(`[R:source-practice-from-its-artefact]`). Optional, not mandatory, is therefore the whole design:
+the mandate's approval is required because a mandate with no signer is an unenforced guarantee,
+and a codified rule with no named artefact is not the analogous defect.
+
+`source` is also the **third authored field that travels on `contribute`**, and adding it exposed
+that the banned-terms scan list lived at the CLI call site and named two. The enumeration moved to
+`Contribution::authored_texts`, beside the projection that decides what travels
+(`[R:names-travel-with-the-quote]`).
+
+**Enforced by:** the type — `Codified(Option<SourceArtefact>)` makes "a source on a mined rule"
+and "a blank source" both unconstructible, and `Origin::parse` takes the origin, the approval and
+the source at **one perimeter** with no catch-all over the triple, so a fourth origin cannot
+inherit either payload's policy by default + `tests/codified_source.rs` (7 pins:
+`a_codified_rule_carries_the_artefact_it_was_written_down_from`,
+`a_codified_rule_without_a_source_still_parses`, `the_source_survives_a_round_trip`,
+`a_rule_without_a_source_renders_no_source_line`, `a_source_on_a_mined_rule_stops_the_build`,
+`a_source_on_a_mandated_rule_stops_the_build`, `a_blank_source_stops_the_build`) +
+`tests/properties.rs::neutral_round_trip_preserves_the_rule`, whose `arb_origin` now generates
+**both** codified shapes — they share the spelling `codified`, so a round-trip that only saw the
+payload-free one would pass while the serializer dropped every source in the corpus +
+`tests/contribution.rs::every_authored_field_that_travels_is_offered_to_the_scan` and
+`a_contribution_with_no_source_offers_no_source_to_the_scan` (an empty string would scan clean and
+read, in any report, as a field that was checked).
+
+**NOTHING YET — exposed:** `title` and `error_class` are also authored and also travel on
+`contribute`, and are **not** scanned. Pre-existing, not introduced here; widening the scan would
+newly refuse contributions that pass today, so it is a policy decision carried in `TODO.md`.
+
+### A sourced rule announces its artefact in every emitted format
+
+What: a codified rule naming an artefact emits `> Written down from <artefact>.` under its
+heading, in all five formats. A rule naming none announces nothing, so output is unchanged for
+every rule written before the field existed.
+
+Fourth of the family, and **last by rank on purpose** (`[R:order-by-explicit-rank]`).
+`audience_note` says whether the rule is yours, `enforcement_note` how firmly it is held,
+`recurrence_note` whether it has bitten — the reader's questions in the order they are asked.
+Provenance answers none of them: it is what a reader follows to check the rule against the thing
+that defines it, asked last and least often.
+
+*Recorded because it cuts against the feature:* a citation is a pointer into a reader's — or a
+model's — existing knowledge of the source, which helps where the rule agrees with it and
+**misleads where the rule deliberately departs from it**. `[R:transient-state-is-not-a-terminal-state]`
+is the live example: it forbids sharing a return value between "drained" and "producer mid-push",
+which Vyukov's own `mpscq_pop` does. The note names the artefact; it never implies the rule agrees
+with it.
+
+**Enforced by:** `emit::source_note` (one definition, `Option<String>`, so "no artefact" is `None`
+rather than an empty string a splice site could render as a blank blockquote) +
+`tests/properties.rs::an_artefact_is_announced_in_every_emitted_format` — **the wiredness
+artifact**: one function, five independent splice sites, and it **counts** announcements per file
+rather than asserting presence, because a concatenated file holds many rules and a file-wide
+negative is false the moment one of them names an artefact (proptest produced that counterexample
+on the eighth case, against the first version of this property) +
+`a_source_reaches_a_body_only_through_the_source_note`, which deletes the note from a sourced
+build and requires the remainder to be byte-identical to a sourceless one, so the announcement is
+provably the *whole* of the difference. Verified through the binary as well as in-process: a
+62-rule library with three sourced rules emitted three announcements each into the skill,
+`AGENTS.md` and `copilot-instructions.md`, and one into the per-rule `.mdc`.
+
+### `relearn new` — author a rule file from its fields
+
+What: `relearn new --tag … --title … --error-class … --home … --on … --incident-file … --body-file …`
+writes one rule file and refuses to touch anything that already exists. `--home` takes the
+authorable form (`global`, `domain=<name>`, `org=<name>`, `project=<path>`), the optional payloads
+are refused on the origins that have no use for them, `--scope` is repeatable, and `--dry-run`
+renders the document to stdout and writes nothing. Prose comes from a literal or a file, and is
+**required** either way: a rule whose body or incident defaulted to a placeholder parses, emits and
+says nothing, which is the silently useless rule the provenance requirement exists to prevent.
+
+Two things it deliberately does not take. **Status**, because a rule that is graduated or atticked
+on the day it is written is not a rule anyone learned anything from — it is always `active`. And
+**`published_incident`**, which is authored when a rule is contributed and not before; a rule file
+is hand-editable by design, so adding it later is the ordinary path rather than a gap.
+
+`--home` is **not** the slug `list --home` takes, and that is the interesting constraint.
+`HomeSlug` is a one-way filesystem identity — it turns a project path's separators into dashes, so
+`project-c-repo-sub` names a home it cannot reconstruct. A slug can select an existing home; it
+cannot construct one, and a parser that pretended otherwise would silently invent a different
+project path.
+
+**Nothing here is a second way to write a rule file.** The witness is minted the same way, the
+document is rendered by the same serializer, and the clobber refusal is the shared one — so a rule
+this command produces is byte-identical to the same rule typed by hand, and `check` is the arbiter
+of both.
+
+**Enforced by:** `cli::new_rule` + `cli::parse_home_spec` (exhaustive over the four `Home` kinds
+with no catch-all, so a fifth variant becomes a compile error at the one place that would otherwise
+not notice) + ten unit pins in `cli`, of which the load-bearing one is
+`what_new_writes_is_a_rule_the_library_validates` — not "a file appeared" but "the library accepts
+it", because `check` is the arbiter for a hand-typed rule and must be the arbiter for this one +
+`new_never_replaces_an_existing_rule_even_with_itself`,
+`an_occupied_target_is_refused_and_left_untouched`, `a_dry_run_writes_nothing`,
+`every_home_kind_is_authorable_and_a_slug_is_not_a_home`,
+`a_source_is_written_for_a_codified_rule_and_refused_otherwise`, `a_half_given_approval_is_refused`,
+`a_missing_body_is_refused_rather_than_defaulted`, `prose_reads_from_a_file`,
+`a_repeated_scope_is_refused`. Smoke-tested through the real argv path, which is where the
+create-never-replaces defect was found.
+
+**The create-never-replaces refusal is `new`'s own, and is the one thing it adds to the shared
+write path.** `fsio::write_rule`'s guard refuses a target occupied by a *different* rule and
+permits overwriting the *same* one — exactly right for `adopt`, whose whole job is rewriting an
+existing rule's authority in place, and exactly wrong for a create. Widening the shared guard would
+have broken `adopt`, so the second question is asked in `new_rule` against
+`fsio::rule_path`, which is now one definition rather than two copies of a path derivation.
+
+### A truncated description drops titles by an explicit rank, never by the alphabet
+
+What: a skill `description` has a hard 1024-character cap, so past roughly a dozen rules per home
+it cannot name them all. Which titles survive is now decided by a stated rank —
+`Status::instruction_reliance` first, then recurrence count descending, then tag as the
+determinism tiebreak — instead of by the caller's tag order, which is the alphabet.
+
+**A dropped title is a rule the matcher cannot fire on**, and for a home reachable only by
+description (`domain-low-latency` and every non-language domain, which `LoadSemantics` makes
+`OnRequest`) that is a rule that may never load at all. Measured on a sixteen-rule home before the
+fix: the three titles dropped were the three whose tags sort last, and nothing about `p`, `t` or
+`v` says "least worth loading". `[R:order-by-explicit-rank]`
+
+The intent the rank states: **keep the titles whose absence costs most.** A rule held by prose
+alone loses everything if its layer does not load; a graduated rule still has the named control
+that claims its whole class, and loses only the tuning the instruction would have added before the
+fact. On the real corpus this moved `global`'s three graduated rules out of the description and the
+recurred ones to the front — the same fifteen slots, spent on the rules that have nothing else
+holding them.
+
+The rank orders the **description only**. The skill body stays in tag order, where a reader finds a
+rule by name and a diff stays readable.
+
+**Enforced by:** `Status::instruction_reliance` — a third policy over `Status`, matched
+exhaustively with no catch-all, so a new status variant cannot compile until it decides how much it
+relies on the instruction layer. Deliberately not a reuse of `Status::prose_coverage`, which is
+two-valued and puts `Active` and `Partial` in one bucket: right for its own question ("did the
+prose fail?"), wrong for this one, because a partly-held rule has controls a wholly-unheld rule
+does not + `emit::claude::description_order` (the one place the rank is applied) + unit pins
+`a_rule_prose_alone_holds_outranks_a_graduated_one_whatever_the_tag_says`,
+`a_recurred_rule_outranks_one_that_has_never_fired`,
+`equal_rank_falls_back_to_the_tag_so_emission_stays_deterministic`,
+`the_rank_reorders_the_description_and_never_the_body`.
+
+**Verified by probe, not asserted** (`[R:wired-artifact]`): the rank was temporarily reverted to
+the old tag sort and all three ordering pins failed, then restored and they passed. A test that
+passes under the behaviour it is supposed to forbid locks nothing.
+
+**NOTHING YET — exposed:** the rank decides *which* titles are dropped, not *that* titles are
+dropped. `global` still drops fifteen of thirty and `domain-low-latency` will truncate again as it
+grows. A cap that cannot hold an inventory is a question about what the field should contain, and
+is carried in `TODO.md`.
 ### An audience no rule declares is an error for `build` and `verify`, and an empty listing for `list`
 
 What: `relearn build --scope rsut` fails naming the declared scopes rather than emitting. The reason is **sharper than the unknown-home one and is recorded as such**: an unknown home produces an empty emission, which at least looks wrong; an unknown scope produces a tree that is *quietly missing every scoped rule* while every unscoped rule is still present — output that looks like success. `list --scope` mirrors `list --home` instead: printing nothing *is* an answer for a listing, and is not one for a gate.
