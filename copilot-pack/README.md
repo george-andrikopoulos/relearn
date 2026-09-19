@@ -81,6 +81,53 @@ Together with the global rules on illegal states and sentinel values, this is th
 whole discipline: the type system carries the guarantee, property tests carry the
 behavioural laws types cannot encode, and unit tests are regression pins.
 
+### The Java set
+
+All 13 Java rules are included, and they are the **language** discipline rather than
+performance advice — the split is deliberate and is described below. Values and
+contracts: `null-is-not-a-value` (absence stated in the type, never done by a
+reference), `equality-is-one-contract` (equals and hashCode as one decision, and a
+mutable key is lost inside its own map), `identity-is-not-equality-for-boxes` (`==`
+right up to 127, then silently wrong). Structure: `seal-the-alternatives` (a closed set
+is a sealed hierarchy matched exhaustively, never a `default` arm),
+`design-for-inheritance-or-forbid-it`, `no-reference-to-internals-escapes` (`final`
+freezes the reference, not the object). Concurrency and lifetime:
+`publish-safely-or-not-at-all` (the JMM — a reader can see a non-null reference to a
+half-built object), `close-what-you-open`, `a-view-is-not-a-copy`. And the three that
+catch a language feature behaving as a second constructor or a hidden cost:
+`serializable-is-a-second-constructor`, `exceptions-name-what-failed`,
+`a-wrapper-type-is-not-free-here`, and
+`a-speculated-path-deoptimises-when-the-input-changes` (the JIT compiles a bet about
+your code and settles it at the moment the bet stops being true — so the worst latency
+lands on the least ordinary input).
+
+That last one exists because the corpus itself creates the hazard: `newtype-liberally`
+argues a newtype is ordinarily zero-cost, which is true in Rust by construction and true
+in Java only when escape analysis agrees. It keeps the design argument and refuses the
+cost argument.
+
+### The low-latency set
+
+All 15 are included. This is a **discipline** domain rather than a language one, so the
+rules are written for whoever has a deadline — most declare `applies_to = ["rust",
+"java"]`. Mechanism: `no-retry-loop-on-a-contended-path`,
+`transient-state-is-not-a-terminal-state` and `no-stall-inside-a-publication-window` (the
+two ends of a two-store publication window), `a-structure-keeps-the-regime-it-was-proved-under`,
+`a-queue-without-a-bound-has-no-overload-behaviour`, `verify-ordering-on-the-weakest-target`,
+`no-false-sharing-on-a-hot-line`. Memory and the machine: `no-allocation-on-the-hot-path`,
+`allocated-is-not-resident`, `no-syscall-on-a-bounded-path`.
+
+And three about instruments that report a **confidently wrong** number rather than a
+visibly bad one, which is the group worth reading first: `no-coordinated-omission` (a
+load generator that stalls with the system deletes exactly the worst latencies),
+`profiler-samples-where-it-can-stop` (the sampler reports where it was permitted to stop,
+so the hottest loop can be absent from its own profile), and
+`a-measurement-matches-the-regime-it-reports` (stated in both directions — measuring cold
+when production is warm, and discarding warm-up on a path that is always cold).
+
+The two reasoning rules that predate the set, `answer-the-requirement-at-its-layer` and
+`attack-the-design-in-a-second-pass`, sit above all of it.
+
 ## Install
 
 **1. Find the path your Copilot actually reads — do not assume it.** In most

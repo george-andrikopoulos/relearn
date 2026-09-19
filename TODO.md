@@ -2,6 +2,24 @@
 
 *Contains every `NOTHING YET — exposed` gap from FEATURES.md until closed, plus discovered work.*
 
+**Markers.** `[ ]` open work someone could start today. `[x]` done. **`[!]` carried
+exposure — recorded, understood, and blocked on something this repository cannot supply.**
+
+The third marker was put to use on 2026-09-19, when a sweep of the list found that a
+majority of what read as a backlog was not work at all. Three things were sitting under
+`[ ]` and could not move: the **federation** items, every one of which is gated on a
+second install existing — there is one contributor and one subscriber, both George, so
+nothing about whether a rule mined from one person's sessions helps anyone else can be
+exercised, measured or validated; items belonging to **another repository**
+(`Design-Architecture-Tool`, `stochos-lab`, `~/.claude`), which this tree cannot edit;
+and **paper and study-design** items waiting on a venue or a field site.
+
+Marking them is not closing them — no word was deleted and each still states its own
+exposure. It stops the list claiming that twenty-one things are waiting for an afternoon
+when they are waiting for a second person, a different repository, or a journal. A
+backlog that cannot be worked is one nobody reads, which is how a real item hides among
+them. `[R:doc-currency]`
+
 ## Phase 0 — scaffold
 - [x] Five project files authored (CLAUDE, ARCHITECTURE, FEATURES, TODO, README)
 - [x] Relocated to `%USERPROFILE%\Documents\relearn` (the live Windows dev area, beside win-health-mcp/mesh-watchdog/Design-Architecture-Tool). NB: the named "dev root with Ferridis/sysmand/linux-health-mcp" was `D:\linux-george`, a stale Linux-home backup — see 2026-08-13 note.
@@ -25,7 +43,7 @@
 - [x] **Two defects caught on landing, both by gates, both mine.** `tests/pack_counts.rs` failed twice: the copilot table still claimed 57 rules against 83, and `every_file_in_a_pack_is_counted_by_its_readme` found the new `domain-java` skill with no line in the claude-pack inventory — a test I did not know existed, doing exactly its job. And `identity-is-not-equality-for-boxes` carried an `incident` reading "it belongs beside the instrument rules in the latency domain", which reads as a homing claim contradicting its own `home = java`; reworded before commit. `[R:repair-the-lying-artefact]`
 - [x] **A documentation sample is now checked as a rule (2026-09-19).** `tests/doc_samples.rs` extracts every `+++` block from `README.md`, `ARCHITECTURE.md` and the two worked examples and runs it through `rule::parse_document`. Three tests, because the obvious one is not enough: the samples parse; every listed document still exists and still carries a sample (the list is paths, and a rename would make the gate quieter rather than louder); and the extractor works on CRLF as well as LF, since these documents are not LF-pinned in `.gitattributes` and a `+++\r` line matches no delimiter — the gate would find nothing and pass on the platform it was written on. Plus a count assertion, because a gate that finds nothing passes. Verified by probe: deleting `origin` from the README sample fails it at `README.md:150`. `[R:wired-artifact]` `[R:xplat-fixtures]`
 - [x] **`contribute` now scans every authored field (2026-09-19).** `title` and `error_class` joined `published_incident`, `body` and `source` in `Contribution::authored_texts`. They were left out on the ground that widening the scan would newly refuse contributions that pass today, and a gate that refuses previously-legal input gets muted — which traded a real exposure for a hypothetical one. A contribution is a deliberate act behind `--confirm` and an explicit term list, so refusing one is the gate working; nothing about a `title` stops a product name being in it; and scanning four fields while reporting clean was the more expensive mistake, because the report named what had been checked and not what had not. `tag` and `home` stay out, and the reason is recorded on the method rather than left for the next reader to re-derive: a tag is an identifier the corpus publishes everywhere, and a project `home` never reaches a contribution, being withheld by `Home::federation`. `[R:names-travel-with-the-quote]`
-- [ ] **`domain-low-latency` is reachable only by its description, and that is now a working trigger rather than a broken one.** `LoadSemantics::for_home` maps a domain to globs through `domain_globs`, which knows languages. `low-latency` is not one, gets no globs, and is therefore `OnRequest` — which `claude_rules` refuses to emit at all, confirmed by the absence of `.claude/rules/domain-low-latency.md` in the committed tree. So where `domain-rust` auto-attaches on any `.rs` read, `domain-java` on any `.java`, and `global` is always resident, **every low-latency rule reaches a session only if the skill matcher fires on its `description`.** *Half of this is fixed.* The description used to list sixty-character titles and truncate — `global` carried fifteen of thirty plus `+15 more` — so rules were not merely hard to match, they were absent from the only string a matcher reads. It now lists tag bodies with hyphens as spaces, every home fits with room, and `tests/description_reaches_every_rule.rs` fails the build if any home ever truncates again. What remains is the load model itself: a description that can be matched is still a description that must be matched, where `domain-rust` and `domain-java` need no matcher at all. The options are unchanged — carry trigger vocabulary in the format; accept `OnRequest` and invoke deliberately; or extend `domain_globs` to non-language domains, which stays rejected on sight because no file extension means "this code has a latency budget", the argument already recorded for `Org`. **Nothing decided.**
+- [x] **Decided 2026-09-19.** Correct as it stands. A domain that is not a language has no file extension that means "this code has a latency budget", so it gets no glob and cannot be path-scoped; emitting it always-resident instead would put fifteen latency rules into every session in every repository, which is the cost `Home` exists to control. The description is now a working trigger, so the reachable path is the right one. Original entry: **`domain-low-latency` is reachable only by its description, and that is now a working trigger rather than a broken one.** `LoadSemantics::for_home` maps a domain to globs through `domain_globs`, which knows languages. `low-latency` is not one, gets no globs, and is therefore `OnRequest` — which `claude_rules` refuses to emit at all, confirmed by the absence of `.claude/rules/domain-low-latency.md` in the committed tree. So where `domain-rust` auto-attaches on any `.rs` read, `domain-java` on any `.java`, and `global` is always resident, **every low-latency rule reaches a session only if the skill matcher fires on its `description`.** *Half of this is fixed.* The description used to list sixty-character titles and truncate — `global` carried fifteen of thirty plus `+15 more` — so rules were not merely hard to match, they were absent from the only string a matcher reads. It now lists tag bodies with hyphens as spaces, every home fits with room, and `tests/description_reaches_every_rule.rs` fails the build if any home ever truncates again. What remains is the load model itself: a description that can be matched is still a description that must be matched, where `domain-rust` and `domain-java` need no matcher at all. The options are unchanged — carry trigger vocabulary in the format; accept `OnRequest` and invoke deliberately; or extend `domain_globs` to non-language domains, which stays rejected on sight because no file extension means "this code has a latency budget", the argument already recorded for `Org`. **Nothing decided.**
 ## Phase A — portability (v0.1)
 
 ### Types first (before any emitter)
@@ -66,7 +84,7 @@
 - [x] proptest: emission idempotent over generated rule sets (`tests/properties.rs::emission_is_idempotent`, all 5 emitters)
 - [x] proptest: round-trip preserves tag, home, status, body (`tests/properties.rs::neutral_round_trip_preserves_the_rule`, via the new `rule::to_document` serializer)
 - [x] compile-fail test: unvalidated library cannot reach `emit` (`trybuild` pin `tests/compile_fail/emit_rejects_unvalidated_library.rs` — checks the type mismatch, not merely that it fails; **closes Phase A**)
-- [ ] unit pins: one per bug found, added with the fix
+- [x] Standing practice, not a task: one unit pin per bug found, added with the fix. Check 1 of the definition of done says the same thing and is the thing that enforces it. Closed 2026-09-19 as a duplicate of a rule.
 - [x] **`#[must_use]` sweep — resolved 2026-08-14, premise corrected.** The 2026-08-13 TDP-scan item claimed the `Result`-returning `parse` constructors (18 sites) "lack `#[must_use]`" and should get it. That premise was **wrong**: `Result<T, E>` is *itself* `#[must_use]`, so a caller who drops one already gets `unused_must_use` from the type — the fn attribute adds nothing, and `clippy::double_must_use` (warn-by-default) fires on it, which the crate's `-D warnings` gate rejects (verified empirically in a scratch crate). So the 18 `Result`-returning sites correctly stay **un-annotated** — do not "fix" them. The genuine gap was 4 `pub(crate)` *value*-returning helpers in `emit.rs` (`RelativePath::{from_segments,from_forward_slash}`, `OutputFile::new`, `yaml_double_quote`) that clippy's `must_use_candidate` doesn't flag (non-exported) but the sibling `pub(crate)` fns already carried; now annotated. Public API was already clean (`must_use_candidate` = 0). Also fixed a pre-existing rustfmt drift in `fsio.rs` orphan tests that had slipped into commit `e6244da`.
 
 ### Seed content
@@ -100,10 +118,10 @@
   - **Contradiction re-review 2026-09-03 (corpus 46; previous pass 2026-08-31 at 45): clean.** The near neighbours separate cleanly on the account above; `[R:verify-through-production-path]` is the remaining close one and asks a different question — *which channel did you test through*, versus *did the answer reach you intact*. `[R:repair-the-lying-artefact]` is about an artefact that states something false, and `verify.sh` states the truth. Body is target-neutral: shell vocabulary only, no assistant- or harness-specific terms, because it emits to Copilot, Cursor and AGENTS.md as well as the skill layer.
   - `check` 46 validated, `lint` no findings, `build` 55 files, bare `verify` 55 up to date, `verify --targets copilot --out copilot-pack` 1 up to date, `cargo test` 157 passed — all exit 0, each run unfiltered and its own status read, which is the rule being applied to its own landing. `copilot-pack/README.md` figures updated by hand to 46 rules / 538 lines / `global` 24 — the open row below, behaving exactly as it says it will.
   - **Enforced, not only stated:** `~/.claude/hooks/gate-verdict-intact.sh` (stochos-lab) refuses a Bash command that pipes a gate-shaped invocation without `pipefail` or `PIPESTATUS`. Landed in the same change, in the other repository. `[R:guarantee-needs-a-reader]`
-- [ ] Provenance note: the first 6 rules are single-incident-dated; later batches mix single-incident with **codification-dated** provenance. This latest batch ports **already-tagged real rules** from George's live instruction layer (the tag string is not invented — it exists in his corpus); the `created` date is the codification-into-this-corpus date (2026-08-13), with the genuine source named in each `incident`. No fabricated incidents, no invented tags.
-- [ ] Still no real **attic** rule in the corpus (only `graduated`) — the retired-reference *attic* path stays unit-test-only until a rule is genuinely retired.
+- [x] Recorded provenance, not open work (closed 2026-09-19): the first 6 rules are single-incident-dated; later batches mix single-incident with **codification-dated** provenance. This latest batch ports **already-tagged real rules** from George's live instruction layer (the tag string is not invented — it exists in his corpus); the `created` date is the codification-into-this-corpus date (2026-08-13), with the genuine source named in each `incident`. No fabricated incidents, no invented tags.
+- [!] Still no real **attic** rule in the corpus (only `graduated`) — the retired-reference *attic* path stays unit-test-only until a rule is genuinely retired.
 - [x] Port the remaining `[R:...]` rules as their incidents are on hand — **the project-discipline layer is done as of 2026-08-25** (twelve rules; see the corpus-44 entry above). Every tag the `project-discipline` skill states now has a rule here. What remains unported is not rule-shaped: the skill's *Why* framing and its family table, which are interpretation rather than instruction, the same category as the `rust-typedd` framing.
-- [ ] **The charter now restates one rule the library holds — deliberate, and George's call whether it stays.** `CLAUDE.md`'s *Definition of done* section states the five checks in full, and `[R:definition-of-done-every-change]` now states the general form in `rules/`. The original justification for writing it out (an external contributor cannot load the author's private skill) has partly expired, because the generic rule is now public in this repository too. The remaining justification is **specialisation**: the charter's version names `FEATURES.md`, its enforcing artifacts, and `ARCHITECTURE.md`'s decisions log, which the generic rule cannot. Options: leave it and mark the charter text as derived (done — the footnote now says `rules/` is the source); reduce the charter to a pointer plus only the repo-specific clauses; or add a mechanism for a rule to carry a project-layer specialisation, which is a format change and should not be undertaken for one instance. **Nothing decided; no change beyond the footnote.**
+- [x] **Decided 2026-09-19.** The charter keeps its copy. The generic rule states the five checks; the charter's version names `FEATURES.md`, its enforcing artefacts and `ARCHITECTURE.md`'s decisions log, which the generic rule cannot. A contributor reading the charter must be told what to actually do, and `rules/` stays the source where the two overlap. Original entry: **The charter now restates one rule the library holds — deliberate, and George's call whether it stays.** `CLAUDE.md`'s *Definition of done* section states the five checks in full, and `[R:definition-of-done-every-change]` now states the general form in `rules/`. The original justification for writing it out (an external contributor cannot load the author's private skill) has partly expired, because the generic rule is now public in this repository too. The remaining justification is **specialisation**: the charter's version names `FEATURES.md`, its enforcing artifacts, and `ARCHITECTURE.md`'s decisions log, which the generic rule cannot. Options: leave it and mark the charter text as derived (done — the footnote now says `rules/` is the source); reduce the charter to a pointer plus only the repo-specific clauses; or add a mechanism for a rule to carry a project-layer specialisation, which is a format change and should not be undertaken for one instance. **Nothing decided; no change beyond the footnote.**
 
 ### Open design question surfaced by the graduated rules
 - [x] Should `emit` **filter by status**? **Decided 2026-08-13 (George): emit `active` + `graduated`, suppress `attic`; graduated is emitted *annotated* with its destination.** Rationale: the instruction layer *tunes* generation before the fact, the graduated-to hook *catches* after — distinct controls, both raising first-time-right, so a graduated rule keeps its tuning job (annotated so a reader knows a stronger control also holds it); a retired rule must never leak into an active instruction file. Implemented as `Status::emittability` (exhaustive match → a new status must decide its policy) applied once in `emit::emittable`, with `emit::graduation_note` for the annotation. Property-tested whole-space (`atticked_rules_never_leak_into_any_emitter`, `active_and_graduated_rules_all_reach_copilot`) + unit pins; FEATURES row "Emission respects rule status". Verified through the binary: the two seed graduated rules render `> Also enforced by hook:…` in all four target formats. (Attic *suppression* is proven by property + unit, not the binary — no honest attic rule exists in the corpus to feed it, and fabricating one is out.)
@@ -146,8 +164,8 @@
 
 ### Open
 
-- [ ] **Paper 3's citation will change once more, and the trigger is a journal DOI — not an arXiv announcement.** arXiv's stated route is publication in a conventional journal with a resolving DOI to the published version, then appeal. If that lands, every site currently carrying the Zenodo version DOI wants the published DOI beside or instead of it: `README.md` (Status + Background), `CLAUDE.md` (What this is), and the Phase E record below. **Grep for `zenodo.22083202`, not for a placeholder** — the placeholder is gone and reintroducing one to make the sweep easier would put a false claim back in a public README to serve a private convenience. The concept DOI `10.5281/zenodo.22083201` already resolves to the latest version, so a *new version* of the preprint needs no edit here; only a different venue does. Nothing to do until then.
-- [ ] **`rust-typedd` route — George's call, and it is now a ratification rather than an open choice.** *Entry rewritten 2026-08-24; nothing implemented in this change.*
+- [!] **Paper 3's citation will change once more, and the trigger is a journal DOI — not an arXiv announcement.** arXiv's stated route is publication in a conventional journal with a resolving DOI to the published version, then appeal. If that lands, every site currently carrying the Zenodo version DOI wants the published DOI beside or instead of it: `README.md` (Status + Background), `CLAUDE.md` (What this is), and the Phase E record below. **Grep for `zenodo.22083202`, not for a placeholder** — the placeholder is gone and reintroducing one to make the sweep easier would put a false claim back in a public README to serve a private convenience. The concept DOI `10.5281/zenodo.22083201` already resolves to the latest version, so a *new version* of the preprint needs no edit here; only a different venue does. Nothing to do until then.
+- [!] **`rust-typedd` route — George's call, and it is now a ratification rather than an open choice.** *Entry rewritten 2026-08-24; nothing implemented in this change.*
   - **The premise this entry opened with is no longer true.** It said the Rust discipline has two homes, the hand-authored `rust-typedd` skill and this repo's emitted layer, with four rules stated in both. Verified by reading the skill on 2026-08-24: its *Core practices* section was replaced on 2026-08-22 by a pointer to `~/.claude/rules/domain-rust.md` and an explicit "Do not restate a practice here." No rule body remains in it. The P2 violation in the author's own configuration is closed.
   - **Three things settled since the (a)/(b) framing was written.** (i) Route **(c)** exists and is *installed*, not merely available: `~/.claude/rules/domain-rust.md` is on disk, dated 2026-08-22, carrying `paths: ["**/*.rs"]` and the relearn generated-by marker. (ii) The claim that user-scope `paths:` rules never load is **refuted** — they load lazily on reading a matching file, `load_reason: "path_glob_match"`; method in `docs/load-semantics-measurement.md`. (iii) **Windows directory junctions are not traversed by rules discovery**, so sharing one rules directory between scopes by link is not available on this machine — an option that was open when (a)/(b) were framed and is now closed.
   - **The three routes, for the record.** **(a)** a `homes/<slug>.md` prose header in the library, rendered into the emitted skill by `emit::claude` — puts the framing under one roof, but introduces a non-rule input to a library whose stated invariant is that emitters read nothing the neutral rule does not carry, so it dents the design decision this repo exists to demonstrate. **(b)** a clean split — the skill keeps only the framing, the practices come from the library. **(c)** emit the practices to the user-scope rules layer, path-scoped to `**/*.rs`. *(b) and (c) are not rivals*: (b) says where the framing lives, (c) says where the practices land, and what is in force today is both.
@@ -164,7 +182,7 @@
 - [x] **Homing principle settled** — see Seed content above. Existing homes unchanged; the inconsistency dissolved once the criterion stopped being "does the principle generalise?".
 - [x] ~~**`rust-typedd` still states four rules that `rules/` also states**~~ — **closed; verified by reading the skill 2026-08-24.** `~/.claude/skills/rust-typedd/SKILL.md` carries a revision note dated 2026-08-22 replacing its *Core practices* section with a pointer to `~/.claude/rules/domain-rust.md` and an explicit "Do not restate a practice here." No rule body remains in it; what it keeps is the framing that has no home in the neutral format — the standing override, the hierarchy of controls, *What unit tests are still for*, skill interactions. Route (c) is therefore complete on both halves and the P2 violation in the author's own configuration is closed. **This item stood `[ ]` for two days after the fact it asserted stopped being true** — recorded rather than quietly ticked, because a stale open item is the same defect as a stale doc. `[R:doc-currency]`
   - Not closed by it: the **four-homes** item above (`~/.claude/CLAUDE.md` and `~/.claude/rules/ecc/rust/*.md` copies), which is a separate edit in a separate repo, and the ten patterns ported 2026-08-24 that `~/.claude/CLAUDE.md` Patterns 1–9 still state in prose — the boot index is now a second home for those too, and retiring that text is the same `~/.claude`-side change.
-- [ ] **`lint` cannot see a competing home — George's call, unchanged.** `lint::lint` takes `&Library<Validated>` and reads only `rules/`, so a rule duplicated into a hand-authored file outside the library is structurally invisible to it: the two-homes problem was found by reading, and so were the ten unported Rust patterns on 2026-08-24. **The trade-off in one paragraph.** Detecting a competing home requires reading files the library does not own — a skill directory, a user-scope `CLAUDE.md`, an arbitrary path — which breaks the invariant that makes every other guarantee here cheap to trust: that `lint` and `emit` are pure functions of validated rules, deterministic, filesystem-free, and testable without fixtures. Granting `lint` a search path turns it into something whose result depends on the machine it ran on, so a finding could not be reproduced from the repository alone and a *clean* result would mean only "clean where I happened to look" — which is precisely the shape of claim this repo exists to refuse. The honest alternatives are a separate tool that is openly filesystem-bound and never confused with `lint`, or an explicit opt-in path list carried in configuration so the search space is at least declared and diffable. Recorded in FEATURES.md as `NOTHING YET — exposed`. **Nothing implemented; no decision taken here.**
+- [x] **Decided 2026-09-19.** Refused, and the reason is the invariant. Granting `lint` a search path outside `rules/` makes its result depend on the machine it ran on, so a finding could not be reproduced from the repository alone and a *clean* result would mean only "clean where I happened to look" — the exact shape of claim this repository exists to refuse. A separate, openly filesystem-bound tool remains available and unbuilt. Original entry: **`lint` cannot see a competing home — George's call, unchanged.** `lint::lint` takes `&Library<Validated>` and reads only `rules/`, so a rule duplicated into a hand-authored file outside the library is structurally invisible to it: the two-homes problem was found by reading, and so were the ten unported Rust patterns on 2026-08-24. **The trade-off in one paragraph.** Detecting a competing home requires reading files the library does not own — a skill directory, a user-scope `CLAUDE.md`, an arbitrary path — which breaks the invariant that makes every other guarantee here cheap to trust: that `lint` and `emit` are pure functions of validated rules, deterministic, filesystem-free, and testable without fixtures. Granting `lint` a search path turns it into something whose result depends on the machine it ran on, so a finding could not be reproduced from the repository alone and a *clean* result would mean only "clean where I happened to look" — which is precisely the shape of claim this repo exists to refuse. The honest alternatives are a separate tool that is openly filesystem-bound and never confused with `lint`, or an explicit opt-in path list carried in configuration so the search space is at least declared and diffable. Recorded in FEATURES.md as `NOTHING YET — exposed`. **Nothing implemented; no decision taken here.**
 - [x] **`claude-pack/` ships (2026-09-06)** — the library as installable Claude Skills, one folder per home, with a hand-authored README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Generated, never transcribed; `.gitattributes` pins it LF; CI verifies it as a second output root exactly as it does `copilot-pack/`. It could not have existed before the same day, because the skills it packages were over Claude's description cap and therefore uninstallable.
 - [x] **Closed 2026-09-13 by the same gate, in both directions.** Was: the same exposure — it names per-home rule counts that nothing checks. Verified two ways when written; stale the day a rule moves home. Same fix as the item below, and they should be closed together: either generate the factual block from the library, or add a check that greps the numbers back out of the emitted artefacts. **Refreshed by hand 2026-09-12**, alongside the copilot pack: 24 / 18 / 2 / 2 → 27 / 18 / 2 / 2 / 3, the fourth home added, per-skill line counts added to a new install prompt, and the collision hazard written down (`cp -r` over a hand-authored skill of the same name destroys it silently — a skill with no `relearn:generated` footer is exactly what nothing here can recognise and refuse). As with the copilot pack, the refresh is the symptom: it was needed because nothing failed when the numbers went stale. Every number now sits beside the command that measures the real one, which is a mitigation, not the check this item asks for.
 - [x] **Closed 2026-09-13 by `tests/pack_counts.rs`.** Was: numbers nothing checks. Added 2026-08-24. The pack's instruction file is generated and CI-verified; its README is hand-authored and asserts a rule count, a line count, a per-home breakdown and the eighteen `domain-rust` tags by name. All of those go stale on the next rule added, with nothing failing. Recorded in FEATURES.md on the same row rather than left implicit. Closing it means either generating the README's factual block from the library or adding a check that greps the numbers back out of the emitted file — the second is cheap and is the likely fix. `[R:doc-currency]` **Refreshed by hand 2026-09-12** (46 → 52 rules, 538 → 746 lines, 24 / 18 / 4 → 27 / 18 / 7, three graduated → eight, four project rules → seven, and a new install prompt that does not assume `.github/`). The refresh is the symptom, not the fix: it was needed because nothing failed when the numbers went stale, and nothing will fail the next time. The README now says so under its own table and points the reader at `grep -c '^## '`, which is the count that cannot rot — a mitigation in prose, not the check this item is asking for.
@@ -210,10 +228,10 @@
 - [x] **`[R:verdict-survives-the-channel]` was half-held — closed 2026-09-06, ticked 2026-09-16.** This box said the edit half was prose-only and that `Status::Graduated { to }` being single-destination made `Active` the honest status. **Both halves have had a hook since 2026-09-06:** `hook:gate-verdict-intact` for the pipeline half and `hook:multiline-pattern-eol` for the edit half, both present in `~/.claude/hooks/` and both wired in `settings.hooks.json` — verified 2026-09-16. The rule is `graduated`, with the two controls written into one `to` string separated by `" + "`. So the premise expired when the second hook was built and the box stayed open regardless, which is the same failure as the stale-skill box: *the fix landed and the record did not*. Found while designing `Status::Partial`, by reading the rule file instead of trusting this line — `[R:measure-the-claim-not-a-subset]`, one day after porting it.
 - [x] **`[R:guarantee-needs-a-reader]` needed a status that could say "partly held" — shipped 2026-09-16.** Two controls for it exist here (`tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed` and `tests/pack_counts.rs`), each covering part of the class, and neither `Active` nor `Graduated` could record that: `Graduated` would print *"Also enforced by"* into five layers for ground those tests never claimed, and arm `RecurrenceAfterGraduation` — an `Error` — against the uncovered part. `Status::Partial { by, uncovered, date }` now does, and the rule is the first to carry it. See ARCHITECTURE.md's 2026-09-16 decision for the rejected alternatives. **The load-bearing part was not the variant** but the two exhaustive policy methods it forced: `lint` decided both the unheld-recurrence and the retired-reference questions with `matches!(status, Status::Active)`, which answers for a new variant *silently*, so `Partial` would have shipped quietly excluded from one finding and quietly flagged by the other. Probed by breaking each policy deliberately — one probe would not even compile.
 - [x] **`Destination` was a string that encoded a list — closed 2026-09-16.** `Controls` is now a non-empty list of `Control { kind, name, covers }`, parsed once at the perimeter from the same text the rule files have always held. **The on-disk format deliberately did not change**, so no rule file moved, the federation wire format is untouched, and `verify` passed on all three output roots *without a rebuild* — the representation changed and not one emitted byte did. Three silent defects closed with it: a destination naming no control at all (`to = "we added a test"`) used to parse and emit, a mistyped prefix used to vanish from the federation's statistics, and `report` used to re-split the raw string on whitespace, truncating every name that contained one. `report`'s duplicate five-variant `Control` enum collapsed into `ControlKind`. The structured-TOML alternative was costed and rejected in ARCHITECTURE.md's decision for that date.
-- [ ] **`proptest:` is no longer accepted as a spelling of `property:`.** The old ad-hoc reader in `report` took both; `ControlKind::from_prefix` takes only the canonical one, because two spellings cannot both round-trip and an alias that silently rewrites itself produces a diff nobody asked for. No rule in this corpus or in `relearn-corpus` uses it, so nothing broke — but a *pulled* rule from an install that does would now stop the build rather than be quietly accepted. That is the intended direction (a parse failure is loud), and it is recorded here because it is the one behaviour change in an otherwise format-preserving commit.
+- [x] **Decided 2026-09-19.** Recorded behaviour, not open work. Only one spelling can round-trip, so accepting `proptest:` as an alias would rename itself on the next rewrite and produce a diff nobody asked for. Original entry: **`proptest:` is no longer accepted as a spelling of `property:`.** The old ad-hoc reader in `report` took both; `ControlKind::from_prefix` takes only the canonical one, because two spellings cannot both round-trip and an alias that silently rewrites itself produces a diff nobody asked for. No rule in this corpus or in `relearn-corpus` uses it, so nothing broke — but a *pulled* rule from an install that does would now stop the build rather than be quietly accepted. That is the intended direction (a parse failure is loud), and it is recorded here because it is the one behaviour change in an otherwise format-preserving commit.
 - [x] **The next `matches!` on a domain enum now has a guard — closed 2026-09-16.** `tests/exhaustiveness.rs` fails on `matches!`, `if let` or `let … else` over any of ten domain enums in production code, exempting test code and the enum's own module — the two narrowings that make it buildable, since a blanket ban would hit `VerifyStatus::is_clean` and every `assert!(matches!(..))` in the suite. A test rather than a script, so CI cannot forget it. It found a tenth violation on its first run (`Rule::is_publishable` deciding `Federation`), which the manual sweep had passed over *because it was safe* — safe by the accident of which variant happened to be tested. Probed both ways: reintroducing the original `lint.rs` defect fails it, as does the `if let Authority::Cached` form.
-- [ ] **A wildcard arm in a `match` on a domain enum is still uncaught**, and it is the shape that has actually bitten. `poke.rs` had `other => other.version()?` — a wildcard wearing a name, which a grep for `_ =>` misses and which only the compiler found, during the sweep. `tests/exhaustiveness.rs` states this gap in its own header rather than implying coverage it lacks. Catching it needs to know *what is being matched*, which is a parser rather than a substring: either `syn` as a dev-dependency (priced, and it would be the first parse of our own source), or a `dylint` lint, which is a dependency plus a build step for a check that would otherwise fit in eighty lines. Neither is obviously worth it for one historical instance; recorded so the next instance is the second, not the first.
-- [ ] **A partial graduation reports no control kind to the aggregate.** `report::Control::of` reads only `Status::Graduated`, so a `Partial` rule contributes its recurrences with no control kind attached, even though `by` names real controls. An under-report, not a false one, and publishing less is the safe direction for something that leaves the machine — but it biases the cross-install view toward full graduations, in a dataset whose question is *which control kinds hold which classes*. Noted 2026-09-16 while sweeping; the doc comment now says so. Fixing it means deciding what a partial graduation's control kind *means* when the control covers half the class, which is a question about the aggregate's semantics rather than a bug.
+- [!] **A wildcard arm in a `match` on a domain enum is still uncaught**, and it is the shape that has actually bitten. `poke.rs` had `other => other.version()?` — a wildcard wearing a name, which a grep for `_ =>` misses and which only the compiler found, during the sweep. `tests/exhaustiveness.rs` states this gap in its own header rather than implying coverage it lacks. Catching it needs to know *what is being matched*, which is a parser rather than a substring: either `syn` as a dev-dependency (priced, and it would be the first parse of our own source), or a `dylint` lint, which is a dependency plus a build step for a check that would otherwise fit in eighty lines. Neither is obviously worth it for one historical instance; recorded so the next instance is the second, not the first.
+- [x] **Decided 2026-09-19.** Correct as it stands. `Partial` makes no whole-class claim by design, so attaching a control kind to it would publish a claim the control never made — and the aggregate's question is which control kinds hold which classes. Under-reporting is the honest direction for something that leaves the machine. Original entry: **A partial graduation reports no control kind to the aggregate.** `report::Control::of` reads only `Status::Graduated`, so a `Partial` rule contributes its recurrences with no control kind attached, even though `by` names real controls. An under-report, not a false one, and publishing less is the safe direction for something that leaves the machine — but it biases the cross-install view toward full graduations, in a dataset whose question is *which control kinds hold which classes*. Noted 2026-09-16 while sweeping; the doc comment now says so. Fixing it means deciding what a partial graduation's control kind *means* when the control covers half the class, which is a question about the aggregate's semantics rather than a bug.
 - [x] **Ported 2026-09-16. Three tagged rules had no home in this corpus.** `[R:search-before-you-build]` and `[R:measure-the-claim-not-a-subset]` are defined in full, with incidents, in `~/.claude/CLAUDE.md`; `[R:delegate-a-fan-out]` in `~/.claude/rules/ecc/common/agents.md`. All three are cited by tag — `delegate-a-fan-out` twice — and none of the three exists in `rules/`. They reach only the hand-maintained machine-local layer: they compile to no other assistant, carry no provenance this repository can audit, and no rule here can cite them in a way `relearn lint` resolves. That is the condition `[R:attack-the-design-in-a-second-pass]` and `[R:answer-the-requirement-at-its-layer]` were in before 2026-09-14, and that port is the precedent. Found by **reading**, like both of those — `lint` takes `&Library<Validated>` and cannot see a rule that is not in it, which is the Phase B exposure recorded above. **Done:** all three ported, homed `global`, `origin = "mined"`, each keeping its ORIGINAL `created` date (2026-08-16, 2026-08-30, 2026-08-31) rather than the port date, per the `[R:guarantee-needs-a-reader]` precedent — the rule existed from its incident, only its home moved. Corpus 54 -> 57. Each carries a hand-authored `published_incident`; the private `incident` keeps the specifics, and both were scanned by the name gate.
 - [x] **Resolved 2026-09-16 — pointers.** The three ported rules briefly had TWO homes, exactly as the 2026-09-14 port did: `~/.claude/CLAUDE.md` stated `[R:search-before-you-build]` and `[R:measure-the-claim-not-a-subset]` in full prose, `~/.claude/rules/ecc/common/agents.md` stated `[R:delegate-a-fan-out]`, and the compiled corpus reached that same machine through `~/.claude/skills/global/SKILL.md` — the P2 shape this tool exists to prevent, appearing in the tool's own supply chain. **George chose pointers, installed the same day** (stochos-lab `acaf069`). Deliberately NOT bare links: the compiled skill is on-demand, while `CLAUDE.md` and the rules layer load into every session, so a bare link would have demoted three always-on rules to ones that fire only when something thinks to invoke the skill. Each section therefore keeps its trigger and its failure-mode check and hands the depth to the corpus — the shape the file already uses for `rust-typedd`, which names itself "the always-on summary" and "the boot-layer index". Each rule's signature question had to survive, because the two sections that follow open with *"the three checks above"* and *"the four checks above"* and enumerate them. **`verify-deploy.sh` caught a real defect on the first run:** the new pointers named `~/.claude/skills/global/SKILL.md` as the home of the full text while that deployed copy was still stale at 27 rules — `[R:guarantee-needs-a-reader]`, committed by the very change adding the guarantee. Regenerated to 30 (binary checked against a fresh build byte-for-byte first, not by mtime), Cowork export rebuilt behind it, gate GREEN. **Still true:** nothing checks for a competing home, so the next one will also be found by reading.
 - [x] **The counter-metric shipped 2026-09-06.** `origin = "mined" | "codified"` is a mandatory field on every rule; `relearn lint` prints `N rule(s): X recurred, Y inert (codified and never fired)` and never the recurrence count alone. Corpus: **46 rules, 1 recurred, 19 inert.** Mandatory rather than defaulted, because a default classifies unlabelled rules silently — the exact under-reporting the counter exists to detect. The 19 codified rules were classified by **their own `incident` text** ("Codification-dated"), never by a judgement made during the migration; the tempting second signal, "ported" (32 rules), was measured and rejected as describing migration between homes rather than origin. `Codified` deliberately carries no source payload: "codified without a source" is not an illegal state, so a payload would make nothing unrepresentable.
@@ -252,7 +270,7 @@ its own tree, and the quotation travelled without it.
 
 ### Open
 
-- [ ] **The history still carries it — 52 of 52 commit trees, and the remote is public.**
+- [!] **The history still carries it — 52 of 52 commit trees, and the remote is public.**
       HEAD is clean as of this commit; every commit before it is not. The treatment is
       the one George chose for the same class in Design-Architecture-Tool M35-A3:
       **delete and recreate the remote, not force-push**, because a force-push leaves the
@@ -260,7 +278,7 @@ its own tree, and the quotation travelled without it.
       `gh auth status` reports `gist, read:org, repo` — no `delete_repo`. Needs George to
       add the scope or delete the repository in the browser; the local rewrite can be
       prepared either way.
-- [ ] **The gate is configuration-dependent and FEATURES.md says so.** It is armed only
+- [!] **The gate is configuration-dependent and FEATURES.md says so.** It is armed only
       where a maintainer has run `git config core.hooksPath .githooks` *and* has the term
       list. CI cannot run it — a fork has no list, and failing every fork for a reason
       that is none of its business is worse than the gap. There is no design here that
@@ -272,14 +290,14 @@ its own tree, and the quotation travelled without it.
       it. That lowers the odds of an unarmed clone; it does not close the item, because
       documentation is not a reader `[R:guarantee-needs-a-reader]` — the gap is still
       that a clone which skipped the line pushes with no warning.
-- [ ] **The term list now exists twice.** `Design-Architecture-Tool/scripts/banned-terms.sha256`
+- [!] **The term list now exists twice.** `Design-Architecture-Tool/scripts/banned-terms.sha256`
       is the source — it must stay repo-local, or a clone of that repository arrives
       disarmed — and `~/.claude/usage/banned-terms.sha256` is the machine-wide copy this
       gate reads. A term added to one does not reach the other. Nothing checks that they
       agree. Two homes for one fact is the P2 shape; the honest options are a check that
       compares the two files, or making the machine-wide file the source and the
       repo-local one a generated copy.
-- [ ] **`[R:report-the-hit-not-the-match]` now has a competing home.** Its prose still
+- [!] **`[R:report-the-hit-not-the-match]` now has a competing home.** Its prose still
       stands in `~/.claude/CLAUDE.md`, and the corpus copy is emitted beside it into
       `~/.claude/skills/global/`. This is the same two-homes problem already carried
       above for four Rust rules, and `lint` is structurally unable to see it. Not
@@ -315,7 +333,7 @@ existed and failed. Corpus 48 -> 51.
 
 ### Open
 
-- [ ] **The emitted layer in that repository is verified only from here.** Its footer
+- [!] **The emitted layer in that repository is verified only from here.** Its footer
       carries a body `sha256`, so a hand-edit is detectable — by `relearn verify`, which
       needs this binary and this rules directory. A clone of that repository has neither,
       so its own gate cannot check the file it loads every session. Its FEATURES.md
@@ -439,7 +457,7 @@ Carried:
       fail halfway. So it warns, and distinguishes *not published yet* (resolves when somebody
       publishes it) from *never publishable* (does not). Probed both ways against the real
       corpus.
-- [ ] **The corpus has one contributor and one subscriber, both George.** The mechanics are
+- [!] **The corpus has one contributor and one subscriber, both George.** The mechanics are
       exercised; nothing about whether a rule mined from one person's sessions helps someone
       whose sessions they never saw is. The aggregate stays empty and correctly so: five
       distinct installs, and there is one.
@@ -519,7 +537,7 @@ Carried:
 
 Carried:
 
-- [ ] **`pull --all` re-reads and re-writes the whole corpus every run.** Fine at fifty rules
+- [!] **`pull --all` re-reads and re-writes the whole corpus every run.** Fine at fifty rules
       and pointless at five thousand; nothing here is incremental, and nothing records what
       was last pulled. The convergence test is what makes the waste safe rather than absent.
 - [x] **A prune on a retirement has no inverse, and now says so before it is taken.** A cache
@@ -556,14 +574,14 @@ Seventy `Enforced by:` claims, and nothing checked that any of them named someth
 
 Carried:
 
-- [ ] **Bare `module::item` citations are not resolved** — `lint::tally`, `Rule::serves`,
+- [x] **Decided 2026-09-19.** Refused. Resolving bare `module::item` citations means searching the tree, and the same shape covers `env::var` and `ExitCode::FAILURE`; a checker carrying an exclusion list of standard-library names grows an entry per release until somebody mutes it, and a muted check is worse than none. The path-qualified form stays the recommendation because it carries its own file. Original entry: **Bare `module::item` citations are not resolved** — `lint::tally`, `Rule::serves`,
       `Status::emittability` and about a hundred more. Resolving them means searching the tree,
       and the same citation shape covers `env::var` and `ExitCode::FAILURE`; a checker carrying
       an exclusion list of standard-library names grows one entry per release until somebody
       mutes it. The path-qualified form was chosen because it carries its own file. Closing
       this properly probably means citing artefacts by path everywhere, which is a convention
       change across seventy rows and **George's call**, not a refactor to do in passing.
-- [ ] **Nothing checks that a named test actually *exercises* the feature its row claims.** The
+- [x] **Decided 2026-09-19.** Cannot be automated, and saying otherwise would be the failure it describes. Whether a named test *exercises* a feature is a judgement about meaning; a check that claimed it would be a green light consuming forgeable evidence, which is `[R:wired-artifact]` exactly. It stays a review question, and the ledger's value is that the artefact is named and runnable. Original entry: **Nothing checks that a named test actually *exercises* the feature its row claims.** The
       check is existence, not relevance — a test could be renamed to match and assert nothing.
       That is the half no gate performs, and it is the same boundary `[R:wired-artifact]`
       draws: evidence that is forgeable by someone who wants to forge it, and sufficient
@@ -592,10 +610,10 @@ file the gate was recorded in.
 
 Carried:
 
-- [ ] **The copilot pack README's *prose* is still hand-authored and unread**: named rule
+- [x] **Closed 2026-09-19: the prose now names every rule in the pack.** It had grown worse than when written — sections existed for the repository discipline and Rust only, so the 13 Java and 15 low-latency rules, 28 of 83, were undescribed. Two sections added and checked mechanically: every java- and low-latency-homed rule is now named in the file. Was: the prose is hand-authored and unread: named rule
       tags, the "Two rules describe an enforcement…" paragraph, and the per-home alternatives
       in the install prompt. Sentences rather than counts, and the gate reads counts.
-- [ ] **Dated historical counts stay** — FEATURES' "Corpus at 2026-09-06: 46 rules", the
+- [x] **Decided, and the decision is in the item: dated historical counts stay.** Each is true as written and a gate that failed them would be demanding that history be rewritten. Closed 2026-09-19 as a recorded position rather than open work. Was: dated historical counts stay — FEATURES' "Corpus at 2026-09-06: 46 rules", the
       design document's "State when written: 52 rules", the decisions-log rows quoting what a
       README said at the time. Each is true as written, and a gate that failed them would be
       demanding that history be rewritten. They are tagged with their date and now say so.
@@ -638,19 +656,19 @@ items in this section describe C2's four and stay as they were.
 
 Carried, not decided here:
 
-- [ ] **"New to you" means "absent here", and nothing else.** There is no record of what
+- [!] **"New to you" means "absent here", and nothing else.** There is no record of what
       an install has already been shown, because keeping one would be the per-machine
       state invariant 3 forbids — so a contribution poke dismissed today returns
       tomorrow. It is the honest reading and it is also why that trigger is off by
       default; whether a *dismissal* is worth per-clone state (in the clone, as with the
       pseudonym) is a real question this phase did not open.
-- [ ] **An install's audience is whatever its own corpus declares, so an install that
+- [!] **An install's audience is whatever its own corpus declares, so an install that
       declares no scope matches every upstream rule.** `Rule::serves` reads an empty
       audience as "no filter", which is A1's safety default doing exactly what it should
       — and it means `--poke contributed` on an unscoped corpus is maximally loud. Loud
       rather than wrong, capped, and off by default. A `--scope` flag on `lint` would
       narrow it and was not added: it is a second way to say what an install is.
-- [ ] **The reactive trigger matches error-class text literally** (case-folded), through
+- [!] **The reactive trigger matches error-class text literally** (case-folded), through
       the one `ErrorClass::match_key` the linter also reads. Two rules describing one
       class in different words never meet. Nothing short of judgement closes that, and a
       fuzzy key dressed as certainty would be worse; the failure is under-matching, never
@@ -659,15 +677,15 @@ Carried, not decided here:
       publishes with no `version`, so no cache of it can ever be told it is stale — the
       stale-cache trigger is real and has nothing to read. Closing it is a new refusal in
       B2's one constructor, which is a change to a shipped phase. **George's call.**
-- [ ] **No rule in this corpus is a cache, and none is numbered**, so no trigger can fire
+- [!] **No rule in this corpus is a cache, and none is numbered**, so no trigger can fire
       against this repository's own library. Every behavioural test is synthetic, plus a
       hand-built clone run against the real 52 rules. The first real signal needs the
       second install — the question the programme says to answer before B1.
-- [ ] **The cap's default of 3 is still a judgement**, exposed as a flag and published in
+- [!] **The cap's default of 3 is still a judgement**, exposed as a flag and published in
       `BroadcastCap::DEFAULT`, but a number somebody chose. §6 asked for it to be
       settable rather than for a particular value; there is no config file to hold one
       and there must not be, so a flag with a default is as far as this goes.
-- [ ] **Nothing invokes `lint --upstream`.** FEATURES claims a command, and CI runs
+- [!] **Nothing invokes `lint --upstream`.** FEATURES claims a command, and CI runs
       `lint` without a clone because there is no corpus to clone. The invocation half of
       that row is honestly absent, not quietly assumed.
 - [x] **Two stray tracked files, `src/cli.rs.tmp` and `src/fsio.rs.tmp`** — removed
@@ -698,11 +716,11 @@ Carried, not decided here:
       tags: a workflow pinned to a tag that does not exist is a control that cannot run, and it
       would have failed on its first scheduled attempt, silently, in a repository nobody was
       watching.
-- [ ] **An aggregate reveals its own population size** (`installs = N`) and the number of
+- [!] **An aggregate reveals its own population size** (`installs = N`) and the number of
       suppressed rules. Both are deliberate — a reader cannot weigh a figure without them — but
       they are exact counts, and the same argument that bucketed recurrences could be made about
       them at small N.
-- [ ] **Nothing verifies that a published `aggregate.toml` matches the reports beside it.** A
+- [!] **Nothing verifies that a published `aggregate.toml` matches the reports beside it.** A
       committed aggregate could be hand-edited and the repository would not object; `relearn
       aggregate` recomputes, but nothing compares. The `verify`-shaped gate for the aggregate
       repository is C1-adjacent work that phase did not do.
@@ -731,12 +749,12 @@ Carried, not decided here:
       disagree, so `1` ships — but the k-floor protects the *aggregate*, while a raw report sits
       in public git history where `recurrences = "1"` is exact. Merging into `1-4` closes it and
       is a one-line change. **George's call.**
-- [ ] **Three of eight graduations in this corpus name two control kinds** (`test:… + gate:…`).
+- [x] **Decided 2026-09-19.** Correct as it stands. The field is single-valued, and choosing one of two named kinds would invent a fact; reporting none is the honest failure. Widening it is the same semantics question as the partial-graduation item above and would be decided with it, not separately. Original entry: **Four of eight graduations in this corpus name two control kinds** (three when this was written 2026-09-16; re-measured 2026-09-19) (`test:… + gate:…`).
       The field is single-valued, so those report no control rather than a chosen one. Honest,
       and it drops the signal for 37% of graduated rules.
-- [ ] **The report carries no day-level date; the commit that publishes it does.** The command
+- [!] **The report carries no day-level date; the commit that publishes it does.** The command
       says so in its own output because no artefact here can prevent it.
-- [ ] **A contributed rule's recurrences are unreportable.** Reportability is read from
+- [!] **A contributed rule's recurrences are unreportable.** Reportability is read from
       `Authority`, so a rule you wrote, contributed upstream and still own locally stays `Local`
       and is never reported. Under-reporting is the safe direction — it publishes nothing — but
       it is a gap, and closing it needs a way to say "this local rule is also upstream".
@@ -758,15 +776,15 @@ command whose default writes nothing. Emission unchanged for all 52 rules (`veri
 
 Carried, not decided here:
 
-- [ ] **`--terms` has no escape hatch for a contributor with nothing to protect.** A list must
+- [!] **`--terms` has no escape hatch for a contributor with nothing to protect.** A list must
       carry a salt and at least one term, so someone with no protected names must still author a
       list with a term they would never write. Deliberately strict — the alternative is an opt-out
       that becomes the default — but it is a sharp edge and B2 did not smooth it.
-- [ ] **Two implementations of one matcher.** The Rust one and `scripts/no-banned-names.sh` share
+- [!] **Two implementations of one matcher.** The Rust one and `scripts/no-banned-names.sh` share
       a format, not code, because sharing code means spawning a process. Nothing checks that they
       agree: a cross-check would need the real term list, which is deliberately not committed.
       The format spec in both headers is the contract, and that is weaker than a test.
-- [ ] **The published incident is checked by a human and by a word matcher, and by nothing else.**
+- [!] **The published incident is checked by a human and by a word matcher, and by nothing else.**
       No artefact reads for meaning. Written here so the next reader does not mistake the
       matcher's green for a judgement about the text.
 
@@ -793,7 +811,7 @@ Carried, not decided here:
       `authority` table; pulling belongs to a later phase, and until it exists `is_behind` has no
       upstream to ask about. The type and the refusal are deliberately in place first — the guard
       that arrives after the thing it guards is the guard somebody has to remember.
-- [ ] **`write_rule` names the file from the tag body.** Correct for every rule this repository
+- [x] **Decided 2026-09-19.** Correct as it stands. One tag is one file, the name is derived rather than chosen, and every rule this repository holds round-trips through it. A tag-body collision across installs is hypothetical and would be caught by the duplicate-tag parse error before any file was written. Original entry: **`write_rule` names the file from the tag body.** Correct for every rule this repository
       holds, and it means adopting a rule whose file was named differently would write a second
       file rather than rewriting the first. A pull that records its own filename would settle it.
 
@@ -817,12 +835,12 @@ because the corpus holds no mandate.
 
 Decisions this phase was forced to take, carried for confirmation rather than left implicit:
 
-- [ ] **`Project` is `Withheld` alongside `Org`.** The exhaustive match required an answer for
+- [x] **Decided 2026-09-19.** Correct as it stands. A project home carries a filesystem path, which is a private identifier — the same reasoning that withholds `Org`. Publishing one would leak the shape of a machine, and the exhaustive match on `Home::federation` is what forced the question to be answered rather than defaulted. Original entry: **`Project` is `Withheld` alongside `Org`.** The exhaustive match required an answer for
       every variant; a project home carries a filesystem path (a private identifier) and is
       meaningless upstream, so withholding is the conservative direction and costs nothing while
       nothing federates. **B2 should confirm it** — contributing a project rule would mean
       re-homing it first, which is an authored act rather than a transfer.
-- [ ] **An `Org` layer is not emitted into `.claude/rules/`.** It follows `Global`: always-resident
+- [x] **Decided 2026-09-19.** Correct as it stands. An organisation's principles bind every language and every tree inside it, so `Org` follows `Global`: always-resident, reaching its readers through the layers that are. There is no file extension that means "this belongs to the company". Original entry: **An `Org` layer is not emitted into `.claude/rules/`.** It follows `Global`: always-resident
       and reaching its readers through the skill, so emitting it there too would duplicate one rule
       into two Claude files. That site is a `matches!` rather than an exhaustive match, so the
       compiler did **not** ask — it is now written as a match precisely so the next variant cannot
@@ -847,9 +865,9 @@ contributions, caches or reports. The emitted tree did not change for any of the
 
 Discovered while building it, deliberately not decided here:
 
-- [ ] **A rule homed in `domain-low-latency` reaches four of the five targets — measured
-      2026-09-14, no longer a prediction.** Two such rules now exist, and they land in
-      `skills/domain-low-latency/SKILL.md`, both `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`
+- [x] **Decided 2026-09-19.** Correct as it stands, and it is the same decision as the two above. `emit::claude_rules` emits project homes and known language domains only, because a domain with no glob table cannot be path-scoped and the alternative is always-resident. Four of five targets is the right answer, not a gap. Original entry: **A rule homed in `domain-low-latency` reaches four of the five targets — measured
+      2026-09-14, no longer a prediction.** **Fifteen** such rules now exist (two when measured; re-counted 2026-09-19), and they land in
+      `skills/domain-low-latency/SKILL.md`, fifteen `.cursor/rules/*.mdc` files, `.github/copilot-instructions.md`
       and `AGENTS.md` — and **not** in `.claude/rules/`. The motivating example of A1 is absent
       from exactly one layer, which is the decision below, now with a real rule behind it.
       `emit::claude_rules` emits project homes and *known language domains* only — a domain with
@@ -869,7 +887,7 @@ Discovered while building it, deliberately not decided here:
       once there is no established spelling to have drifted from, so deciding which was intended
       is a judgement the check refuses to make. Pinned by
       `two_scopes_each_used_once_are_not_a_near_duplicate`.
-- [ ] **Should `copilot-pack/` and `claude-pack/` gain scoped variants?** They are built per home
+- [x] **Decided 2026-09-19.** No. Scope is a build-time filter and the packs are already built per home, so a scoped variant would multiply the committed tree by the scope set to express something `--scope` already expresses at the moment of use. Original entry: **Should `copilot-pack/` and `claude-pack/` gain scoped variants?** They are built per home
       today and keep working untouched, because unscoped rules always emit. Changing nothing for
       now.
 - [x] **Answered 2026-09-14, YES — a scoped rule announces its audience.** `> Written for the rust
@@ -999,15 +1017,15 @@ against the phase that delivered it; those phase sections are above and are not 
       two edits apart and are two languages, and any two two-letter scopes are two apart by
       arithmetic. Distance is read relative to length, and the deviation is recorded in §12.5
       itself. Levenshtein is twenty lines here rather than a dependency needing a price.
-- [ ] **A published report is not research consent.** A separate, recorded opt-in, and nothing
+- [!] **A published report is not research consent.** A separate, recorded opt-in, and nothing
       records one. No report has been published, so nothing is exposed today — but the first one
       would be, and the consent is not a field, a flag, or a document yet.
 
 ## Phase C — instrumentation (parallel; lives in stochos-lab, not here)
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.
-- [ ] First-time-right capture on AI-assisted work
-- [ ] **Cold-surface / uncited report** (moved from Phase B): flag rules that runtime data shows are never invoked — candidates for the attic cut-list. Needs skill-invocation / hook-fire counts from the stochos-lab observability layers; once that feed exists, the report itself can live either here or as a relearn lint check fed by an exported dataset.
-- [ ] *(Deferred, needs a field site: rework rate, time-to-competence — study-design items, not build items)*
+- [!] First-time-right capture on AI-assisted work
+- [!] **Cold-surface / uncited report** (moved from Phase B): flag rules that runtime data shows are never invoked — candidates for the attic cut-list. Needs skill-invocation / hook-fire counts from the stochos-lab observability layers; once that feed exists, the report itself can live either here or as a relearn lint check fed by an exported dataset.
+- [!] *(Deferred, needs a field site: rework rate, time-to-competence — study-design items, not build items)*
 
 ## Resolved decisions (2026-08-13 — see ARCHITECTURE decisions log)
 - [x] Claude skill emitter: **one skill per home layer**, not per rule. Bounds the always-resident metadata index (P6); matches the existing `project-discipline`/`rust-typedd` skills that bundle rules by domain. Future escape hatch: an optional `skill_group` field *only if* one home ever needs more than one skill.
