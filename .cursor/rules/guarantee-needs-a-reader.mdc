@@ -8,7 +8,7 @@ alwaysApply: true
 
 > Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs is held by this instruction alone.
 
-> Has recurred 1 time(s) since it was written; most recently 2026-09-05.
+> Has recurred 2 time(s) since it was written; most recently 2026-09-19.
 
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
 
@@ -20,4 +20,4 @@ Where a mechanical reader exists, use it and leave the prose to what it cannot s
 
 The test: *what would have to be true for this sentence to be false, and what reads that?* R:wired-artifact is the neighbouring failure -- there a check exists and accepts forgeable evidence; here there is no check at all.
 
-<!-- relearn:generated v0.1.0 sha256=fd3088537ae14a1dc757398d6958de507ac51254afb2283bc46d1f9ae18c5ed0 rules=R:guarantee-needs-a-reader -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=e2ae7b210d81cf9fe1e0a191ed520ea04cf50c0c33e62e50f4e9497556dfdc65 rules=R:guarantee-needs-a-reader -- DO NOT EDIT; regenerate with `relearn build` -->
