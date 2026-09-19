@@ -1,0 +1,49 @@
+---
+description: A measurement states whether it ran warm or cold, and matches production (Timing a path in a thermal and cache regime other than the one it runs in -- reporting a cold first execution as the steady state, or, run the other way, discarding warm-up on a path that is always cold in production and reporting a number no user has ever experienced)
+globs: 
+alwaysApply: false
+---
+
+# A measurement states whether it ran warm or cold, and matches production [R:a-measurement-matches-the-regime-it-reports]
+
+> Written for the rust and java audiences.
+
+> Written down from JMH and its samples (Aleksey Shipilev), whose existence is the standing claim that a hand-rolled microbenchmark on the JVM is wrong by default.
+
+State which regime the measurement ran in, and check that it is the regime production runs in.
+Two errors live here and only one of them has a reputation.
+
+**Measuring cold when production is warm.** A first execution runs interpreted or from cold
+instruction cache, with an untrained branch predictor, unpopulated page tables and, on a managed
+runtime, no compiled code at all. The figure can be one to two orders of magnitude worse than the
+steady state, and it describes the warm-up rather than the work. On the JVM the escalation is
+staged -- interpreter, then C1, then C2, with on-stack replacement for long-running loops -- and
+takes thousands of iterations, which is why a hand-rolled timing loop is wrong by default and why
+a harness exists.
+
+**Measuring warm when production is cold**, which is the half that gets no attention because it
+looks like rigour. A path that runs once a minute is never warm. A market-open burst arrives into
+cold code. An error handler runs for the first time that day at the worst possible moment. For
+every one of those, the warm figure is a number no user will ever see, and the warm-up that was
+carefully discarded *is* the production behaviour. Discarding it is not hygiene there; it is
+deleting the measurement.
+
+So the rule is a scope match rather than a procedure: say which regime was measured, say which
+regime production is in, and show they are the same. Where production is genuinely both -- a
+steady stream with cold bursts -- that is two measurements and two reported numbers, not one
+averaged into meaninglessness.
+
+This is `[R:measure-the-claim-not-a-subset]` applied to time rather than to a set: the warm-up
+samples are a subset, discarding them is a scope decision, and a scope decision taken by reflex
+is the one that manufactures a wrong number with the authority of having been measured.
+
+Failure-mode check: **is the production path warm or cold when it matters, and which did I
+measure?** If the benchmark discarded the first N iterations, name what production has that
+corresponds to those iterations. If nothing does, the discarded part was the answer.
+
+Two neighbours, deliberately separate. `[R:no-coordinated-omission]` is the instrument failing to
+take samples during the events that matter; this is the instrument taking them in the wrong
+regime. And `[R:verify-the-abstraction-compiled-away]` holds the case where the optimiser removed
+the work the benchmark was timing -- a warm measurement of nothing at all.
+
+<!-- relearn:generated v0.1.0 sha256=95fb76f22af58041d068baef48acc6618fd88a9720e84178f21b603f3dc36db8 rules=R:a-measurement-matches-the-regime-it-reports -- DO NOT EDIT; regenerate with `relearn build` -->

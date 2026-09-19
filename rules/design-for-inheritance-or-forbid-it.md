@@ -1,0 +1,47 @@
++++
+tag = "R:design-for-inheritance-or-forbid-it"
+title = "A class is final, or its inheritance is designed and documented"
+error_class = "Leaving a class extensible by default -- non-final, with public or protected methods that call one another -- so a subclass silently changes the behaviour of methods it did not override, and a constructor that calls an overridable method runs subclass code against fields that are not yet initialised"
+home = { kind = "domain", name = "java" }
+created = "2026-09-19"
+origin = "codified"
+status = { kind = "active" }
+incident = "Codification-dated, not single-incident: written 2026-09-19 with the rest of the Java set. It is in the set because Java's default is the unsafe one -- a class is extensible unless it says otherwise, so inheritance is something a class opts *out* of, and the opt-out is the decision nobody makes."
++++
+
+Make the class `final` unless you have designed for a subclass, and if you have, say
+exactly what a subclass may override and what it must not.
+
+Inheritance is not the reuse mechanism it looks like. A subclass depends on which of the
+superclass's methods call which others — `addAll` calling `add` is the canonical example
+— and that is an implementation detail the superclass is entitled to change in a patch
+release. So a working subclass breaks when the parent is refactored, without either author
+doing anything wrong. Composition does not have this property: a wrapper depends on the
+public contract and nothing else.
+
+The constructor case is worse than fragile, it is broken from the start. A constructor
+that calls an overridable method runs the subclass's override **before the subclass's own
+fields are assigned**, so the override sees `null` and `0` in fields it declared `final`
+and initialised. Nothing warns. This is the same publication hazard
+`[R:no-reference-to-internals-escapes]` names as `this` escaping, reached by a route that
+looks like ordinary method dispatch — and `[R:publish-safely-or-not-at-all]` is why it
+matters even when there is only one thread.
+
+So:
+
+* **`final` by default** on classes, and on any method a subclass has no business
+  replacing. Sealing (`[R:seal-the-alternatives]`) is the stronger form where the set of
+  subtypes is closed and known.
+* **Never call an overridable method from a constructor**, an initialiser, or `clone()` or
+  `readObject()`, which are constructors wearing other names.
+* **If a class is designed for inheritance**, document the self-use: which methods call
+  which, which are safe to override, what a subclass must call. That documentation is part
+  of the contract, and the cost of it is the honest reason most classes should be `final`
+  instead.
+* **Prefer composition.** A wrapper that holds the instance and forwards is longer to
+  write, immune to the parent's internals, and the thing to reach for when the motivation
+  was reuse rather than substitutability.
+
+Failure-mode check, for every non-final class: **which of my methods call each other, and
+would a subclass overriding one of them still be correct after I reorder them?** If that
+cannot be answered, the class was extensible by accident.

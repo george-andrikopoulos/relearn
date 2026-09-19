@@ -1,0 +1,61 @@
++++
+tag = "R:no-retry-loop-on-a-contended-path"
+title = "A contended path completes in a fixed number of steps, or its worst case is unbounded"
+error_class = "A hot path shared by N writers implemented as a compare-and-swap retry loop, so the number of attempts before one succeeds is a function of how many other writers are present -- the mean stays flat while the tail is set by contention, and load testing at low producer counts cannot see it"
+home = { kind = "domain", name = "low-latency" }
+applies_to = ["rust", "java"]
+created = "2026-09-18"
+origin = "codified"
+source = "Dmitry Vyukov, Intrusive MPSC node-based queue, 1024cores (sites.google.com/site/1024cores)"
+status = { kind = "active" }
+incident = "Codification-dated, not single-incident: written 2026-09-18 while introducing multi-producer queue work, when the low-latency domain was found to hold two rules -- both about how to reason about a mechanism -- and nothing at all about the mechanisms themselves. The reasoning rules say choose by measured cost and answer a requirement at its own layer; neither states what the measurement is supposed to find, so the domain could criticise a choice it had no vocabulary to make."
++++
+
+On a path many writers contend for, prefer a structure whose writer side is a single
+unconditional atomic operation over one that retries until it wins.
+
+The Vyukov MPSC enqueue is the shape to reach for: swap the new node into the head with
+one atomic exchange, then store the back-link. The exchange cannot fail, so it cannot be
+retried, so the number of attempts is one whether one producer is pushing or sixty.
+
+**That is a bound on steps, not on time, and the difference is the whole of what this rule
+does and does not promise.** An exchange under contention still has to take the cache line
+exclusively, and the line can only be in one core's cache at a time, so sixty producers
+hammering it queue for it: the *time* for one enqueue grows with the number of contenders
+even though the *step count* does not. What wait-freedom buys is that the growth is linear
+and every attempt makes progress. A retry loop has no such floor -- an unlucky writer can
+lose repeatedly, and the arrival of more contenders both lengthens each round and makes
+losing more likely, so the tail grows faster than linearly and has no bound the code can
+state. Choose the exchange because its worst case is a queue you can reason about, not
+because it is free.
+
+A Treiber-style CAS loop is the shape to justify before using. Read the head, build the
+node, compare-and-swap, and go round again if somebody else got there first. Every
+individual operation is cheap and the structure is lock-free by the textbook definition,
+which guarantees that *the system* makes progress -- it guarantees nothing whatever about
+*this writer*, which may lose arbitrarily many times. Lock-freedom is a liveness property
+of the ensemble; latency is a property of the individual, and the two are routinely
+confused because the word "free" is doing work it was never asked to do.
+
+Read the progress guarantee per role, never for the structure as a whole. Vyukov's own
+summary is "wait-free and fast producers", and it is exact -- about producers. The
+consumer of the same queue is **obstruction-free**: it can be held up by a producer that
+was descheduled mid-push, which is the listed disadvantage of the algorithm rather than a
+subtlety of it. A structure described by the guarantee of its best-served role will be
+adopted for the role it serves worst.
+
+The measurement trap is what makes this worth a rule rather than a preference. A retry
+loop's mean is almost unaffected by contention, because most attempts succeed first
+time. What moves is the tail, and it moves superlinearly, so a benchmark at two producers
+and a production deployment at thirty-two are not the same experiment. Do not report a
+producer-side latency without reporting the producer count it was taken at.
+
+Failure-mode check, before adopting any lock-free structure on a contended path: **how
+many times can one writer go round before it succeeds, and what bounds that number?** If
+the answer is "in practice, not many", the path is unbounded and nothing holds it.
+
+`[R:measure-cost-per-task]` is the general form -- choose by what a mechanism actually
+costs, never by its reputation -- and "lock-free" is exactly the kind of reputation it
+warns about. `[R:answer-the-requirement-at-its-layer]` is the sibling that catches the
+other half: a bounded producer path is a property of the algorithm, and it does not
+survive being wrapped in something that allocates or takes a lock.

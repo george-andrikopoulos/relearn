@@ -1,0 +1,56 @@
++++
+tag = "R:no-coordinated-omission"
+title = "A load generator that waits for the system deletes the system's worst latencies"
+error_class = "A closed-loop benchmark that issues its next request only after the previous one returns, so when the system stalls the generator stalls with it and never sends the requests whose latency would have been worst -- the measured distribution omits exactly the events the measurement exists to find, and the omission is systematic, always flattering, and worse the worse the system is"
+home = { kind = "domain", name = "low-latency" }
+applies_to = ["rust", "java"]
+created = "2026-09-18"
+origin = "codified"
+source = "Gil Tene, \"How NOT to Measure Latency\"; and HdrHistogram's recordValueWithExpectedInterval, which exists to correct it"
+status = { kind = "active" }
+incident = "Codification-dated, not single-incident: written 2026-09-18 during a review that decomposed low-latency practice into error classes. It is the highest-value rule the review produced, on the ground that its failure yields a confidently wrong number rather than a visibly bad one -- nothing else in a normal process catches it, because every part of the process is reading the same corrupted measurement."
++++
+
+Ask, before reporting any latency figure: **when the system under test stalls, does my load
+generator stall with it?** If it does, the figure is not a percentile of the system's behaviour.
+
+A closed-loop generator sends a request, waits for the response, then sends the next. That is the
+natural way to write one and it is measuring the wrong thing. Suppose the intended rate is one
+request every 10ms and the system stalls for one second. A closed-loop generator issues **one**
+request during that second and records **one** sample of 1000ms. An open-loop generator, or a real
+user population, would have issued a hundred: the first waits 1000ms, the next 990ms, the next
+980ms, down to the last. The true contribution of that stall is a hundred samples averaging about
+500ms. The closed-loop generator recorded one.
+
+The consequence is not a small error and not a noisy one. Ninety-nine of the hundred worst samples
+were never taken, so they cannot appear at any percentile, and the tail -- the only part of the
+distribution anyone asked about -- is computed over a sample set from which the bad events were
+systematically removed. This is how "the 99.9th percentile is 2ms" and "the 99.9th percentile is
+800ms" can both be measurements of the same system on the same afternoon.
+
+Three properties make it worse than ordinary measurement error, and they are the reason this needs
+a rule rather than care:
+
+* **It is systematic, not random.** Running longer, repeating the experiment, or averaging across
+  runs does not reduce it. Every run omits the same events for the same reason.
+* **It always flatters.** The bias has one direction. A number that is wrong in an unknown
+  direction invites suspicion; a number that is always optimistic gets believed.
+* **It scales with the badness it hides.** The worse the stall, the more samples the generator
+  fails to take, so the measurement degrades fastest exactly where the system does.
+
+So: drive load open-loop at a stated rate, and record each request's latency from the time it
+**should have been sent**, not from the time the generator got round to sending it. Where an
+existing closed-loop harness cannot be replaced, correct the recording --
+`recordValueWithExpectedInterval` exists for precisely this and is not an optional refinement.
+And report the intended rate beside the percentile: a tail latency with no load attached to it is
+not a measurement of anything, which is the same point `[R:no-retry-loop-on-a-contended-path]`
+makes about producer counts.
+
+Failure-mode check: **what stops my instrument from taking a sample, and would it stop at the
+moments I care about?**
+
+`[R:measure-the-claim-not-a-subset]` is the near neighbour and the two are deliberately separate.
+There, an analyst measures a narrower set than the claim covers and manufactures a discrepancy;
+the remedy is to state the scope. Here the *instrument* silently deletes samples while the analyst
+does everything right, the scope looks identical, and the remedy is in the harness rather than in
+the reasoning. Same family -- a subset wearing the whole -- different mechanism and different fix.

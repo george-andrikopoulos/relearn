@@ -1,0 +1,54 @@
++++
+tag = "R:a-queue-without-a-bound-has-no-overload-behaviour"
+title = "An unbounded queue converts overload into latency instead of refusal"
+error_class = "An unbounded queue on a path where consumption can fall behind production, so sustained overload is absorbed as a growing backlog -- every item delivered late rather than some refused promptly -- and the system has no point at which it can shed load, until memory or the deadline fails instead"
+home = { kind = "domain", name = "low-latency" }
+applies_to = ["rust", "java"]
+created = "2026-09-18"
+origin = "codified"
+source = "Little's Law (J. D. C. Little, 1961): L = lambda W, so for a queue that never refuses, wait grows without bound once arrival rate exceeds service rate"
+status = { kind = "active" }
+incident = "Codification-dated, not single-incident: written 2026-09-18 from the same review, and it is the rule that argues against the structure the other queue rules recommend. Vyukov's MPSC is unbounded and lists that as an advantage -- correctly, for producer-side cost. Unboundedness is not free elsewhere, and the place it is charged is the consumer's deadline."
++++
+
+Decide what the queue does when consumption falls behind production. Growing is not a decision.
+
+Queue depth *is* latency -- that is Little's Law and not a heuristic: with arrivals at rate lambda
+and mean queue length L, the mean wait is L/lambda, so an unbounded L is an unbounded wait. A
+queue with no capacity limit therefore has no latency limit, and a latency requirement stated
+anywhere upstream of it is not held by anything.
+
+The failure has a characteristic shape that makes it late to diagnose. Producers never block, so
+nothing upstream reports a problem; throughput looks correct, because every item is eventually
+processed; and the only symptom is that latency climbs monotonically. By the time it is visible
+the backlog is doing work nobody wants -- every item consumed is already stale, so capacity is
+being spent delivering answers to questions whose moment has passed, which is why the system does
+not recover when load returns to normal. It has to drain first, at the same rate that fell behind.
+
+So bound the queue, and choose the behaviour at the bound. Four are legitimate and the choice is
+a domain decision, not a technical one:
+
+* **Block the producer.** Real backpressure -- the slowest consumer sets the rate for everyone,
+  and the pressure propagates to whoever can actually shed it. Wrong where the producer must not
+  be stopped, which is the regime `[R:no-stall-inside-a-publication-window]` is about.
+* **Drop the oldest.** Correct for market data, sensor readings, telemetry: a stale tick has
+  negative value and the newest is the only one worth having.
+* **Drop the newest.** Correct where the backlog is a fair queue and latecomers have not been
+  promised anything.
+* **Reject, and say so.** Correct for order entry and anything a caller must know the fate of. A
+  silently dropped order is worse than a refused one by the whole width of the trust the caller
+  placed in the call.
+
+Not choosing selects a fifth behaviour that nobody would choose deliberately: absorb everything,
+degrade every item's latency equally, and fail eventually by exhausting memory -- or, on a managed
+runtime, by a collection pause caused by the backlog itself, which slows the consumer further and
+is the closest thing in production to a feedback loop with the wrong sign.
+
+The unbounded structure remains the right choice where the bound genuinely lives elsewhere -- a
+queue whose producers are rate-limited upstream, or whose consumer is provably faster than any
+possible arrival rate. Say which, in the code, next to the queue. An unbounded queue with a stated
+reason is a decision; one without is the absence of a decision wearing the same shape.
+
+Failure-mode check: **if consumption falls behind production for ten seconds, what does this queue
+do and who finds out?** If the answer is "it grows" and "nobody", there is no overload behaviour
+here, only an overload symptom waiting.

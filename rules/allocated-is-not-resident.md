@@ -1,0 +1,60 @@
++++
+tag = "R:allocated-is-not-resident"
+title = "Memory that has never been touched is not yet memory"
+error_class = "Treating a successful allocation as the point at which memory becomes usable, so the first write on a latency-bounded path takes a page fault -- the kernel finding, zeroing and mapping a page -- and the cost lands on the first real message instead of at startup, once per page, invisibly to every allocation-free check"
+home = { kind = "domain", name = "low-latency" }
+applies_to = ["rust", "java"]
+created = "2026-09-18"
+origin = "codified"
+source = "Ulrich Drepper, \"What Every Programmer Should Know About Memory\" (2007), on demand paging and the cost of a first touch"
+status = { kind = "active" }
+incident = "Codification-dated, not single-incident: written 2026-09-18 from the same review, split out of the allocation rule rather than left as its closing paragraph. The two are separable and the distinction is the point: a path can satisfy `no allocation on the hot path` completely and still fault on its first message, because the two rules are about different moments -- one about calling the allocator, one about the memory the allocator already returned."
++++
+
+Pre-allocating is not preparing. A successful allocation buys address space; the page arrives on
+first touch, and the touch is what costs.
+
+`malloc` and `mmap` hand back virtual addresses. Physical pages are supplied lazily: the first
+write to each page traps into the kernel, which finds a frame, zeroes it -- because the previous
+tenant's data must not leak -- and maps it. So a one-gigabyte buffer allocated at startup and
+first written on the hot path contains roughly a quarter of a million page faults, arriving one
+per page, spread across the first pass over it. Every allocation-free assertion on that path is
+satisfied and every one of them is measuring the wrong thing: nothing called the allocator.
+
+Residency is also not permanent once achieved. Pages can be reclaimed under memory pressure or
+swapped, so a long-lived process that touched its buffers at startup and then left them idle can
+fault again on a path that has been fault-free for a week. That is why the remedy has two halves
+and why only doing the first is a common and expensive mistake.
+
+So, for anything on a path with a deadline: write to every page the path will touch, at startup,
+before any real work arrives -- the touch has to be a write, since a read of an untouched page may
+be served by the shared zero page and prove nothing. Then pin it: `mlockall(MCL_CURRENT |
+MCL_FUTURE)`, and no swap on the box. On the JVM, `-XX:+AlwaysPreTouch` does the first half for
+the heap and is worth the slower startup precisely because the cost is moved off the path that
+has a bound.
+
+Huge pages change the arithmetic in both directions and deserve their own decision rather than a
+default. Fewer, larger pages means fewer faults and less TLB pressure; each fault is bigger, and
+transparent huge pages bring a defragmentation path that can stall a thread for milliseconds at
+exactly the wrong moment. Explicit huge pages reserved at boot avoid that; leaving THP on
+`always` and hoping is the shape this domain keeps having to name.
+
+**Touch from the thread that will own the memory, not from the thread doing the setup.** On a
+multi-socket machine the first write also decides *placement*: a page is allocated on the node
+of whoever faults it, so the obvious way to satisfy this rule -- one loop in the initialisation
+thread walking every buffer -- puts every page on that thread's node, and a worker pinned to the
+other socket then reads all of it across the interconnect at roughly twice the local latency.
+The path is now fault-free and entirely remote: a slower steady state bought with a faster first
+message. Pin the owning threads first, then let each of them touch what it will use.
+
+Failure-mode check: **has every page this path will touch been written to, by the thread that
+will read it, and what stops it being reclaimed?** Three questions, because answering only the
+first leaves a system that is fast until it goes idle, and answering only the first two leaves
+one that is fast on a single socket.
+
+`[R:no-allocation-on-the-hot-path]` is the sibling and neither subsumes the other -- that one is
+about entering the allocator, this one about the memory it already returned.
+`[R:answer-the-requirement-at-its-layer]` is why the remedies are all a memory policy, a lock, or
+a boot parameter: no choice of container or crate reaches this.
+`[R:no-stall-inside-a-publication-window]` is where it bites hardest, because a page fault taken
+between a writer's two stores holds the window open for its whole duration.

@@ -1,0 +1,50 @@
++++
+tag = "R:identity-is-not-equality-for-boxes"
+title = "Comparing boxed numbers with == works until the value exceeds 127"
+error_class = "Using `==` on boxed primitives or on strings, so the comparison tests reference identity and happens to be right for cached or interned values and wrong for everything else -- correct in every test fixture with a small number in it, wrong on the first real one"
+home = { kind = "domain", name = "java" }
+created = "2026-09-19"
+origin = "codified"
+status = { kind = "active" }
+incident = "Codification-dated, not single-incident: written 2026-09-19 with the rest of the Java set, and homed here because the error class cannot exist without Java's boxing and its integer cache -- the language is constitutive, which is the test that settles a home in this corpus. What it shares with the measurement rules in the latency domain is a property rather than a home: the defect is not rare in testing, it is *absent* from testing, because every fixture uses a small number and every small number is cached."
++++
+
+`==` on a reference asks whether these are the same object. On a boxed number or a string
+that is almost never the question, and the language will not stop you asking it.
+
+What makes this a rule rather than a known gotcha is *where* it is wrong. `Integer` caches
+boxes for −128 to 127, so `==` returns the right answer for every small value and the
+wrong one above it:
+
+```java
+Integer a = 127, b = 127;   a == b   // true
+Integer a = 128, b = 128;   a == b   // false
+```
+
+A unit test written with an id of `1` or a quantity of `10` passes forever. Production
+arrives with an order id of 5000 and the comparison silently starts returning false — and
+it returns false *correctly*, in the sense that the two really are different objects, so
+there is nothing to find in a debugger except two values that look identical.
+
+String literals behave the same way for the same reason: literals are interned, so `==`
+works for them and fails for any string that was built, read from a socket, parsed, or
+concatenated at run time.
+
+So:
+
+* **Use `equals`** — or `Objects.equals(a, b)`, which also handles a null on either side
+  and is the right default at a boundary where either may be absent
+  (`[R:null-is-not-a-value]`).
+* **Use primitives where the value cannot be absent.** `int` rather than `Integer` removes
+  the question entirely, along with the allocation and the possible
+  `NullPointerException` on unboxing. A boxed type in a field or a signature should be
+  there because absence is meaningful, not by default.
+* **Compare enums with `==`** — that one is correct, deliberate, and null-safe, which is
+  part of why enums are the right shape for a closed set
+  (`[R:seal-the-alternatives]`).
+* **Never unbox in a comparison chain.** `Integer x = null; if (x == 1)` throws; the
+  unboxing is invisible in the source.
+
+Failure-mode check, at every `==` between two references: **is this asking about identity?**
+If the answer is that it is asking whether the values are the same, it is the wrong
+operator and it will pass the tests.

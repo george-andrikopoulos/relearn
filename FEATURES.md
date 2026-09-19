@@ -730,6 +730,44 @@ passes under the behaviour it is supposed to forbid locks nothing.
 dropped. `global` still drops fifteen of thirty and `domain-low-latency` will truncate again as it
 grows. A cap that cannot hold an inventory is a question about what the field should contain, and
 is carried in `TODO.md`.
+
+### The corpus carries a Java discipline and a mechanism-level low-latency discipline
+
+What: `rules/` grew 57 → 83 on 2026-09-19. `domain-java` is a **new home** with 13 rules;
+`domain-low-latency` went 2 → 15. The two domains were written together and are deliberately
+separate, because the test that assigns a home when a rule is both language-specific and
+performance-specific is **does the error class require a latency requirement to exist, or require
+the runtime to exist** — and those pick out different rules.
+
+The Java set is the language discipline the corpus had never carried: nullability, the
+equals/hashCode contract, sealed alternatives with exhaustive switch, references escaping a class,
+safe publication under the JMM, exception discipline, collection views, resource closing,
+inheritance, boxed identity, `Serializable` as a second constructor, and one rule that exists
+because **this corpus creates the hazard** — `[R:a-wrapper-type-is-not-free-here]` keeps
+`[R:newtype-liberally]`'s design argument and refuses its cost argument, because a newtype is
+zero-cost in Rust by construction and in Java only when escape analysis says so.
+
+The low-latency set is mechanism and measurement: contended paths, the two-store publication window
+from both ends, concurrency regimes, backpressure, memory ordering, false sharing, allocation and
+residency, syscalls, and three rules about instruments that report confidently wrong numbers
+(coordinated omission, safepoint-biased profilers, warm-versus-cold measurement).
+
+`domain-java` matters for a reason beyond its contents: `java` is in `emit::domain_globs`, so the
+home is `LoadSemantics::WhenReading` and emits `.claude/rules/domain-java.md` carrying
+`paths: ["**/*.java"]` — it attaches on reading any Java file. `domain-low-latency` is not a
+language, gets no globs, and remains `OnRequest`.
+
+**Enforced by:** `relearn check` (83 validated) + `relearn lint` (7 findings, **identical to the
+57-rule baseline** — the 26 add no overlapping scope, no home-slug collision, no dangling or
+retired reference) + `tests/corpus.rs::every_committed_rule_round_trips_byte_identically` over all
+83 + `relearn verify` on all three output roots (97 / 1 / 7 files) +
+`tests/pack_counts.rs`, which caught both pack READMEs on landing: the copilot table still said 57
+rules, and the claude inventory had no line for the new `domain-java` skill at all.
+
+**Description headroom, stated because it is the constraint that shaped the set:**
+`domain-java` sits at 884/1024 characters with no truncation, and 13 rules was chosen to keep it
+there. `domain-low-latency` at 15 rules **does** truncate, dropping 2. That is the open
+description-as-inventory question in `TODO.md`, not a defect in these rules.
 ### An audience no rule declares is an error for `build` and `verify`, and an empty listing for `list`
 
 What: `relearn build --scope rsut` fails naming the declared scopes rather than emitting. The reason is **sharper than the unknown-home one and is recorded as such**: an unknown home produces an empty emission, which at least looks wrong; an unknown scope produces a tree that is *quietly missing every scoped rule* while every unscoped rule is still present — output that looks like success. `list --scope` mirrors `list --home` instead: printing nothing *is* an answer for a listing, and is not one for a gate.

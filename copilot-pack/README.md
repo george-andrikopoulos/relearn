@@ -9,7 +9,7 @@ as custom instructions. Download this folder, copy one file into your repository
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        57 rules, 909 lines — the instruction file
+    └── copilot-instructions.md        83 rules, 2109 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -19,7 +19,8 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 |---|---:|---|
 | `global` | 30 | The repository discipline and its controls, plus language-agnostic verification, provenance, disclosure and cost reasoning — see below |
 | `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
-| `domain-low-latency` | 2 | Reasoning discipline for latency-sensitive work: answer a requirement at the layer it lives at, and attack a design in a pass that builds nothing |
+| `domain-low-latency` | 15 | Mechanism and measurement discipline for latency-sensitive work: contended paths, publication windows, memory ordering, and the instruments that report confidently wrong numbers |
+| `domain-java` | 13 | The Java language discipline — nullability, equality, sealed alternatives, safe publication, resource and inheritance rules |
 | `project-*` | 7 | Rules belonging to the `relearn`, `stochos-lab` and `design-architecture-tool` repositories specifically |
 
 These counts are hand-written and nothing checks them — which is exactly how they went

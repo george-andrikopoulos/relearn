@@ -1,0 +1,45 @@
+---
+description: A path optimised on yesterday's inputs deoptimises when today's arrive (A JIT-compiled hot path whose speculative assumptions -- one receiver type at a call site, a branch never taken, a field never null, a class not yet loaded -- are invalidated at run time, so the path traps back to the interpreter, re-profiles and recompiles, and delivers its worst latency at the exact moment the input stopped being ordinary)
+globs: **/*.java
+alwaysApply: false
+---
+
+# A path optimised on yesterday's inputs deoptimises when today's arrive [R:a-speculated-path-deoptimises-when-the-input-changes]
+
+> Written down from Aleksey Shipilev, "JVM Anatomy Quarks", on profile pollution, inlining and deoptimisation; HotSpot's uncommon-trap mechanism.
+
+A JIT does not compile your code. It compiles a bet about your code, and the bet is settled at the
+moment the bet stops being true.
+
+HotSpot compiles on profile: this call site has only ever seen one receiver type, so inline it and
+guard; this branch has never been taken, so do not emit it; this field has never been null, so
+skip the check; this class has never been loaded, so assume no subclass exists. Each assumption
+gets a guard, and the compiled path is fast precisely because the guards are cheap and the bodies
+are absent. When a guard fails the frame is deoptimised: an uncommon trap, interpreter frames
+rebuilt from the compiled ones, execution continuing interpreted, and a wait to be recompiled with
+the new profile.
+
+The timing is what makes this a latency rule rather than a throughput one. The assumptions break
+when the input changes -- the unusual order type, the first exception of the day, a new venue's
+message format, the second implementation of an interface loaded at hour six. So the worst latency
+the path will ever produce is delivered on the least ordinary event, which is generally the event
+that mattered most. Load testing with representative-on-average traffic reproduces none of it.
+
+It is also silent by default. Nothing is logged, no metric moves, and the only trace is a latency
+outlier indistinguishable from a collection pause or a scheduling delay. `-XX:+PrintCompilation`
+and `-XX:+TraceDeoptimization` say what happened; JFR carries the events with less overhead and is
+the one worth leaving on.
+
+So warm the path with the **unusual** cases as well as the common ones -- which is where this
+meets `[R:a-measurement-matches-the-regime-it-reports]`: a warm-up built only from typical traffic
+produces a profile that typical traffic confirms and atypical traffic destroys. Keep hot call
+sites deliberately monomorphic; a megamorphic interface call on the hot path is a permanent
+inlining barrier rather than a one-off trap. Load the classes the path will need before the path
+is live. And treat a lambda or a dynamic call site added to a hot path as a new profile that has
+to be earned again.
+
+Failure-mode check: **what has the JIT assumed about this path, and what happens the first time
+one of those assumptions is false?** If the honest answer is that nobody knows what was assumed,
+that is the finding -- the assumptions are readable, and reading them is the work.
+
+<!-- relearn:generated v0.1.0 sha256=b1cfc20c555b70ac90209920f2f93003d2d3a875bbde08da458583d03791de18 rules=R:a-speculated-path-deoptimises-when-the-input-changes -- DO NOT EDIT; regenerate with `relearn build` -->

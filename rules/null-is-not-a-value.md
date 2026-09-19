@@ -1,0 +1,51 @@
++++
+tag = "R:null-is-not-a-value"
+title = "Never return null to mean absent"
+error_class = "Returning `null` from a method to signal absence, emptiness or failure, so every caller must remember a check the signature does not require -- and the one that forgets fails at a call site far from the method, with a NullPointerException naming neither the value nor what it was supposed to hold"
+home = { kind = "domain", name = "java" }
+created = "2026-09-19"
+origin = "codified"
+status = { kind = "active" }
+incident = "Codification-dated, not single-incident: written 2026-09-19 when the Java homing was examined and `domain-java` was found to be a home with one rule in it and no language discipline at all -- eighteen rules for Rust, none for the language the latency work is actually done in. This is the first of the set, because it is the error class the language's own designer called his billion-dollar mistake and the one every other Java rule here has to route around."
++++
+
+A method that can return nothing says so in its type. `null` does not say it; it only
+does it.
+
+The contract is the whole problem. `Order find(String id)` and `Order get(String id)` have
+the same signature, and one of them returns `null` on a miss while the other throws --
+the caller cannot tell which without reading the body, so it either checks everywhere or
+checks nowhere, and both are wrong. `Optional<Order>` states the answer in the type: the
+caller cannot reach the value without deciding what absence means.
+
+Three shapes, and the right answer differs:
+
+* **A method that may legitimately find nothing** returns `Optional<T>`. Use it at the
+  return position and nowhere else -- an `Optional` field costs a second allocation and a
+  second dereference on every read, and an `Optional` parameter forces every caller to wrap,
+  which is three states (`null`, `empty`, `present`) where the signature promised two.
+* **A method returning a collection** returns an empty one, never `null`. `Collections.emptyList()`
+  allocates nothing and removes the check entirely; a null collection makes the caller write
+  a guard before a loop that would have run zero times by itself.
+* **A method that cannot meaningfully continue** throws. Absence and failure are different
+  answers and must not share a return value.
+
+Accepting `null` is a separate decision from returning it. At an API boundary, reject it
+loudly -- `Objects.requireNonNull(x, "x")` in the constructor -- so the failure lands at
+the boundary that was handed the bad value rather than at the first dereference three
+layers in. That is `[R:parse-dont-validate]` in a language whose type system will not
+carry the witness: the check happens once, at the perimeter, and the field is trusted
+afterwards because nothing else can write it (`[R:private-fields-only]`).
+
+Where the codebase tolerates nullable references, annotate them and turn the analysis on.
+`@Nullable`/`@NonNull` with a checker in the build is the difference between a convention
+and a control; unenforced annotations are comments that look like types
+(`[R:guarantee-needs-a-reader]`).
+
+Failure-mode check, for any reference-returning method: **what does the caller do on a
+miss, and what in the signature told them?** If the answer is a Javadoc line, nothing told
+them.
+
+This is `[R:no-sentinel-values]` in the language where the sentinel is built into every
+reference type, which is why it needs its own rule rather than an instance of that one:
+you cannot stop `null` existing, only stop it meaning something.

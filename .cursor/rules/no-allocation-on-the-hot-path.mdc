@@ -1,0 +1,56 @@
+---
+description: A latency-bounded path does not enter the allocator (A path with a stated latency bound calling into the general-purpose allocator -- directly, or through a collection that grows, a boxed trait object, a formatted string or a per-message node -- so the path's worst case becomes the allocator's worst case: a lock, a page fault, an arena refill, or in a managed runtime a collection pause)
+globs: 
+alwaysApply: false
+---
+
+# A latency-bounded path does not enter the allocator [R:no-allocation-on-the-hot-path]
+
+> Written for the rust and java audiences.
+
+A path with a latency bound owns its memory before the path starts.
+
+The bound you can state about an algorithm is a bound on the algorithm. Allocation is how
+it stops being a bound on the program: the fast path of a modern allocator is a few
+nanoseconds and a handful of instructions, and its slow path takes a lock, asks the kernel
+for pages, faults them in on first touch, or -- on a managed runtime -- stops the
+application. Those are not rare events that can be amortised into an average. They are the
+tail, and the tail is the number the requirement was written about.
+
+A concurrent collector does not remove this; it changes what you pay and when. ZGC and
+Shenandoah move the bulk of the work off the stop-the-world pause, which is why their
+pause figures are quoted in sub-milliseconds and why those figures are then read as
+"allocation is free here". They are not the same claim. The collector now runs
+*alongside* the application, competing for cores and memory bandwidth with the path that
+has the deadline, and when the allocation rate outruns what it can reclaim concurrently
+the allocating thread is stalled until it can -- an allocation stall, which does not
+appear in the pause metric at all. So the number that governs a bounded path is the
+allocation **rate** the path sustains, not the collector's advertised pause. Quoting the
+pause is the managed-runtime instance of `[R:measure-the-claim-not-a-subset]`: a real
+measurement of one thing, offered against a claim about another.
+
+This is why a lock-free queue worth using is *intrusive*: the node is a field inside the
+caller's message, already allocated, already resident, so enqueue stores pointers and
+never asks anyone for memory. Wrapping that queue in an API that boxes each message
+undoes its entire argument while leaving every benchmark of the queue itself intact --
+`[R:answer-the-requirement-at-its-layer]`, with the requirement held one layer above where
+it was measured.
+
+Allocation is easy to reintroduce without writing the word. A vector that grows, a hash
+map that rehashes, a formatted log line, a boxed closure, a trait object returned by
+value, a collected iterator, an error type that carries a `String` -- and in Java, every
+one of those plus autoboxing and varargs. So the control cannot be "remember not to
+allocate": pre-size every collection and assert its capacity never changes, take the
+buffer as a parameter instead of returning an owned one, and where the platform allows it,
+install an allocator that aborts when called from a thread marked hot. A path that cannot
+allocate without failing loudly is `[R:prefer-by-construction]`; a path that merely should
+not is prose.
+
+Failure-mode check, for every call on a bounded path: **what does this do when the
+allocator takes its slow path, and what proved this cannot reach the allocator at all?**
+
+Pre-faulting and locking the pages is the same argument one level down, and it has to be
+made separately: memory that is allocated but never touched is not resident, so the first
+write on the send path is a page fault whether or not anything called the allocator.
+
+<!-- relearn:generated v0.1.0 sha256=89e25024d0c7b9ea5b7d7171f8d4d2498aaf4764d213f452db0aa5971daa9655 rules=R:no-allocation-on-the-hot-path -- DO NOT EDIT; regenerate with `relearn build` -->
