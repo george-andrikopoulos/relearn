@@ -7,7 +7,7 @@ install it on claude.ai, without cloning this repository or building anything.
 ```
 claude-pack/
 └── skills/
-    ├── global/SKILL.md                          30 rules — every project, every language
+    ├── global/SKILL.md                          31 rules — every project, every language
     ├── domain-rust/SKILL.md                     18 rules — the Rust type-driven discipline
     ├── domain-low-latency/SKILL.md              15 rules — latency-sensitive systems work
     ├── domain-java/SKILL.md                     13 rules — the Java language discipline
@@ -16,8 +16,9 @@ claude-pack/
     └── project-design-architecture-tool/SKILL.md  3 rules — that repository
 ```
 
-Those counts are hand-written and nothing checks them against the library. The number
-that cannot go stale is the file's own:
+Those counts are hand-written, and since 2026-09-13 `tests/pack_counts.rs` reads each one
+back off the skill it names and fails the build when they disagree — so they are hand-kept
+rather than unchecked. The reading that needs no build at all is the file's own:
 
 ```bash
 grep -c '^## ' claude-pack/skills/global/SKILL.md
@@ -104,9 +105,10 @@ project-relearn 16, project-stochos-lab 16, project-design-architecture-tool 95.
 ```
 
 The expected line counts are in the prompt because they are the one check the person
-pasting it can make without reading the files. They are hand-written here and unchecked,
-like the rule counts above; `wc -l claude-pack/skills/*/SKILL.md` is the reading that
-cannot rot.
+pasting it can make without reading the files. Unlike the rule counts above, these are
+hand-written **and unchecked** — `tests/pack_counts.rs` reads rule counts off each skill
+and line counts only off the copilot file, so nothing fails when a number here drifts.
+`wc -l claude-pack/skills/*/SKILL.md` is the reading that cannot rot.
 
 ## Confirming a skill loaded
 

@@ -957,6 +957,36 @@ What: `relearn` is a compiler a single engineer points at their own rules to emi
 
 **Both halves were observed, not assumed (2026-09-13):** clean tree → 4 passed; a probe file under `src/` containing `std::net::TcpStream` → `the_tool_opens_no_socket` fails naming the file, line and marker. The two "measuring nothing" paths are refused explicitly: an empty source list and an unparseable `Cargo.lock` each fail rather than pass.
 
+### The corpus names the fourth position in the signal family
+
+What: `rules/` grew 83 → 84 with `[R:signal-needs-a-consequence]` — *give a repeated signal a
+consequence, or stop emitting it.* `global`, `mined`, `active`.
+
+**Why a new rule and not a recurrence,** which is the decision worth recording. It was first
+proposed as a recurrence of `[R:guarantee-needs-a-reader]` and rejected on inspection: there,
+nothing reads the state a sentence asserts; here a check read it correctly and a person did not
+act. The corpus already held three positions in that family and the fourth was empty —
+`guarantee-needs-a-reader` (nothing checks the claim), `wired-artifact` (something checks it and
+accepts evidence anything could produce), `verdict-survives-the-channel` (the verdict is destroyed
+in transit), `reconcile-wiring-at-start` (the control goes dark without announcing it). This is the
+case where every link holds and the chain still ends, because its last link was a person with
+nothing at stake. Forcing it onto the nearest neighbour would have inflated the one number the
+framework treats as evidence, which is the failure mode of recording recurrences at all.
+
+**Enforced by: NOTHING YET — exposed.** `status = active`, so the instruction layer is the only
+thing holding it, and the rule's own doctrine says an unheld class must say so rather than name a
+control that does not exist. What *is* mechanical: `relearn check` parses it (84 validated) and
+`relearn lint` will report it as an unheld recurrence the first time it fires. The obvious
+graduation — a check that every hook or script emitting a warning either exits non-zero or is
+named in a reviewed register — is carried in `TODO.md`, unbuilt, and lives in stochos-lab rather
+than here because that is where the signals are.
+
+**Found by the gate on landing:** `tests/pack_counts.rs` refused the change twice over — the
+copilot pack README claimed 83 rules against 84 and 2109 lines against 2125, and the claude pack
+claimed 30 global rules against 31. Both pack READMEs also carried the sentence *"nothing checks
+them"*, false since 2026-09-13 for every count the test reads; repaired in the same change, with
+the two that genuinely remain unchecked now named as such. `[R:repair-the-lying-artefact]`
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.

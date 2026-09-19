@@ -9,7 +9,7 @@ as custom instructions. Download this folder, copy one file into your repository
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        83 rules, 2109 lines — the instruction file
+    └── copilot-instructions.md        84 rules, 2125 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -17,18 +17,21 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 30 | The repository discipline and its controls, plus language-agnostic verification, provenance, disclosure and cost reasoning — see below |
+| `global` | 31 | The repository discipline and its controls, plus language-agnostic verification, provenance, disclosure and cost reasoning — see below |
 | `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
 | `domain-low-latency` | 15 | Mechanism and measurement discipline for latency-sensitive work: contended paths, publication windows, memory ordering, and the instruments that report confidently wrong numbers |
 | `domain-java` | 13 | The Java language discipline — nullability, equality, sealed alternatives, safe publication, resource and inheritance rules |
 | `project-*` | 7 | Rules belonging to the `relearn`, `stochos-lab` and `design-architecture-tool` repositories specifically |
 
-These counts are hand-written and nothing checks them — which is exactly how they went
-wrong: this table read 27 / 18 / 7 for long enough to sum to 52 while the line above it
-said 57, and the `domain-low-latency` layer was missing from it altogether. `grep -c '^## '`
-on the instruction file is the number that cannot go stale, and
-`grep -c '^home = ' ../rules/*.md` grouped by home is the breakdown that cannot.
-`[R:doc-currency]`
+These counts are hand-written, and they went wrong exactly as you would expect while
+nothing read them: this table said 27 / 18 / 7 for long enough to sum to 52 while the
+line above it said 57, and the `domain-low-latency` layer was missing from it altogether.
+**Since 2026-09-13 `tests/pack_counts.rs` checks the two above the table** — the
+instruction file's rule count and its line count — against the generated file, and it
+caught this page claiming 83 rules against 84 on 2026-09-19. The per-layer breakdown in
+the table is **still unchecked**, because no single generated file holds it. For that one,
+`grep -c '^home = ' ../rules/*.md` grouped by home is the reading that cannot rot.
+`[R:doc-currency]` `[R:signal-needs-a-consequence]`
 
 ### The repository discipline
 
