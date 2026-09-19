@@ -14,7 +14,7 @@
 use std::collections::BTreeMap;
 
 use super::{
-    HomeSlug, OutputFile, RelativePath, audience_note, emittable, enforcement_note,
+    HomeSlug, OutputFile, RelativePath, audience_note, emittable, enforcement_note, home_label,
     recurrence_note, source_note, yaml_double_quote,
 };
 use crate::library::{Library, Validated};
@@ -277,16 +277,6 @@ fn render_skill(slug: &HomeSlug, home: &Home, rules: &[&Rule]) -> String {
         out.push('\n');
     }
     out
-}
-
-/// The human-readable label for a home, used in headings and the description.
-fn home_label(home: &Home) -> String {
-    match home {
-        Home::Global => "global".to_owned(),
-        Home::Org { name } => format!("org: {}", name.as_str()),
-        Home::Domain { name } => format!("domain: {}", name.as_str()),
-        Home::Project { path } => format!("project: {}", path.as_str()),
-    }
 }
 
 #[cfg(test)]

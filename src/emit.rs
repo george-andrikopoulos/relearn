@@ -22,6 +22,7 @@ pub mod agents;
 pub mod claude;
 pub mod claude_rules;
 pub mod copilot;
+pub mod copilot_paths;
 pub mod cursor;
 
 use crate::library::{Library, Validated};
@@ -411,6 +412,24 @@ pub(crate) fn source_note(rule: &Rule) -> Option<String> {
     rule.origin()
         .source()
         .map(|s| format!("> Written down from {}.\n\n", s.as_str()))
+}
+
+/// The human-readable label for a home, used in headings and skill
+/// descriptions — `global`, `domain: rust`, `project: relearn`.
+///
+/// Shared rather than duplicated: it was private to `emit::claude` until
+/// `emit::copilot_paths` needed the same phrasing for the same purpose, and two
+/// copies of a label become two labels the day one of them is edited.
+/// Exhaustive over `Home` with no catch-all, so a new home kind has to be given
+/// a name here rather than acquiring one by default.
+#[must_use]
+pub(crate) fn home_label(home: &Home) -> String {
+    match home {
+        Home::Global => "global".to_owned(),
+        Home::Org { name } => format!("org: {}", name.as_str()),
+        Home::Domain { name } => format!("domain: {}", name.as_str()),
+        Home::Project { path } => format!("project: {}", path.as_str()),
+    }
 }
 
 #[cfg(test)]

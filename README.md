@@ -59,6 +59,15 @@ relearn list --rules ./rules --home domain-rust
 relearn build --rules ./rules --out .
 relearn build --rules ./rules --out . --targets cursor,copilot
 
+# The path-scoped Copilot shape: one .github/instructions/<home>.instructions.md
+# per home, each with an `applyTo` glob, so the Rust rules attach to Rust files
+# and nothing else. Selected explicitly and never a default — it is the
+# ALTERNATIVE to `copilot`, not an addition, and installing both states every
+# rule twice. A home that is a discipline rather than a language cannot be
+# narrowed by a glob, so its file says `applyTo: "**"` and says so in its
+# header: you install the domains you work in.
+relearn build --rules ./rules --out . --targets copilot-paths
+
 # Narrow by audience rather than by owner. A rule declaring no `applies_to`
 # is emitted whatever you ask for; only a scoped rule can be withheld, and
 # only from an audience it does not name. Repeatable, composes with --home,

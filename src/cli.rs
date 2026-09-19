@@ -474,6 +474,15 @@ enum Target {
     /// GitHub Copilot instructions, one concatenated file
     /// (`.github/copilot-instructions.md`).
     Copilot,
+    /// GitHub Copilot path-scoped instructions, one file per home
+    /// (`.github/instructions/<home>.instructions.md`) carrying an `applyTo`
+    /// glob, so a home attaches only to the files it is about.
+    ///
+    /// The alternative shape to `copilot`, not an addition to it: installing
+    /// both states every rule twice. `copilot` is right for a small corpus;
+    /// this is right once a repository would otherwise carry a domain it does
+    /// not work in.
+    CopilotPaths,
     /// A single `AGENTS.md` at the repository root.
     Agents,
     /// A project-layer `CLAUDE.md` (project-home rules only).
@@ -980,6 +989,7 @@ fn emit_selected(validated: &Library<Validated>, targets: &[Target]) -> Vec<Outp
             Target::Claude => files.extend(emit::claude::emit(validated)),
             Target::Cursor => files.extend(emit::cursor::emit(validated)),
             Target::Copilot => files.extend(emit::copilot::emit(validated)),
+            Target::CopilotPaths => files.extend(emit::copilot_paths::emit(validated)),
             Target::Agents => files.extend(emit::agents::emit(validated)),
             Target::ClaudeRules => files.extend(emit::claude_rules::emit(validated)),
         }

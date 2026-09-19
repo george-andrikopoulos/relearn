@@ -887,6 +887,47 @@ distribution. It now spans `1-4` and `5-9` and asserts both.
 places the boundary is written down in prose — `docs/federated-relearn.md` §5 and §12.3, and the
 programme's risk list, which now records the item as closed rather than open. Nothing had been
 published, so nothing needed migrating.
+
+### `copilot-paths` — path-scoped Copilot instructions, one file per home
+
+What: `relearn build --targets copilot-paths --out <dir>` writes
+`.github/instructions/<home-slug>.instructions.md` per home, each carrying an `applyTo:` glob
+derived from `LoadSemantics` — `**/*.rs` for `domain-rust`, `**/*.java` for `domain-java`, `**` for
+global and project layers. Copilot attaches each file only to the files it is about, so eighteen
+Rust rules stop occupying context in a repository with no Rust in it. That is the P6 argument that
+motivated `--home`, applied to the one target that had no way to express it.
+
+Reuse rather than new modelling: the per-`Home` glob table already existed for Cursor's `globs` and
+the Claude rules layer's `paths:`.
+
+**Every home gets a file, and that is the deliberate difference from `emit::claude_rules`.** That
+emitter *skips* a home it cannot express — an unknown-language domain is `OnRequest`, a
+`.claude/rules/` file cannot say "on request", and skipping is safe there because the Claude
+**skill** target carries those rules by description instead. Copilot has no second channel in this
+layer: skipping `domain-low-latency` would leave fifteen rules reachable through no Copilot file at
+all, which is a correction lost. So an unscopable home declares `applyTo: "**"` — the narrowest the
+format can say — **and states in its own header that it is unscoped and why**, because these files
+are copied into a repository one at a time and the reader is the one choosing. A file nobody copies
+costs nothing; a rule that reaches no file cannot be copied at all.
+
+**Deliberately not in the default target set, and not committed.** It is the *alternative* shape to
+`copilot`, not an addition: installing both states every rule twice, and this repository's own
+`.github/` is read by Copilot, so committing both would double relearn's own instructions. `copilot`
+stays the default; this is selected explicitly, like the packs.
+
+**Enforced by:** `tests/copilot_paths.rs` over the **real corpus** —
+`every_emittable_rule_reaches_exactly_one_file` is the load-bearing one and compares against
+`emit::copilot`'s own source set, so the two Copilot shapes must carry **exactly** the same rules
+(a rule in one and not the other is a correction that reaches Copilot only if you happened to
+install the right shape) + `one_file_per_home_named_by_its_slug` +
+`apply_to_is_the_homes_load_semantics`, which derives the expectation from `LoadSemantics` rather
+than from a table written in the test + `an_unscopable_home_declares_that_it_is_unscoped` +
+`an_empty_library_emits_no_file`. Smoke-tested through the real argv path: seven files, and
+`domain-rust` carries `applyTo: "**/*.rs"` while `domain-low-latency` carries `**` and says so.
+
+Because it is not committed, `verify` cannot grade it — the integration test is what does, and for
+this target it is the stronger check: it asserts no rule is lost, which a byte comparison of a
+committed tree would not.
 ### An audience no rule declares is an error for `build` and `verify`, and an empty listing for `list`
 
 What: `relearn build --scope rsut` fails naming the declared scopes rather than emitting. The reason is **sharper than the unknown-home one and is recorded as such**: an unknown home produces an empty emission, which at least looks wrong; an unknown scope produces a tree that is *quietly missing every scoped rule* while every unscoped rule is still present — output that looks like success. `list --scope` mirrors `list --home` instead: printing nothing *is* an answer for a listing, and is not one for a gate.
