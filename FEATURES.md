@@ -987,6 +987,53 @@ claimed 30 global rules against 31. Both pack READMEs also carried the sentence 
 them"*, false since 2026-09-13 for every count the test reads; repaired in the same change, with
 the two that genuinely remain unchecked now named as such. `[R:repair-the-lying-artefact]`
 
+### `list --format tsv`: the corpus answerable as data
+
+What: `relearn list --format tsv` emits one tab-separated record per rule — `tag`, `home`,
+`created`, `origin`, `status`, `controls`, `recurrences`, `last_recurrence` — under a
+`#`-prefixed header naming every column, so a consumer finds a field by name and a column
+added later shifts nobody's `cut -f`. `lines` remains the default and is unchanged.
+
+**Why it exists.** stochos-lab's rules ledger was maintaining its own hand-written list of
+which rules exist, inside `scripts/mine-rules.sh`. It had drifted to **23 of 84** with
+nothing failing, and five rules that a real control already holds — `no-unwrap-in-production`,
+`no-anyhow-in-libraries`, `role-is-an-edge-property`, `seeded-data-needs-a-migration`,
+`verify-the-glyph-exists` — were invisible to the quarterly review that decides what gets
+retired. A second list of the corpus is the P2 violation this tool exists to prevent, and the
+only way to retire it is to make the corpus answerable as data. `[R:search-before-you-build]`
+
+**No free prose travels, and that is a decision rather than an omission.** `incident` is a
+verbatim quotation from a private working session, so piping it into another repository's
+generated artefact carries names past the gate holding them (`[R:names-travel-with-the-quote]`).
+`title` is excluded on the same principle of carrying only what the consumer needs as *data*.
+The human précis beside a ledger row stays hand-authored in that ledger, where its author can
+see it.
+
+**Enforced by:** `ListFormat` (a two-variant enum matched exhaustively, so a third format
+cannot compile until it decides what it prints) + `cli::status_columns` (exhaustive over
+`Status` with no catch-all — `Partial` reports its controls *without* claiming the whole class,
+which a two-state reading would flatten into `graduated` and tell a reviewer the class is
+covered) + `cli::tsv_field`, which refuses a value containing a tab, newline or carriage
+return rather than escaping or stripping it: TSV has no escape, so such a value invents a
+column and the consumer reads every later field shifted with nothing failing
+(`[R:parse-dont-validate]`) + `cli::tsv_row`, a pure function of the rule so the format is
+pinned without capturing stdout.
+
+**Unit pins:** `the_header_names_exactly_as_many_columns_as_a_row_has_fields` (the header is
+the consumer's contract; a one-column drift is silent and total),
+`an_active_rule_names_no_controls_and_no_recurrence` (an absent date is empty, never a fake
+one), `a_graduated_rule_carries_the_control_that_claims_its_class`,
+`a_partial_rule_reports_its_controls_without_claiming_the_whole_class`,
+`last_recurrence_is_the_latest_date_not_the_first_written` (fixture ordered oldest-last on
+purpose, so `.first()` or file order would pass on tidy input and be wrong here),
+`a_control_holding_a_tab_is_refused_rather_than_written`,
+`the_tsv_header_is_printed_even_when_no_rule_matches` — an empty table and no output are
+different facts and only one is a bug in the consumer.
+
+**Observed through the production path (2026-09-19):** `relearn list --format tsv` against the
+real corpus → 84 records under one header, the five Layer-1 rules each carrying the control
+that holds them.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.

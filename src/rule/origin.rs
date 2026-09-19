@@ -229,6 +229,24 @@ pub enum RecurrenceRole {
 }
 
 impl Origin {
+    /// The origin as the one word the neutral format writes, and the same word
+    /// `parse` accepts back.
+    ///
+    /// Exhaustive with no catch-all, so a fourth origin cannot be reported as
+    /// one of these three by default. The payloads are deliberately dropped:
+    /// this answers *what kind of provenance does this rule have*, which is the
+    /// question the recurrence statistics turn on — a mandate is not evidence
+    /// and `Codified` never fired. What the artefact or the signer *says* is a
+    /// different question, and one whose answer is free prose.
+    #[must_use]
+    pub fn kind_word(&self) -> &'static str {
+        match self {
+            Origin::Mined => "mined",
+            Origin::Codified(_) => "codified",
+            Origin::Mandated(_) => "mandated",
+        }
+    }
+
     /// Parse the neutral format's `origin` value **together with** its optional
     /// `approval` table and its optional `source` — one perimeter that sees all
     /// three, so each correspondence is settled where the evidence is rather

@@ -46,8 +46,8 @@ use crate::report::{InstallId, InstallIdError, K_ANONYMITY_FLOOR, Month, MonthEr
 use crate::rule::{
     AdoptError, Approval, Approver, Authority, Body, CachedIsNotEditable, ControlRef, Date,
     DateError, EditableRule, EmptyText, ErrorClass, Home, Incident, NotPullable, Origin,
-    OriginError, PulledRule, Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceArtefact,
-    SourceId, Status, Title, Unwanted, Version, to_document,
+    OriginError, PulledRule, Recurrence, Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError,
+    SourceArtefact, SourceId, Status, Title, Unwanted, Version, to_document,
 };
 use crate::scrub::{ScrubError, TermList};
 
@@ -124,6 +124,10 @@ enum Command {
         /// nothing *is* an answer here, as it is for `list --home`.
         #[arg(long)]
         scope: Vec<String>,
+        /// How to print. `lines` is for a person; `tsv` is for a program that
+        /// needs the corpus as data rather than re-deriving it from the files.
+        #[arg(long, value_enum, default_value_t = ListFormat::Lines)]
+        format: ListFormat,
     },
     /// Author a new rule file from its fields, refusing to overwrite an
     /// existing one.
@@ -515,6 +519,47 @@ enum DenyLevel {
     Error,
 }
 
+/// How `list` prints.
+///
+/// The `Tsv` variant exists because a consumer outside this repository —
+/// stochos-lab's rules ledger — was maintaining its own hand-written list of
+/// which rules exist, drifting to 23 of 84 while nothing failed. A second list
+/// of the corpus is the P2 violation this tool exists to prevent, and the only
+/// way to retire it is to make the corpus answerable as *data* rather than only
+/// as prose a person reads.
+///
+/// **No free prose is emitted, and that is a decision rather than an omission.**
+/// A rule's `incident` is a verbatim quotation from a private working session
+/// (`[R:names-travel-with-the-quote]`), so piping it into another repository's
+/// generated artefact would carry names past the gate holding them. What travels
+/// is the structured facts a reviewer needs; the human précis beside each row in
+/// a consumer's ledger stays hand-authored there, where its author can see it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum ListFormat {
+    /// `tag  [home]  title` — for a person reading the corpus.
+    Lines,
+    /// One tab-separated record per rule, with a `#`-prefixed header naming the
+    /// columns, so a consumer can find a field by name instead of by position
+    /// and adding a column later does not silently shift someone's `cut -f`.
+    Tsv,
+}
+
+/// A field that is about to be written into a tab-separated record.
+///
+/// TSV has no escape, so a tab or a newline inside a value does not corrupt the
+/// value — it silently invents a column or a row, and the consumer reads
+/// well-formed nonsense. Every field goes through here, so an unprintable
+/// record is refused loudly rather than emitted quietly `[R:parse-dont-validate]`.
+fn tsv_field<'a>(tag: &RuleTag, column: &str, value: &'a str) -> Result<&'a str, CliError> {
+    if value.contains('\t') || value.contains('\n') || value.contains('\r') {
+        return Err(CliError::TsvField {
+            tag: tag.as_str().to_owned(),
+            column: column.to_owned(),
+        });
+    }
+    Ok(value)
+}
+
 impl DenyLevel {
     /// The domain severity this level denies from.
     fn threshold(self) -> lint::Severity {
@@ -543,6 +588,21 @@ pub enum CliError {
     /// a report, not an error).
     #[error(transparent)]
     Verify(#[from] VerifyError),
+    /// A field destined for a TSV record holds a tab, a newline or a carriage
+    /// return. Refused rather than escaped or stripped: escaping invents a
+    /// dialect the consumer did not agree to, and stripping changes the value
+    /// while reporting success.
+    #[error(
+        "rule `{tag}`: the `{column}` field contains a tab or newline, which \
+         tab-separated output cannot carry — use `--format lines`, or take the \
+         control character out of the rule"
+    )]
+    TsvField {
+        /// The rule whose field cannot be written.
+        tag: String,
+        /// The column that holds it.
+        column: String,
+    },
     /// `--home` named a home layer no rule is in.
     ///
     /// Loud rather than empty **on purpose**. Emitting nothing would look like
@@ -868,8 +928,13 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             build(&rules, &out, &targets, home.as_deref(), &scope)?;
             Ok(ExitCode::SUCCESS)
         }
-        Command::List { rules, home, scope } => {
-            list(&rules, home.as_deref(), &scope)?;
+        Command::List {
+            rules,
+            home,
+            scope,
+            format,
+        } => {
+            list(&rules, home.as_deref(), &scope, format)?;
             Ok(ExitCode::SUCCESS)
         }
         Command::New {
@@ -1884,12 +1949,80 @@ fn aggregate(clone: &Path, generated: &str, confirm: bool) -> Result<ExitCode, C
 /// Printing nothing *is* an answer for a listing; for a build or a gate it is
 /// not, which is why the two treat the same input differently. A malformed
 /// `--scope` is still a parse error — the perimeter binds everywhere.
-fn list(rules: &Path, home: Option<&str>, scope: &[String]) -> Result<(), CliError> {
+/// The TSV header. Emitted with a leading `#` so a consumer can skip it with
+/// one test, and naming every column so a field is found by name rather than by
+/// position — a column added later then costs nobody a silently shifted `cut`.
+const LIST_TSV_COLUMNS: &str =
+    "#tag\thome\tcreated\torigin\tstatus\tcontrols\trecurrences\tlast_recurrence";
+
+/// The `status` word and the controls that hold the class, for one rule.
+///
+/// Exhaustive over [`Status`] with no catch-all, so a new variant cannot compile
+/// until it has decided what it tells a reviewer. `controls` is empty exactly
+/// when no control is named — `Active` has none and `Attic` is withdrawn rather
+/// than enforced — and `Partial` reports the controls it *does* have without
+/// claiming the whole class, which is the distinction the variant exists for.
+fn status_columns(status: &Status) -> (&'static str, String) {
+    match status {
+        Status::Active => ("active", String::new()),
+        Status::Partial { by, .. } => ("partial", by.to_string()),
+        Status::Graduated { to, .. } => ("graduated", to.to_string()),
+        Status::Attic { .. } => ("attic", String::new()),
+    }
+}
+
+/// One rule as a tab-separated record, in the column order the header declares.
+///
+/// A pure function of the rule, so the format is testable without capturing
+/// stdout — the reason this is not inlined in the print loop. Every free-ish
+/// field goes through [`tsv_field`], so a value that would invent a column or a
+/// row is refused rather than written.
+fn tsv_row(rule: &Rule, slug: &HomeSlug) -> Result<String, CliError> {
+    let (status, controls) = status_columns(rule.status());
+    // The LATEST recurrence, not the first. "Has this rule bitten since it was
+    // written, and how recently" is the question a review asks, and the maximum
+    // is the only answer to it; the first would go stale the moment a rule
+    // recurred twice, while still looking like a date somebody checked.
+    let last = rule
+        .recurrences()
+        .iter()
+        .map(Recurrence::date)
+        .max()
+        .map_or_else(String::new, |d| d.to_string());
+    let tag = rule.tag();
+    Ok(format!(
+        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+        tsv_field(tag, "tag", tag.as_str())?,
+        tsv_field(tag, "home", slug.as_str())?,
+        rule.created(),
+        rule.origin().kind_word(),
+        status,
+        tsv_field(tag, "controls", &controls)?,
+        rule.recurrences().len(),
+        last,
+    ))
+}
+
+fn list(
+    rules: &Path,
+    home: Option<&str>,
+    scope: &[String],
+    format: ListFormat,
+) -> Result<(), CliError> {
     let validated = fsio::load_rules(rules)?.validate()?;
     let audience: Vec<ScopeTag> = scope
         .iter()
         .map(|s| ScopeTag::parse(s.as_str()).map_err(CliError::Scope))
         .collect::<Result<Vec<_>, _>>()?;
+
+    // The header is printed before the filter, so an empty result is still a
+    // well-formed table. A consumer that reads zero rows then learns "no rule
+    // matched" rather than "the command produced nothing", which are different
+    // facts and only one of them is a bug.
+    if format == ListFormat::Tsv {
+        println!("{LIST_TSV_COLUMNS}");
+    }
+
     for rule in validated.rules() {
         let slug = HomeSlug::of(rule.home());
         if home.is_some_and(|filter| filter != slug.as_str()) {
@@ -1898,12 +2031,15 @@ fn list(rules: &Path, home: Option<&str>, scope: &[String]) -> Result<(), CliErr
         if !rule.serves(&audience) {
             continue;
         }
-        println!(
-            "{}  [{}]  {}",
-            rule.tag().as_str(),
-            slug.as_str(),
-            rule.title().as_str()
-        );
+        match format {
+            ListFormat::Lines => println!(
+                "{}  [{}]  {}",
+                rule.tag().as_str(),
+                slug.as_str(),
+                rule.title().as_str()
+            ),
+            ListFormat::Tsv => println!("{}", tsv_row(rule, &slug)?),
+        }
     }
     Ok(())
 }
@@ -2252,11 +2388,11 @@ mod tests {
     #[test]
     fn list_with_an_undeclared_scope_prints_nothing_and_succeeds() {
         let rules = mixed_rules_dir();
-        list(rules.path(), None, &["java".to_owned()]).expect("list succeeds");
-        list(rules.path(), None, &["rust".to_owned()]).expect("list succeeds");
+        list(rules.path(), None, &["java".to_owned()], ListFormat::Lines).expect("list succeeds");
+        list(rules.path(), None, &["rust".to_owned()], ListFormat::Lines).expect("list succeeds");
         // A malformed scope is still a parse error here — the perimeter binds
         // everywhere, even where an empty result is legitimate.
-        assert!(list(rules.path(), None, &["Rust".to_owned()]).is_err());
+        assert!(list(rules.path(), None, &["Rust".to_owned()], ListFormat::Lines).is_err());
     }
 
     #[test]
@@ -2494,14 +2630,144 @@ mod tests {
             "g.md",
             &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
         );
-        list(rules.path(), None, &[]).expect("list all succeeds");
-        list(rules.path(), Some("global"), &[]).expect("filtered list succeeds");
+        list(rules.path(), None, &[], ListFormat::Lines).expect("list all succeeds");
+        list(rules.path(), Some("global"), &[], ListFormat::Lines).expect("filtered list succeeds");
 
         let missing = rules.path().join("does-not-exist");
         assert!(matches!(
-            list(&missing, None, &[]),
+            list(&missing, None, &[], ListFormat::Lines),
             Err(CliError::Load(LoadError::ReadDir { .. }))
         ));
+    }
+
+    // ── `list --format tsv` ────────────────────────────────────────────────
+
+    /// Parse one rule document and hand back the rule plus its home slug, which
+    /// is what `tsv_row` needs. Going through the real parser rather than
+    /// constructing a `Rule` by hand keeps these pins honest: a row is only
+    /// meaningful for a rule the library would actually accept.
+    fn row_for(doc: &str) -> Result<String, CliError> {
+        let dir = tempfile::tempdir().expect("rules tempdir");
+        write_rule(dir.path(), "r.md", doc);
+        let lib = fsio::load_rules(dir.path())
+            .expect("load")
+            .validate()
+            .expect("validate");
+        let rule = lib.rules().first().expect("one rule").clone();
+        let slug = HomeSlug::of(rule.home());
+        tsv_row(&rule, &slug)
+    }
+
+    #[test]
+    fn the_header_names_exactly_as_many_columns_as_a_row_has_fields() {
+        // The header is the consumer's contract. If it drifts from the row by
+        // one column every downstream field is off by one, silently, and the
+        // reader gets well-formed nonsense — which is the whole reason this
+        // output is checked rather than eyeballed.
+        let header = LIST_TSV_COLUMNS.trim_start_matches('#');
+        let row = row_for(&rule_doc("R:g", "{ kind = \"global\" }", "T")).expect("a row");
+        assert_eq!(
+            header.split('\t').count(),
+            row.split('\t').count(),
+            "header `{header}` and row `{row}` disagree on column count"
+        );
+    }
+
+    #[test]
+    fn an_active_rule_names_no_controls_and_no_recurrence() {
+        let row = row_for(&rule_doc("R:g", "{ kind = \"global\" }", "T")).expect("a row");
+        let f: Vec<&str> = row.split('\t').collect();
+        assert_eq!(f[0], "R:g");
+        assert_eq!(f[1], "global");
+        assert_eq!(f[3], "mined");
+        assert_eq!(f[4], "active");
+        assert_eq!(f[5], "", "an active rule has no control to name");
+        assert_eq!(f[6], "0");
+        assert_eq!(
+            f[7], "",
+            "no recurrence means an empty date, never a fake one"
+        );
+    }
+
+    #[test]
+    fn a_graduated_rule_carries_the_control_that_claims_its_class() {
+        // The column that makes the ledger's Layer meaningful: a consumer must
+        // be able to tell a rule prose alone holds from one a hook holds.
+        let doc = rule_doc("R:g", "{ kind = \"global\" }", "T").replace(
+            "status = { kind = \"active\" }",
+            "status = { kind = \"graduated\", to = \"hook:no-unwrap-in-src\", date = \"2026-02-02\" }",
+        );
+        let f: Vec<String> = row_for(&doc)
+            .expect("a row")
+            .split('\t')
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(f[4], "graduated");
+        assert_eq!(f[5], "hook:no-unwrap-in-src");
+    }
+
+    #[test]
+    fn a_partial_rule_reports_its_controls_without_claiming_the_whole_class() {
+        // `Partial` is the variant a naive two-state reading would flatten into
+        // `graduated`, which would tell a reviewer the class is covered when the
+        // rule itself says part of it is not.
+        let doc = rule_doc("R:g", "{ kind = \"global\" }", "T").replace(
+            "status = { kind = \"active\" }",
+            "status = { kind = \"partial\", by = \"test:t\", uncovered = \"u\", date = \"2026-02-02\" }",
+        );
+        let f: Vec<String> = row_for(&doc)
+            .expect("a row")
+            .split('\t')
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(f[4], "partial", "partial must not be reported as graduated");
+        assert_eq!(f[5], "test:t");
+    }
+
+    #[test]
+    fn last_recurrence_is_the_latest_date_not_the_first_written() {
+        // Ordered oldest-last in the document on purpose: taking `.first()` or
+        // relying on file order would pass on tidy input and be wrong here.
+        let doc = rule_doc("R:g", "{ kind = \"global\" }", "T").replace(
+            "+++\n\nBody",
+            "\n[[recurrence]]\ndate = \"2026-05-05\"\nincident = \"second\"\n\n\
+             [[recurrence]]\ndate = \"2026-03-03\"\nincident = \"first\"\n+++\n\nBody",
+        );
+        let f: Vec<String> = row_for(&doc)
+            .expect("a row")
+            .split('\t')
+            .map(str::to_owned)
+            .collect();
+        assert_eq!(f[6], "2");
+        assert_eq!(f[7], "2026-05-05");
+    }
+
+    #[test]
+    fn a_control_holding_a_tab_is_refused_rather_than_written() {
+        // TSV has no escape. Emitting this would invent a column and the
+        // consumer would read every later field shifted, with nothing failing.
+        let doc = rule_doc("R:g", "{ kind = \"global\" }", "T").replace(
+            "status = { kind = \"active\" }",
+            "status = { kind = \"graduated\", to = \"hook:a\tb\", date = \"2026-02-02\" }",
+        );
+        assert!(
+            matches!(row_for(&doc), Err(CliError::TsvField { column, .. }) if column == "controls"),
+            "a tab inside a control must be refused, naming the column"
+        );
+    }
+
+    #[test]
+    fn the_tsv_header_is_printed_even_when_no_rule_matches() {
+        // An empty table and no output are different facts, and only one of
+        // them is a bug in the consumer.
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        write_rule(
+            rules.path(),
+            "g.md",
+            &rule_doc("R:g", "{ kind = \"global\" }", "T"),
+        );
+        list(rules.path(), Some("domain-rust"), &[], ListFormat::Tsv)
+            .expect("a filter matching nothing still succeeds");
     }
 
     // ── `new` ───────────────────────────────────────────────────────────────

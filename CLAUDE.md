@@ -142,6 +142,9 @@ relearn new --tag R:x --title "..." --error-class "..." --home domain=low-latenc
 relearn build --targets claude,cursor,copilot,agents   # compile rules to all targets
 relearn check                                          # validate library, no output written
 relearn list --home global                             # inspect
+relearn list --format tsv                              # the corpus as data:
+#   tag, home, created, origin, status, controls, recurrences, last_recurrence
+#   under a #-header. No free prose: `incident` is a private quotation.
 relearn lint --upstream <drive>                        # findings, then the federation's pokes
 
 # The federation flows. Every one of them prints first and writes only on
