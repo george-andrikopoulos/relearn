@@ -855,6 +855,38 @@ finds nothing passes and that is the failure this whole file is about (`[R:wired
 
 **Verified by probe, not asserted:** `origin` was deleted from the README sample, the gate failed
 naming `README.md:150` and the parser's `missing field origin`, and it passed again on restore.
+
+### No published recurrence bucket denotes a single count
+
+What: `Bucket` is `1-4 | 5-9 | 10+`. The `1` bucket is gone — the variant removed rather than
+re-spelled, so the state cannot be reconstructed — and `aggregate::BUCKETS` drops to three, which
+means an incoming report spelling `1` or `2-4` is `UnknownBucket` and is **refused**.
+
+**Why it was a leak and not a preference.** The design specified `1 | 2-4 | 5-9 | 10+`; the
+federation programme's own risk list warned, of that same boundary, that *"a bucket of 1–1 is not a
+bucket"*. The design won where the two disagreed. The k-anonymity floor does not reach it: that
+floor protects the **aggregate**, while a raw report is a file in a public git repository where
+`recurrences = "1"` is an exact count for one install, republished every month it appears — the
+fingerprint the coarsening exists to prevent, at the only size where a fingerprint is worth having.
+
+**Enforced by:** `tests/report.rs::no_bucket_publishes_an_exact_count`, which states the property
+rather than the boundaries — `Bucket::of(1) == Bucket::of(4)` (indistinguishable once published)
+and `Bucket::of(4) != Bucket::of(5)` (the coarsening still carries signal), plus an assertion that
+no bucket's spelling parses as an integer, taken over counts rather than over a list of spellings
+written in the test, so a future variant cannot slip past it + `counts_publish_as_buckets_with_published_boundaries`
+(the table) + `the_smallest_bucket_absorbs_zero` (zero is unreachable from `Report::of`, which drops
+a rule with no recurrences, but `of` is total over `usize` so the arm is pinned).
+
+**A test that had to be reworked rather than renamed.**
+`tests/aggregate.rs::a_row_carries_the_distribution_and_the_control_kinds_seen` proved a row keeps
+a *distribution*, using installs in `1` and `2-4`. Both merge into `1-4`, so renaming the fixture
+would have collapsed every install into one bucket and left the test asserting nothing about
+distribution. It now spans `1-4` and `5-9` and asserts both.
+
+**Scope of the change, stated:** `src/report.rs`, `src/aggregate.rs`, three test files, and the two
+places the boundary is written down in prose — `docs/federated-relearn.md` §5 and §12.3, and the
+programme's risk list, which now records the item as closed rather than open. Nothing had been
+published, so nothing needed migrating.
 ### An audience no rule declares is an error for `build` and `verify`, and an empty listing for `list`
 
 What: `relearn build --scope rsut` fails naming the declared scopes rather than emitting. The reason is **sharper than the unknown-home one and is recorded as such**: an unknown home produces an empty emission, which at least looks wrong; an unknown scope produces a tree that is *quietly missing every scoped rule* while every unscoped rule is still present — output that looks like success. `list --scope` mirrors `list --home` instead: printing nothing *is* an answer for a listing, and is not one for a gate.

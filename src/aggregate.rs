@@ -125,7 +125,7 @@ type Heard = BTreeMap<String, BTreeMap<String, Said>>;
 /// The aggregate does not re-bucket: it counts how many installs fell in each,
 /// so the distribution is readable without any install's exact number existing
 /// anywhere.
-const BUCKETS: [&str; 4] = ["1", "2-4", "5-9", "10+"];
+const BUCKETS: [&str; 3] = ["1-4", "5-9", "10+"];
 
 /// One rule's cross-install signal, above the floor.
 #[derive(Debug, Clone, PartialEq, Eq)]

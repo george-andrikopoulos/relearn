@@ -358,13 +358,13 @@ mined would corrupt the inert fraction that keeps the corpus honest. Corpus 51 -
 
 ### Open
 
-- [ ] **Retrofit the existing log, or decide not to.** Eight of nine dependencies have no
+- [x] **Decided 2026-09-19: not retrofitted, and the exemption list is the honest record.** Was: retrofit the existing log, or decide not to. Eight of nine dependencies have no
       entry: `serde`, `clap`, `thiserror`, `anyhow`, `sha2`, `proptest`, `tempfile`,
       `trybuild` (`toml` is named, as the reason for a format decision). Writing entries
       now means reconstructing rejected lists nobody remembers, which the sibling rule
       warns produces the flattering version. Listed as candidates only; adding them is a
       judgement about what was actually considered at the time.
-- [ ] **The manifest comments are not yet pointers.** Most carry standalone reasoning with
+- [x] **Resolved 2026-09-19 by the decision above: eight of the nine have no row to point at, so the pointers would dangle.** Was: the manifest comments are not yet pointers. Most carry standalone reasoning with
       no reference to the log — the drift shape the rule names. One line each to fix, but
       it belongs with the retrofit decision above rather than ahead of it.
 
@@ -725,7 +725,7 @@ Emission unchanged for all 52 rules (`verify` green).
 
 Carried, not decided here:
 
-- [ ] **The `1` bucket publishes an exact count, and the programme warns against exactly that.**
+- [x] **Closed 2026-09-19: merged into `1-4`, and no published bucket denotes a single count.** Was: the `1` bucket publishes an exact count, and the programme warns against exactly that.
       §12.3 and §5 specify `1 | 2-4 | 5-9 | 10+`; the programme says "a bucket of 1–1 is not a
       bucket" and that boundaries leak exact counts at small n. The design wins where the two
       disagree, so `1` ships — but the k-floor protects the *aggregate*, while a raw report sits

@@ -94,12 +94,23 @@ impl fmt::Display for Month {
 /// pseudonym back into one install. The decay curve the aggregate is for needs
 /// orders of magnitude, not integers, so the analytical cost is near zero.
 ///
-/// The boundaries are published rather than tuned: `1`, `2-4`, `5-9`, `10+`.
+/// The boundaries are published rather than tuned: `1-4`, `5-9`, `10+`.
+///
+/// **There is deliberately no bucket of one** (merged 2026-09-19). The design
+/// specified `1 | 2-4 | 5-9 | 10+` and the federation programme warned, of that
+/// same boundary, that "a bucket of 1–1 is not a bucket"; the design won where
+/// the two disagreed, so a spelling that published an exact count shipped. The
+/// k-anonymity floor does not reach it — that floor protects the **aggregate**,
+/// while a raw report is a file sitting in a public git repository, where
+/// `recurrences = "1"` is an exact count for one install, republished every
+/// month it appears. That is the fingerprint the coarsening exists to prevent,
+/// arriving at the only size where a fingerprint is worth having.
+///
+/// Merging costs almost nothing analytically: the decay curve the aggregate is
+/// for needs orders of magnitude, and one-versus-four is not one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Bucket {
-    /// Exactly one.
-    One,
-    /// Two to four.
+    /// One to four.
     Few,
     /// Five to nine.
     Several,
@@ -111,9 +122,13 @@ impl Bucket {
     /// The bucket a count falls in.
     #[must_use]
     pub fn of(count: usize) -> Self {
+        // Zero is unreachable from `Report::of`, which drops a rule with no
+        // recurrences before it gets here (`latest_recurrence()?`). It is
+        // mapped rather than refused because this is a total function over
+        // `usize` and an unreachable arm is cheaper than a panic nobody can
+        // trigger — but nothing ever publishes it.
         match count {
-            0 | 1 => Bucket::One,
-            2..=4 => Bucket::Few,
+            0..=4 => Bucket::Few,
             5..=9 => Bucket::Several,
             _ => Bucket::Many,
         }
@@ -123,8 +138,7 @@ impl Bucket {
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
-            Bucket::One => "1",
-            Bucket::Few => "2-4",
+            Bucket::Few => "1-4",
             Bucket::Several => "5-9",
             Bucket::Many => "10+",
         }
@@ -373,9 +387,14 @@ mod tests {
     // A zero count cannot occur (a rule with no recurrences is not reported),
     // and if it somehow did it must not render as its own distinguishable
     // bucket — the smallest published count is the smallest bucket.
+    /// Zero is unreachable from `Report::of`, which drops a rule with no
+    /// recurrences before bucketing. Pinned anyway because `of` is total over
+    /// `usize`, and the arm it lands in must be the one that publishes a range
+    /// rather than a count.
     #[test]
     fn the_smallest_bucket_absorbs_zero() {
-        assert_eq!(Bucket::of(0), Bucket::One);
+        assert_eq!(Bucket::of(0), Bucket::Few);
+        assert_eq!(Bucket::of(0).as_str(), "1-4");
     }
 
     // Kept, and inverted. This test used to assert that an unknown prefix

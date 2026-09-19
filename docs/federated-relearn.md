@@ -244,7 +244,7 @@ generated = "2026-09"      # month, never a day
 
 [[observation]]
 rule        = "R:verify-through-production-path"   # an upstream tag; never a local-only one
-recurrences = "2-4"         # a bucket: 1 | 2-4 | 5-9 | 10+ — never an exact count
+recurrences = "1-4"         # a bucket: 1-4 | 5-9 | 10+ — never an exact count
 latest      = "2026-08"
 status      = "graduated"
 control     = "type"        # type | property-test | unit-test | gate | hook — the KIND, never the code
@@ -501,7 +501,7 @@ that a reader can look the benchmark up instead of trusting the author's taste.
 The sharper finding is that k guards the wrong thing. Which rule an install holds is barely
 sensitive. The fingerprint is the **exact** recurrence count plus a month, reported month after
 month: rotation of the pseudonym does not help when successive counts stitch the identities back
-together. So counts publish as buckets — `1 | 2-4 | 5-9 | 10+` — which §5's report format now
+together. So counts publish as buckets — `1-4 | 5-9 | 10+` — which §5's report format now
 carries. The decay curve in §11 needs orders of magnitude, not integers, so the analytical cost
 is near zero and the longitudinal path closes.
 

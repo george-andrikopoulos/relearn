@@ -226,9 +226,9 @@ fn a_rule_that_has_not_recurred_is_not_an_observation() {
 
 #[test]
 fn counts_publish_as_buckets_with_published_boundaries() {
-    assert_eq!(Bucket::of(1).as_str(), "1");
-    assert_eq!(Bucket::of(2).as_str(), "2-4");
-    assert_eq!(Bucket::of(4).as_str(), "2-4");
+    assert_eq!(Bucket::of(1).as_str(), "1-4");
+    assert_eq!(Bucket::of(2).as_str(), "1-4");
+    assert_eq!(Bucket::of(4).as_str(), "1-4");
     assert_eq!(Bucket::of(5).as_str(), "5-9");
     assert_eq!(Bucket::of(9).as_str(), "5-9");
     assert_eq!(Bucket::of(10).as_str(), "10+");
@@ -326,6 +326,37 @@ fn an_install_id_cannot_be_name_shaped() {
         assert!(
             InstallId::parse(bad).is_err(),
             "{bad} must not be a valid install id"
+        );
+    }
+}
+
+/// **No published bucket denotes a single count.** The property stated
+/// directly rather than as a table of boundaries: an observer holding a report
+/// cannot tell one recurrence from four.
+///
+/// The k-anonymity floor protects the *aggregate*, and this is the half it does
+/// not reach. A raw report is a file in a public git repository, so a bucket
+/// spelled `1` published an exact count for one install every month it
+/// appeared — the fingerprint the coarsening exists to prevent, at the only
+/// size where a fingerprint is worth having. The design specified
+/// `1 | 2-4 | 5-9 | 10+` and the federation programme warned that "a bucket of
+/// 1-1 is not a bucket"; the design shipped, so the leak shipped with it.
+/// Merged into `1-4` on 2026-09-19.
+#[test]
+fn no_bucket_publishes_an_exact_count() {
+    // One and four are indistinguishable once published, which is the whole
+    // claim; five is a different bucket, so the coarsening still carries signal.
+    assert_eq!(Bucket::of(1), Bucket::of(4));
+    assert_ne!(Bucket::of(4), Bucket::of(5));
+
+    // And no spelling is a bare integer — the shape a reader could parse back
+    // into a count. Asserted over counts rather than over a list of spellings
+    // written here, so a future variant cannot slip past it.
+    for count in [1usize, 2, 4, 5, 9, 10, 10_000] {
+        let spelling = Bucket::of(count).as_str();
+        assert!(
+            spelling.parse::<usize>().is_err(),
+            "bucket for {count} publishes the exact spelling {spelling}"
         );
     }
 }

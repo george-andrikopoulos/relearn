@@ -39,7 +39,7 @@ fn installs_reporting(n: usize, rule: &str) -> Vec<String> {
         .map(|i| {
             report(
                 &format!("{i:08x}"),
-                &[(rule, "2-4", "active", Some("hook"))],
+                &[(rule, "1-4", "active", Some("hook"))],
             )
         })
         .collect()
@@ -90,7 +90,7 @@ fn at_the_floor_the_rule_publishes() {
 #[test]
 fn the_suppressed_count_is_published_but_never_the_tags() {
     let mut reports = installs_reporting(K_ANONYMITY_FLOOR, "R:published");
-    reports.push(report("ffffffff", &[("R:too-few", "1", "active", None)]));
+    reports.push(report("ffffffff", &[("R:too-few", "1-4", "active", None)]));
     let aggregate = aggregate_of(&reports);
 
     assert_eq!(aggregate.suppressed(), 1);
@@ -107,7 +107,7 @@ fn the_suppressed_count_is_published_but_never_the_tags() {
 /// way to fake a population.
 #[test]
 fn one_install_cannot_reach_the_floor_by_repetition() {
-    let same = report("7f3c9a1e", &[("R:x", "2-4", "active", None)]);
+    let same = report("7f3c9a1e", &[("R:x", "1-4", "active", None)]);
     let reports: Vec<String> = (0..K_ANONYMITY_FLOOR + 2).map(|_| same.clone()).collect();
     let aggregate = aggregate_of(&reports);
     assert!(aggregate.rows().is_empty());
@@ -151,9 +151,9 @@ fn an_empty_aggregate_still_carries_its_confounds() {
 #[test]
 fn a_row_carries_the_distribution_and_the_control_kinds_seen() {
     let reports = vec![
-        report("00000001", &[("R:x", "1", "active", None)]),
-        report("00000002", &[("R:x", "2-4", "graduated", Some("hook"))]),
-        report("00000003", &[("R:x", "2-4", "graduated", Some("gate"))]),
+        report("00000001", &[("R:x", "5-9", "active", None)]),
+        report("00000002", &[("R:x", "1-4", "graduated", Some("hook"))]),
+        report("00000003", &[("R:x", "1-4", "graduated", Some("gate"))]),
         report("00000004", &[("R:x", "10+", "graduated", Some("hook"))]),
         report("00000005", &[("R:x", "5-9", "attic", None)]),
     ];
@@ -161,8 +161,10 @@ fn a_row_carries_the_distribution_and_the_control_kinds_seen() {
     let row = &aggregate.rows()[0];
 
     assert_eq!(row.installs(), 5);
-    assert_eq!(row.in_bucket("2-4"), 2);
-    assert_eq!(row.in_bucket("1"), 1);
+    assert_eq!(row.in_bucket("1-4"), 2);
+    // Two installs land in `5-9` here, which is what makes this a distribution
+    // rather than a count: the row must keep them apart from the `1-4` pair.
+    assert_eq!(row.in_bucket("5-9"), 2);
     assert_eq!(row.controls(), ["gate", "hook"]);
 }
 

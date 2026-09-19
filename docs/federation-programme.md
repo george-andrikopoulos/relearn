@@ -248,7 +248,7 @@ boundaries; that the k-floor and buckets are published constants a reader can ch
 **What goes wrong:**
 - **Ambient state.** `solo_mode.rs` will catch a home-directory file. It will not catch an
   environment variable read that someone adds "temporarily".
-- **Bucket boundaries leak exact counts at small n.** A bucket of `1–1` is not a bucket.
+- **Bucket boundaries leak exact counts at small n.** A bucket of `1–1` is not a bucket. **Closed 2026-09-19**: the design specified `1 | 2-4 | 5-9 | 10+` and shipped it, so a report carried an exact count for one install in public git history — the k-floor protects the aggregate, never a raw report. Merged into `1-4 | 5-9 | 10+`; held by `tests/report.rs::no_bucket_publishes_an_exact_count`.
 - **Day-level dates survive somewhere** — in a `latest` field, in a filename, in a git commit
   date on the report file itself. That last one is real and easy to miss.
 - **Local-only rules get reported.** Only upstream tags have shared identity; a local tag in a

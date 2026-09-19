@@ -559,7 +559,7 @@ fn a_rule_below_the_floor_is_invisible_to_the_poke() {
 fn high_recurrence_means_the_top_bucket() {
     let local = library(vec![rule("R:mine", "a class", Authority::local(), 0, &[])]);
     let upstream = library(Vec::new());
-    let middling = aggregate_of("R:popular", K_ANONYMITY_FLOOR + 3, "2-4");
+    let middling = aggregate_of("R:popular", K_ANONYMITY_FLOOR + 3, "5-9");
     assert!(
         with(
             &local,
