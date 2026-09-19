@@ -272,14 +272,31 @@ impl<'a> Contribution<'a> {
     /// scanning two and reporting clean. A list of what travels belongs where
     /// travelling is decided. `[R:names-travel-with-the-quote]`
     ///
-    /// **Scope, stated rather than implied** (`[R:measure-the-claim-not-a-subset]`).
-    /// This is the set the contribution path scans today, not every authored
-    /// string in the struct: `title` and `error_class` are also authored, also
-    /// travel, and are **not** here. Widening it would newly refuse
-    /// contributions that pass now, which is a policy change rather than a
-    /// repair — carried in `TODO.md` as George's call.
+    /// **This is now every authored free-text field on the projection, and the
+    /// completeness is the point** (2026-09-19). It listed three — the two
+    /// narrative fields and `source` — while `title` and `error_class` were
+    /// equally authored, equally travelling, and equally unscanned. The argument
+    /// for leaving them out was that widening the set would newly refuse
+    /// contributions that pass today, and a gate that refuses previously-legal
+    /// input is a gate that gets muted.
+    ///
+    /// That argument does not survive contact with what the gate is for. A
+    /// contribution is a deliberate act behind `--confirm` and an explicit term
+    /// list, so refusing one is the mechanism working rather than friction; and
+    /// nothing whatever about a `title` prevents a product name being in it.
+    /// Scanning four fields and calling the result clean was the more expensive
+    /// mistake, because the report said what had been checked and not what had
+    /// not. `[R:names-travel-with-the-quote]` `[R:measure-the-claim-not-a-subset]`
+    ///
+    /// What is still **not** here, stated so the next reader does not have to
+    /// re-derive it: `tag` and `home`. Both travel and neither is prose — a tag
+    /// is a kebab identifier the corpus already publishes in every emitted
+    /// artifact, and a project `home` is withheld from federation entirely by
+    /// `Home::federation`, so it never reaches a contribution to be scanned.
     pub fn authored_texts(self) -> impl Iterator<Item = (&'static str, &'a str)> {
         [
+            ("title", self.title),
+            ("error_class", self.error_class.as_str()),
             ("published_incident", self.published_incident.as_str()),
             ("body", self.body.as_str()),
         ]

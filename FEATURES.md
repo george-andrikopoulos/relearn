@@ -606,9 +606,15 @@ payload-free one would pass while the serializer dropped every source in the cor
 `a_contribution_with_no_source_offers_no_source_to_the_scan` (an empty string would scan clean and
 read, in any report, as a field that was checked).
 
-**NOTHING YET — exposed:** `title` and `error_class` are also authored and also travel on
-`contribute`, and are **not** scanned. Pre-existing, not introduced here; widening the scan would
-newly refuse contributions that pass today, so it is a policy decision carried in `TODO.md`.
+**Closed 2026-09-19 — the scan now covers every authored field.** `title` and `error_class` were
+left out on the ground that widening would newly refuse contributions that pass today, and a gate
+that refuses previously-legal input gets muted. That traded a real exposure for a hypothetical
+one: a contribution is a deliberate act behind `--confirm` and an explicit term list, so refusing
+one is the gate working, and nothing about a `title` stops a product name being in it. Scanning
+four fields and reporting clean was the more expensive mistake, because the report named what had
+been checked and not what had not. `tag` and `home` remain out and the reason is recorded on
+`authored_texts`: a tag is a published identifier and a project `home` never reaches a
+contribution at all, being withheld by `Home::federation`.
 
 ### A sourced rule announces its artefact in every emitted format
 
@@ -692,8 +698,16 @@ have broken `adopt`, so the second question is asked in `new_rule` against
 
 What: a skill `description` has a hard 1024-character cap, so past roughly a dozen rules per home
 it cannot name them all. Which titles survive is now decided by a stated rank —
-`Status::instruction_reliance` first, then recurrence count descending, then tag as the
+recurrence count descending first, then `Status::instruction_reliance`, then tag as the
 determinism tiebreak — instead of by the caller's tag order, which is the alphabet.
+
+**The first two keys were the other way round until 2026-09-19.** Reliance led, on the reasoning
+that the rank answers "what does it cost for this title to be absent", which is a question about
+what *else* holds the rule. Defensible alone, inconsistent with everything around it: `lint` fails
+CI on an unheld recurrence, the session-start hook leads with it, and the framework treats it as
+the number that says whether a rule is working. The live casualty was
+`[R:guarantee-needs-a-reader]` — `partial`, one recurrence, dropped from `global`'s description
+while never-fired rules were kept. It is back, and `global` now leads with its recurred rules.
 
 **A dropped title is a rule the matcher cannot fire on**, and for a home reachable only by
 description (`domain-low-latency` and every non-language domain, which `LoadSemantics` makes
@@ -813,6 +827,34 @@ detector first matched the word `" more"`, which reported `global` as truncated 
 rules were present, because `five-files-no-more` renders as `five files no more`: a detector whose
 pattern occurs in the data it counts (`[R:detector-excludes-own-definitions]`). It matches
 `+<digit>` now.
+
+### Every rule sample in the documentation is a rule the parser accepts
+
+What: `tests/doc_samples.rs` extracts every `+++`-delimited block from `README.md`,
+`ARCHITECTURE.md` and the two worked examples, gives it a body where the document elides one, and
+runs it through `rule::parse_document`. A sample that does not parse fails the build, naming the
+file, the line and the parser's own diagnostic.
+
+**Why it did not exist, which is the general shape rather than an oversight.** A sample is prose
+to everyone who reads it and a rule to nobody, so no gate had a reason to open it: `verify`
+compares generated files against the library and never reads a hand-authored document, and
+`check` reads `rules/` and nothing else. A documentation example sits in the one place both are
+blind to — and it is the first thing a new reader copies. On 2026-09-19 the front matter in
+`README.md` and `docs/worked-example.md` were both extracted and both rejected with
+`missing field origin`: the public face had been showing a document the tool refuses, on both
+counts, for months, while `pack_counts` was catching a stale line count in the same session.
+
+**Enforced by:** `tests/doc_samples.rs::every_rule_sample_in_the_documentation_parses` +
+`every_listed_document_exists_and_carries_a_sample`, because `DOCUMENTED` is a list of paths and a
+path can be renamed out from under it — without that, deleting a document would make this gate
+quieter rather than louder + `the_extractor_finds_a_sample_whatever_the_line_endings`, since these
+documents are **not** LF-pinned in `.gitattributes` (only `rules/**` and the emitted tree are), so
+a CRLF checkout yields `+++\r`, matches no delimiter, and the gate would find nothing and pass on
+the platform it was written on (`[R:xplat-fixtures]`) + a count assertion, because a gate that
+finds nothing passes and that is the failure this whole file is about (`[R:wired-artifact]`).
+
+**Verified by probe, not asserted:** `origin` was deleted from the README sample, the gate failed
+naming `README.md:150` and the parser's `missing field origin`, and it passed again on restore.
 ### An audience no rule declares is an error for `build` and `verify`, and an empty listing for `list`
 
 What: `relearn build --scope rsut` fails naming the declared scopes rather than emitting. The reason is **sharper than the unknown-home one and is recorded as such**: an unknown home produces an empty emission, which at least looks wrong; an unknown scope produces a tree that is *quietly missing every scoped rule* while every unscoped rule is still present — output that looks like success. `list --scope` mirrors `list --home` instead: printing nothing *is* an answer for a listing, and is not one for a gate.

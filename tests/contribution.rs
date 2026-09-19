@@ -417,6 +417,15 @@ fn a_citation_of_a_tag_nobody_holds_is_still_reported() {
 /// named two and carried a comment asserting there were only two. A provenance
 /// field that travels unscanned is the exact shape of
 /// `[R:names-travel-with-the-quote]`.
+///
+/// **Widened on 2026-09-19 to `title` and `error_class`**, which had been left
+/// out on the ground that scanning them would newly refuse contributions that
+/// pass today. That traded a real exposure for a hypothetical one: a
+/// contribution is a deliberate act behind `--confirm` and an explicit term
+/// list, so refusing one is the gate working, and nothing about a `title`
+/// stops a product name being in it. The assertion is now a **complete** list
+/// rather than a sample of one, which is what lets it fail when the next
+/// authored field is added.
 #[test]
 fn every_authored_field_that_travels_is_offered_to_the_scan() {
     let rule = rule_with(
@@ -431,7 +440,16 @@ fn every_authored_field_that_travels_is_offered_to_the_scan() {
     let contribution = Contribution::of(&rule).expect("contributable");
 
     let fields: Vec<&str> = contribution.authored_texts().map(|(f, _)| f).collect();
-    assert_eq!(fields, ["published_incident", "body", "source"]);
+    assert_eq!(
+        fields,
+        [
+            "title",
+            "error_class",
+            "published_incident",
+            "body",
+            "source"
+        ]
+    );
 
     let source_text = contribution
         .authored_texts()
@@ -454,5 +472,8 @@ fn a_contribution_with_no_source_offers_no_source_to_the_scan() {
     let contribution = Contribution::of(&rule).expect("contributable");
 
     let fields: Vec<&str> = contribution.authored_texts().map(|(f, _)| f).collect();
-    assert_eq!(fields, ["published_incident", "body"]);
+    assert_eq!(
+        fields,
+        ["title", "error_class", "published_incident", "body"]
+    );
 }

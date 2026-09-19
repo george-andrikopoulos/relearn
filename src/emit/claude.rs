@@ -196,14 +196,25 @@ fn description_lead(home: &Home) -> String {
 ///
 /// Three keys, most significant first:
 ///
-/// 1. [`Status::instruction_reliance`] — a rule held by prose alone loses
+/// 1. Recurrence count, **descending** — a rule that has fired again is one this
+///    reader has already needed, and the count is the corpus's only *evidence*
+///    of that.
+/// 2. [`Status::instruction_reliance`] — a rule held by prose alone loses
 ///    everything if its layer does not load; one with a named control holding
 ///    the whole class still has that control.
-/// 2. Recurrence count, **descending** — a rule that has fired again is one this
-///    reader has already needed, and the count is the corpus's only evidence of
-///    that.
 /// 3. Tag, ascending — the tiebreak, so emission stays a deterministic function
 ///    of the library and re-emitting unchanged rules reproduces the same bytes.
+///
+/// **Recurrence leads, and that order was reversed on 2026-09-19.** The first
+/// version put reliance first, reasoning that the rank answers "what does it
+/// cost for this title to be absent", which is a question about what *else*
+/// holds the rule. That is defensible in isolation and inconsistent with
+/// everything around it: `lint` fails CI on an unheld recurrence, the
+/// session-start hook leads with recurrence, and the framework treats it as the
+/// number that says whether a rule is working. Ranking a rule that has never
+/// fired above one that has inverted that in exactly one place, and the live
+/// casualty was `[R:guarantee-needs-a-reader]` — `partial`, one recurrence, and
+/// dropped from `global`'s description while never-fired rules were kept.
 ///
 /// The **body** of the skill is deliberately not reordered: it stays in tag
 /// order, where a reader can find a rule by name and a diff stays readable. This
@@ -211,10 +222,14 @@ fn description_lead(home: &Home) -> String {
 fn description_order<'a>(rules: &[&'a Rule]) -> Vec<&'a Rule> {
     let mut ordered: Vec<&Rule> = rules.to_vec();
     ordered.sort_by(|a, b| {
-        a.status()
-            .instruction_reliance()
-            .cmp(&b.status().instruction_reliance())
-            .then(b.recurrences().len().cmp(&a.recurrences().len()))
+        b.recurrences()
+            .len()
+            .cmp(&a.recurrences().len())
+            .then(
+                a.status()
+                    .instruction_reliance()
+                    .cmp(&b.status().instruction_reliance()),
+            )
             .then(a.tag().as_str().cmp(b.tag().as_str()))
     });
     ordered
@@ -631,6 +646,34 @@ mod tests {
             ordered.iter().map(|r| r.tag().as_str()).collect::<Vec<_>>(),
             ["R:zzz", "R:aaa"],
             "the actively-held rule must come first"
+        );
+    }
+
+    /// **The case the two keys disagree on, and the reason their order was
+    /// swapped on 2026-09-19.**
+    ///
+    /// A graduated rule that has fired again against an active rule that never
+    /// has. Reliance-first keeps the active one, because the graduated rule has
+    /// a control behind it; recurrence-first keeps the graduated one, because it
+    /// is the one the corpus has evidence a reader needed. Everything else in
+    /// this system weights recurrence that way — `lint` fails CI on an unheld
+    /// one, the session-start hook leads with it — so ranking a never-fired rule
+    /// above a proven one inverted the framework in exactly one place.
+    ///
+    /// The two tests either side of this one pass under **both** orders; this is
+    /// the only one that pins the choice.
+    #[test]
+    fn a_recurred_rule_outranks_a_never_fired_one_even_when_it_is_held_elsewhere() {
+        let rules = [
+            ranked("R:aaa", Status::active(), 0),
+            ranked("R:zzz", graduated(), 3),
+        ];
+        let refs: Vec<&Rule> = rules.iter().collect();
+        let ordered = description_order(&refs);
+        assert_eq!(
+            ordered.iter().map(|r| r.tag().as_str()).collect::<Vec<_>>(),
+            ["R:zzz", "R:aaa"],
+            "evidence a reader needed the rule outranks the absence of a second control"
         );
     }
 
