@@ -5,7 +5,7 @@ error_class = "unwrap() in production code, producing a panic with no context th
 home = { kind = "domain", name = "rust" }
 created = "2026-07-16"
 origin = "mined"
-status = { kind = "graduated", to = "hook:no-unwrap-in-src", date = "2026-07-21" }
+status = { kind = "graduated", to = "hook:no-unwrap-in-src + hook:no-expect-empty-msg", date = "2026-07-21" }
 incident = "A recurring class strong enough to graduate to a deterministic control: an unwrap() in production yields a context-free panic. The guarantee moved from instruction to the no-unwrap-in-src PreToolUse hook, which blocks the pattern at write time rather than trusting a reviewer to catch it."
 published_incident = "A recurring class strong enough to graduate to a deterministic control. An unwrapped result in production yields a panic with no context: no resource named, no invariant stated, nothing for whoever is paged to act on. The guarantee moved out of the instruction layer and into a write-time hook that blocks the pattern at the moment it is written, rather than trusting a reviewer to catch one bare call among hundreds."
 +++

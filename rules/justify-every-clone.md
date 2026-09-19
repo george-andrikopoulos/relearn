@@ -5,7 +5,7 @@ error_class = "clone() reached for to silence the borrow checker, so an ownershi
 home = { kind = "domain", name = "rust" }
 created = "2026-08-24"
 origin = "codified"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:no-clone-without-comment", uncovered = "whether the comment states a real reason rather than restating the call, and any Rust file outside a `src/` tree", date = "2026-09-19" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from the General Coding Rules of ~/.claude/CLAUDE.md, which state it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 published_incident = "Codified from standing practice rather than mined from a failure. It surfaced in an audit of an emitted instruction artefact against the hand-written pattern list it was supposed to replace: ten practices were stated in that one hand-maintained layer and had no rule in the library, so they reached a single assistant and travelled to no other tool — which is the failure the library exists to prevent, arriving in the library's own contents. The practice: a borrow-checker error is a question about ownership, and copying the value pays to avoid answering it. Where a copy survives examination the reason is written beside it, because unannotated copies are indistinguishable from one another — so a reviewer must re-derive the ownership argument for every one, and in practice re-derives it for none."
 +++

@@ -6,6 +6,8 @@ alwaysApply: true
 
 # The definition of done runs on every change, and skips are declared [R:definition-of-done-every-change]
 
+> Partly enforced by hook:tdd-gate; checks 2 to 5 entirely -- the regression pass, the contract, the charter and the open-work list -- plus check 1 in every language but Rust, and check 1 wherever the enforcing artefact is a TYPE rather than a test file, which under a types-first discipline is the common case is held by this instruction alone.
+
 A change is not done until five checks pass, in order:
 
 1. **Code and its enforcing artefact ship together.** The type, property or test that locks the new behaviour is in the same change. Never "tests later" -- later is a different change, made by someone with less context, competing against new work.
@@ -20,4 +22,4 @@ When a request conflicts with the discipline -- *just patch it quickly* -- do th
 
 Checks 1 and 2 do not apply to every change, and saying so is part of doing them. A documentation-only change has no enforcing artefact to ship. Declaring a check inapplicable is honest; quietly omitting it and reporting five greens is the failure this rule names.
 
-<!-- relearn:generated v0.1.0 sha256=bcf279eee38f7af91c2d5765c2fee6fbba18097a37f6fda3923fd4e073559284 rules=R:definition-of-done-every-change -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=48ef6aba30fcf47c9fbc0388ba2c42723711eb3a74eefd7ada3612dfa0490270 rules=R:definition-of-done-every-change -- DO NOT EDIT; regenerate with `relearn build` -->

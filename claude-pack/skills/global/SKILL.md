@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; doc currency; no silent spend; verify through production path; verdict survives the channel; claude md recreates the project; decisions log records rejected alternatives; definition of done every change; delegate a fan out; detector excludes own definitions; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; names travel with the quote; no sentinel values; no stale push over fresh; no weak model for judgment; pin eol for executable text; prefer by construction; price every dependency; reconcile wiring at start; repair the lying artefact; revision integrity; search before you build; signal needs a consequence; source practice from its artefact; wired artifact; case collision; report the hit not the match"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; doc currency; no silent spend; verify through production path; verdict survives the channel; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; detector excludes own definitions; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; names travel with the quote; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; prefer by construction; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; signal needs a consequence; source practice from its artefact; wired artifact; definition of done every change; case collision; report the hit not the match"
 ---
 
 # global rules
@@ -38,6 +38,8 @@ Anonymous structure accumulates as sediment. Given a module boundary with no rec
 Record the decision that surprised you most, not the one that was easiest to write down. This is the same discipline R:claude-md-recreates-the-project applies to the charter: what a future reader cannot reconstruct is exactly what must be written.
 
 ## The definition of done runs on every change, and skips are declared [R:definition-of-done-every-change]
+
+> Partly enforced by hook:tdd-gate; checks 2 to 5 entirely -- the regression pass, the contract, the charter and the open-work list -- plus check 1 in every language but Rust, and check 1 wherever the enforcing artefact is a TYPE rather than a test file, which under a types-first discipline is the common case is held by this instruction alone.
 
 A change is not done until five checks pass, in order:
 
@@ -272,6 +274,22 @@ Ask before writing such a push: *if my copy is the stale one, what does this des
 
 Work that needs judgment goes to a capable model. Do not embed a sub-tier local LLM (a 7B/13B behind Ollama, llama.cpp or similar) in a tool as a convenient, API-key-free fallback: a meaningfully dumber model degrades the tool it is wedged into, everywhere and silently, and the output looks like ordinary tool output rather than like a downgrade. When a tool needs intelligence, delegate to the capable model through the existing subscription -- the MCP server is the abstraction boundary and clients are peers. Note that the cost argument usually offered for the local model is the price-tier fallacy R:measure-cost-per-task names; but this rule is not an economic one and does not dissolve if the sums come out favourably. Mechanical, tool-restricted passes are a different matter and may be scoped tightly; the floor applies to work where the answer is a judgement.
 
+## One home per rule; every other copy is a reference or is generated [R:one-home-per-rule]
+
+Every rule, fact or definition has exactly one home, and every other place that needs it holds a **reference or a generated copy**, never a second original.
+
+**The test is not "are these files identical" but "if this changed, how many places would I have to edit".** More than one is a fork already, whether or not the copies have drifted yet. Drift is the symptom that makes a fork visible; it is never what makes it a fork.
+
+**An index is a second home too, and it is the one that hides.** A list of what exists -- which rules, which files, which tests, which hooks -- read beside the thing that defines them is a duplicate of the most load-bearing fact in the system, and it fails silently in a way a duplicated body does not. Two copies of a rule's TEXT eventually contradict each other and someone notices. Two copies of the INDEX never contradict: the stale one is a strict subset, so every entry it holds is correct and the reader sees a coherent, smaller world. Ask of any list: *what would it look like if this were out of date?* If the answer is "exactly like this, only shorter", nothing can tell you which you are looking at.
+
+**Prefer deriving to synchronising.** A generated copy is not a second home: it is an artefact with a stated source, regenerable, and safe to delete. A synchronised copy is a second home with a chore attached, and the chore is what stops being done. If a consumer needs the data, give it a way to ask rather than a copy to keep.
+
+**Where a second original is genuinely unavoidable,** say so at both sites, name which one is authoritative, and give the copy a check that fails when it diverges. That is worse than one home and much better than two that both look right.
+
+Failure-mode check, before adding any list, table, registry or inventory: *does something else already know this, and can I read it from there instead?*
+
+`[R:doc-currency]` is the downstream half -- when the source moves, the descriptions of it move in the same change. This rule is upstream of that: it asks why a second description existed to go stale.
+
 ## Pin the line endings of text a machine executes or hashes [R:pin-eol-for-executable-text]
 
 When a file's exact bytes are load-bearing, do not leave its line endings to whatever the
@@ -422,6 +440,20 @@ shape, opposite failure, different fixes: strip comments there, never emit the m
 here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
 printing it, but writing it down somewhere with a wider audience.
 
+## Review a change against the behaviour contract, never against the plan that produced it [R:review-against-contract-not-plan]
+
+Review a change against the **behaviour contract**, never against the plan or the template that produced it.
+
+Plan code, scaffold code and reference implementations are **unreviewed input**. A faithful transcription of a defective template is still a defect, and the transcription is the part review is worst at seeing: the diff matches its instructions exactly, so every local question a reviewer asks has a satisfying answer.
+
+**Arm the reviewer with the contract, not the intent.** The question is *what does this system now promise, and does this change keep every one of those promises* -- not *does this match what we said we would build*. Those two questions diverge precisely where a plan is wrong, which is the only case where review had anything to catch.
+
+**A plan cannot grade its own work.** If the same document supplies both the instruction and the standard of correctness, review reduces to checking transcription accuracy. Where a plan is the only artefact, that is worth saying out loud in the review rather than letting the approval imply more than it checked.
+
+**The failure survives a per-item review and dies at the whole-change one.** Each task, judged against its own slice of the plan, is correct; the contract violation only becomes visible against the feature set entire. Where a change spans several tasks, one pass must read the whole of it against the whole contract.
+
+Failure-mode check, before approving: *what did I compare this against, and could that thing itself be wrong?* If the answer is the plan, the specification or the ticket, the contract has not been consulted yet.
+
 ## After restructuring, verify references as a distinct pass [R:revision-integrity]
 
 Editing a structured artefact silently breaks references that the previous version made true. The edit raises no error, and rereading does not catch it: the author restores the deleted context from memory and reads a coherent passage that is not on the page.
@@ -551,4 +583,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=e54d623d2194a92950b9a5b0402bda92dde354abfe5d360b2386477fe00947ba rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=b7f5f569b9c9785a1bf9c6c5d5dab77729d08dac5e5e5cfa7b8c4501866652b2 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->

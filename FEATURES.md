@@ -1034,6 +1034,64 @@ different facts and only one is a bug in the consumer.
 real corpus → 84 records under one header, the five Layer-1 rules each carrying the control
 that holds them.
 
+### Two rules written, and five statuses that were understating their own controls
+
+What: `rules/` grew 84 → 86. `[R:one-home-per-rule]` and
+`[R:review-against-contract-not-plan]`, both `global`, both `mined`.
+
+**`[R:one-home-per-rule]` is the framework's own P2, cited by tag in six places and
+defined in none** — the rule governing the library was the one rule the library did not
+contain. Its incident carries two occurrences rather than one, and the second is why the
+body says what it says: a transcript miner held a hand-written list of *which rules exist*
+beside the corpus that defines them. **An index is the second home that hides.** Two copies
+of a rule's text eventually contradict each other and someone notices; two copies of an
+index never contradict, because the stale one is a strict subset — every entry it holds is
+correct, and the reader sees a coherent, smaller world.
+
+**`[R:review-against-contract-not-plan]`** came from the 2026-07-16 mesh-watchdog build,
+where all four Important findings and the Critical originated in plan-template code that
+implementers transcribed faithfully. Reviewers holding the plan approved it correctly by
+their own lights. Only reviewers holding `FEATURES.md` caught it.
+
+**Five statuses were repaired, and the choice of variant is the substance.** Three rules
+were recorded `active` — *prose alone holds this* — while a wired, blocking PreToolUse hook
+already enforced them, so the review would have read them as unheld and considered
+strengthening what is already at Layer 1:
+
+| Rule | Was | Now | The control |
+|---|---|---|---|
+| `async-all-the-way` | `active` | `partial` | `hook:no-block-on-in-async` |
+| `justify-every-clone` | `active` | `partial` | `hook:no-clone-without-comment` |
+| `private-fields-only` | `active` | `partial` | `hook:no-pub-fields` |
+| `definition-of-done-every-change` | `active` | `partial` | `hook:tdd-gate` |
+| `no-unwrap-in-production` | `graduated` (one hook) | `graduated` (two) | `+ hook:no-expect-empty-msg` |
+
+**`partial`, not `graduated`, and that is the whole point.** Not one of those hooks claims
+its rule's whole class: `no-pub-fields` gives you a private field and not the constructor
+that enforces the invariant; `no-block-on-in-async` catches `block_on` and not a
+`std::sync` lock held across an await; all three see only Rust under a `src/` tree.
+`graduated` would print *"Also enforced by X"* into five instruction layers for ground X
+never claimed, and arm `RecurrenceAfterGraduation` — a CI **error** — against a recurrence
+in the part the hook never held. Each `uncovered` field names the gap.
+
+**One recommendation was withdrawn on inspection, and the withdrawal is the useful part.**
+A rule for `hook:tdd-gate` was proposed and not written: reading the hook showed it enforces
+*the enforcing artefact ships with the code*, which is check 1 of
+`[R:definition-of-done-every-change]` — not a test-first rule, which would have contradicted
+the standing `rust-typedd` override that types precede tests in all Rust work. A new rule
+there would have been a second home for one half of an existing rule **and** a contradiction
+with a loaded discipline. It became the fourth status repair instead.
+
+**Two advisory hooks were deliberately not counted.** `fan-out-advisory` and
+`session-wiring-check` warn and do not block, so `[R:delegate-a-fan-out]` and
+`[R:reconcile-wiring-at-start]` stay `active`. Promoting a rule on the strength of a signal
+that gates nothing is the error `[R:signal-needs-a-consequence]` describes.
+
+**Enforced by:** `relearn check` (86 validated) + `relearn lint` (no new overlap or
+near-duplicate finding against the 84-rule baseline) + `relearn verify` on all three output
+roots (100 / 1 / 7) + `tests/pack_counts.rs`, which refused the change until the pack
+READMEs' hand-written counts matched — 84 → 86 rules, 2125 → 2163 lines, 31 → 33 global.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.

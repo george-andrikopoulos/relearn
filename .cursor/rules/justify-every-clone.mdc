@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Every clone() carries its reason, or the design is wrong [R:justify-every-clone]
 
+> Partly enforced by hook:no-clone-without-comment; whether the comment states a real reason rather than restating the call, and any Rust file outside a `src/` tree is held by this instruction alone.
+
 A borrow-checker error is a question about ownership. `clone()` does not answer it; it pays to avoid answering it. Try the answers first: restructure so one owner is obvious, take a borrow with a named lifetime, split the borrow across smaller fields, or share with `Arc`/`Rc` where the value is genuinely shared rather than copied.
 
 Where a clone survives that examination, write the reason beside it, in the house form used throughout this codebase:
@@ -20,4 +22,4 @@ The reason must be about ownership or lifetime. "To make it compile" is the erro
 
 Most clones that survive review were created by a signature, not by a call site: R:borrow-in-signatures is where the pressure comes from, and fixing the parameter usually deletes the clone rather than annotating it.
 
-<!-- relearn:generated v0.1.0 sha256=67670c0765345b98591696ab67f50c5d314c657e9090b645cfe95dd09c3c70cf rules=R:justify-every-clone -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=eb92fc5dbf532a6c2040ffaa9e6c1598f6b62283af529fcab1580bcd29baf4e3 rules=R:justify-every-clone -- DO NOT EDIT; regenerate with `relearn build` -->

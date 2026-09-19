@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Struct fields are private; construction goes through a constructor [R:private-fields-only]
 
+> Partly enforced by hook:no-pub-fields; the second half of the rule -- that construction goes through a constructor enforcing the invariant -- which a field being private does not give you, and any Rust file outside a `src/` tree is held by this instruction alone.
+
 Domain types have private fields. The only way to construct one is a smart constructor that enforces the invariant and returns a `Result`; the only way to read one is an accessor.
 
 A `pub` field is a second constructor that checks nothing. Every guarantee the smart constructor establishes is void the moment a caller can write the field directly, and the type's name goes on claiming it. This is the same defect as a validator that some call sites skip, moved from the function layer down to the field layer, where it is harder to see.
@@ -14,4 +16,4 @@ Hand out the narrowest borrow the caller can use: `fn host(&self) -> &str`, not 
 
 R:parse-dont-validate is what the constructor does; this rule is what makes it the only door.
 
-<!-- relearn:generated v0.1.0 sha256=5921356da0aacf76753abef36c252dab823f29fe7469907c2cc45fad7d496096 rules=R:private-fields-only -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=1d720912c3a0cc35499d0ce21e79ddedfd8f63f28ec2bb39883326ab3d4f7bac rules=R:private-fields-only -- DO NOT EDIT; regenerate with `relearn build` -->

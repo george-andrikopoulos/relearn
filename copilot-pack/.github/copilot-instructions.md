@@ -34,6 +34,8 @@ Record the decision that surprised you most, not the one that was easiest to wri
 
 ## The definition of done runs on every change, and skips are declared [R:definition-of-done-every-change]
 
+> Partly enforced by hook:tdd-gate; checks 2 to 5 entirely -- the regression pass, the contract, the charter and the open-work list -- plus check 1 in every language but Rust, and check 1 wherever the enforcing artefact is a TYPE rather than a test file, which under a types-first discipline is the common case is held by this instruction alone.
+
 A change is not done until five checks pass, in order:
 
 1. **Code and its enforcing artefact ship together.** The type, property or test that locks the new behaviour is in the same change. Never "tests later" -- later is a different change, made by someone with less context, competing against new work.
@@ -267,6 +269,22 @@ Ask before writing such a push: *if my copy is the stale one, what does this des
 
 Work that needs judgment goes to a capable model. Do not embed a sub-tier local LLM (a 7B/13B behind Ollama, llama.cpp or similar) in a tool as a convenient, API-key-free fallback: a meaningfully dumber model degrades the tool it is wedged into, everywhere and silently, and the output looks like ordinary tool output rather than like a downgrade. When a tool needs intelligence, delegate to the capable model through the existing subscription -- the MCP server is the abstraction boundary and clients are peers. Note that the cost argument usually offered for the local model is the price-tier fallacy R:measure-cost-per-task names; but this rule is not an economic one and does not dissolve if the sums come out favourably. Mechanical, tool-restricted passes are a different matter and may be scoped tightly; the floor applies to work where the answer is a judgement.
 
+## One home per rule; every other copy is a reference or is generated [R:one-home-per-rule]
+
+Every rule, fact or definition has exactly one home, and every other place that needs it holds a **reference or a generated copy**, never a second original.
+
+**The test is not "are these files identical" but "if this changed, how many places would I have to edit".** More than one is a fork already, whether or not the copies have drifted yet. Drift is the symptom that makes a fork visible; it is never what makes it a fork.
+
+**An index is a second home too, and it is the one that hides.** A list of what exists -- which rules, which files, which tests, which hooks -- read beside the thing that defines them is a duplicate of the most load-bearing fact in the system, and it fails silently in a way a duplicated body does not. Two copies of a rule's TEXT eventually contradict each other and someone notices. Two copies of the INDEX never contradict: the stale one is a strict subset, so every entry it holds is correct and the reader sees a coherent, smaller world. Ask of any list: *what would it look like if this were out of date?* If the answer is "exactly like this, only shorter", nothing can tell you which you are looking at.
+
+**Prefer deriving to synchronising.** A generated copy is not a second home: it is an artefact with a stated source, regenerable, and safe to delete. A synchronised copy is a second home with a chore attached, and the chore is what stops being done. If a consumer needs the data, give it a way to ask rather than a copy to keep.
+
+**Where a second original is genuinely unavoidable,** say so at both sites, name which one is authoritative, and give the copy a check that fails when it diverges. That is worse than one home and much better than two that both look right.
+
+Failure-mode check, before adding any list, table, registry or inventory: *does something else already know this, and can I read it from there instead?*
+
+`[R:doc-currency]` is the downstream half -- when the source moves, the descriptions of it move in the same change. This rule is upstream of that: it asks why a second description existed to go stale.
+
 ## Pin the line endings of text a machine executes or hashes [R:pin-eol-for-executable-text]
 
 When a file's exact bytes are load-bearing, do not leave its line endings to whatever the
@@ -416,6 +434,20 @@ gets muted, and leaves the system looking guarded. This is the DISCLOSURE half. 
 shape, opposite failure, different fixes: strip comments there, never emit the match
 here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
 printing it, but writing it down somewhere with a wider audience.
+
+## Review a change against the behaviour contract, never against the plan that produced it [R:review-against-contract-not-plan]
+
+Review a change against the **behaviour contract**, never against the plan or the template that produced it.
+
+Plan code, scaffold code and reference implementations are **unreviewed input**. A faithful transcription of a defective template is still a defect, and the transcription is the part review is worst at seeing: the diff matches its instructions exactly, so every local question a reviewer asks has a satisfying answer.
+
+**Arm the reviewer with the contract, not the intent.** The question is *what does this system now promise, and does this change keep every one of those promises* -- not *does this match what we said we would build*. Those two questions diverge precisely where a plan is wrong, which is the only case where review had anything to catch.
+
+**A plan cannot grade its own work.** If the same document supplies both the instruction and the standard of correctness, review reduces to checking transcription accuracy. Where a plan is the only artefact, that is worth saying out loud in the review rather than letting the approval imply more than it checked.
+
+**The failure survives a per-item review and dies at the whole-change one.** Each task, judged against its own slice of the plan, is correct; the contract violation only becomes visible against the feature set entire. Where a change spans several tasks, one pass must read the whole of it against the whole contract.
+
+Failure-mode check, before approving: *what did I compare this against, and could that thing itself be wrong?* If the answer is the plan, the specification or the ticket, the contract has not been consulted yet.
 
 ## After restructuring, verify references as a distinct pass [R:revision-integrity]
 
@@ -1820,6 +1852,8 @@ with the unread state being the hardware's.
 
 ## Async is async all the way down [R:async-all-the-way]
 
+> Partly enforced by hook:no-block-on-in-async; every other way a runtime thread is blocked inside async -- synchronous file and network I/O, a std::sync lock held across an await, a long CPU section never handed to spawn_blocking -- and any Rust file outside a `src/` tree is held by this instruction alone.
+
 No `block_on` inside async code. An async runtime multiplexes many tasks onto few threads, so a blocking call does not delay one task -- it removes a worker from the pool for the duration and delays every task that would have run there. The victims are unrelated to the code that blocked, which is why the symptom is unexplained tail latency somewhere else entirely, and why it is close to unattributable after the fact.
 
 `block_on` is correct only at the boundary where synchronous code enters async: `main`, a test, a callback from a C library. Once inside, stay inside -- async I/O, an async-aware lock wherever a guard must survive an `await`, and `spawn_blocking` for work that genuinely blocks, such as CPU-bound compute or a synchronous third-party client.
@@ -1861,6 +1895,8 @@ Keep the cause in `#[source]` instead of interpolating it into the text. The cha
 One variant per condition a caller could plausibly treat differently. Collapsing four causes into `Other(String)` re-creates the string error inside an enum: it reads as a type and behaves as prose, and it is the shape this rule exists to catch.
 
 ## Every clone() carries its reason, or the design is wrong [R:justify-every-clone]
+
+> Partly enforced by hook:no-clone-without-comment; whether the comment states a real reason rather than restating the call, and any Rust file outside a `src/` tree is held by this instruction alone.
 
 A borrow-checker error is a question about ownership. `clone()` does not answer it; it pays to avoid answering it. Try the answers first: restructure so one owner is obvious, take a borrow with a named lifetime, split the borrow across smaller fields, or share with `Arc`/`Rc` where the value is genuinely shared rather than copied.
 
@@ -1908,7 +1944,7 @@ Library crates return typed error enums (thiserror), so a Result says exactly wh
 
 ## No unwrap() in production code [R:no-unwrap-in-production]
 
-> Also enforced by hook:no-unwrap-in-src.
+> Also enforced by hook:no-unwrap-in-src + hook:no-expect-empty-msg.
 
 No unwrap() in production code. Use expect() only with a meaningful panic message that names the resource and the invariant, or return the error with `?` and let the caller decide how to surface it. This rule has graduated: the no-unwrap-in-src hook now enforces it deterministically at write time, so the instruction layer no longer has to.
 
@@ -1921,6 +1957,8 @@ Transform raw input into a rich domain type at the outermost boundary, producing
 Parse into a type wide enough to *represent* the out-of-range value, then range-check to mint the narrow newtype. The perimeter must be able to see the illegal value in order to name it illegal; parsing directly into the target type collapses "out of range" into "not a number" and makes the OutOfRange class a lie the compiler will not catch.
 
 ## Struct fields are private; construction goes through a constructor [R:private-fields-only]
+
+> Partly enforced by hook:no-pub-fields; the second half of the rule -- that construction goes through a constructor enforcing the invariant -- which a field being private does not give you, and any Rust file outside a `src/` tree is held by this instruction alone.
 
 Domain types have private fields. The only way to construct one is a smart constructor that enforces the invariant and returns a `Result`; the only way to read one is an accessor.
 
@@ -2122,4 +2160,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=7c006d7b33bea4338e0123678f6743423b715e25195848a3a8df81479c2be9d7 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=f6764c471d7fe4672fa1e74952ff3940b96fe8d0f41880ed1b4c5f8b3a77455d rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

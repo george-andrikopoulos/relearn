@@ -6,8 +6,8 @@ alwaysApply: false
 
 # No unwrap() in production code [R:no-unwrap-in-production]
 
-> Also enforced by hook:no-unwrap-in-src.
+> Also enforced by hook:no-unwrap-in-src + hook:no-expect-empty-msg.
 
 No unwrap() in production code. Use expect() only with a meaningful panic message that names the resource and the invariant, or return the error with `?` and let the caller decide how to surface it. This rule has graduated: the no-unwrap-in-src hook now enforces it deterministically at write time, so the instruction layer no longer has to.
 
-<!-- relearn:generated v0.1.0 sha256=22385f4657f0f779622c6e0e6805b5f69a31a6b3be2110bb256b0ad25c19828d rules=R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=18fe07f70cc2c1fc26599a20253cc50214ae551cf9e6452a52659fdc4f176519 rules=R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->

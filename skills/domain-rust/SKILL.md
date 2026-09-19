@@ -1,11 +1,13 @@
 ---
 name: domain-rust
-description: "Engineering discipline for working in rust. Covers: async all the way; borrow in signatures; design types first; errors name what failed; justify every clone; module visibility is deliberate; must use on consequential returns; newtype liberally; parse dont validate; parse wide then range check; private fields only; seal closed trait sets; typestate builder for required fields; typestate for protocols; verify the abstraction compiled away; xplat fixtures; no anyhow in libraries; no unwrap in production"
+description: "Engineering discipline for working in rust. Covers: borrow in signatures; design types first; errors name what failed; module visibility is deliberate; must use on consequential returns; newtype liberally; parse dont validate; parse wide then range check; seal closed trait sets; typestate builder for required fields; typestate for protocols; verify the abstraction compiled away; xplat fixtures; async all the way; justify every clone; private fields only; no anyhow in libraries; no unwrap in production"
 ---
 
 # domain: rust rules
 
 ## Async is async all the way down [R:async-all-the-way]
+
+> Partly enforced by hook:no-block-on-in-async; every other way a runtime thread is blocked inside async -- synchronous file and network I/O, a std::sync lock held across an await, a long CPU section never handed to spawn_blocking -- and any Rust file outside a `src/` tree is held by this instruction alone.
 
 No `block_on` inside async code. An async runtime multiplexes many tasks onto few threads, so a blocking call does not delay one task -- it removes a worker from the pool for the duration and delays every task that would have run there. The victims are unrelated to the code that blocked, which is why the symptom is unexplained tail latency somewhere else entirely, and why it is close to unattributable after the fact.
 
@@ -48,6 +50,8 @@ Keep the cause in `#[source]` instead of interpolating it into the text. The cha
 One variant per condition a caller could plausibly treat differently. Collapsing four causes into `Other(String)` re-creates the string error inside an enum: it reads as a type and behaves as prose, and it is the shape this rule exists to catch.
 
 ## Every clone() carries its reason, or the design is wrong [R:justify-every-clone]
+
+> Partly enforced by hook:no-clone-without-comment; whether the comment states a real reason rather than restating the call, and any Rust file outside a `src/` tree is held by this instruction alone.
 
 A borrow-checker error is a question about ownership. `clone()` does not answer it; it pays to avoid answering it. Try the answers first: restructure so one owner is obvious, take a borrow with a named lifetime, split the borrow across smaller fields, or share with `Arc`/`Rc` where the value is genuinely shared rather than copied.
 
@@ -95,7 +99,7 @@ Library crates return typed error enums (thiserror), so a Result says exactly wh
 
 ## No unwrap() in production code [R:no-unwrap-in-production]
 
-> Also enforced by hook:no-unwrap-in-src.
+> Also enforced by hook:no-unwrap-in-src + hook:no-expect-empty-msg.
 
 No unwrap() in production code. Use expect() only with a meaningful panic message that names the resource and the invariant, or return the error with `?` and let the caller decide how to surface it. This rule has graduated: the no-unwrap-in-src hook now enforces it deterministically at write time, so the instruction layer no longer has to.
 
@@ -108,6 +112,8 @@ Transform raw input into a rich domain type at the outermost boundary, producing
 Parse into a type wide enough to *represent* the out-of-range value, then range-check to mint the narrow newtype. The perimeter must be able to see the illegal value in order to name it illegal; parsing directly into the target type collapses "out of range" into "not a number" and makes the OutOfRange class a lie the compiler will not catch.
 
 ## Struct fields are private; construction goes through a constructor [R:private-fields-only]
+
+> Partly enforced by hook:no-pub-fields; the second half of the rule -- that construction goes through a constructor enforcing the invariant -- which a field being private does not give you, and any Rust file outside a `src/` tree is held by this instruction alone.
 
 Domain types have private fields. The only way to construct one is a smart constructor that enforces the invariant and returns a `Result`; the only way to read one is an accessor.
 
@@ -206,4 +212,4 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=75bc267332be67207e11b2030e1090e88201e1e5fdcd8b7b1f8ec8db723d18d5 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=cf2ef5964c2d18f0c51e2b373b1dc36f3776a134276d186b3f99579ca673f8f1 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
