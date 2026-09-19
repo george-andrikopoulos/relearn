@@ -71,16 +71,16 @@ What: `emit::*` takes `&Library<Validated>`; passing an unvalidated library does
 **Enforced by:** every emitter's `&Library<Validated>` signature (the typestate gate) **and** the compile-fail pin `tests/compile_fail/emit_rejects_unvalidated_library.rs` (driven by `tests/compile_fail.rs::typestate_gate_rejects_unvalidated_libraries`) — trybuild confirms the code is rejected *with the type mismatch* `expected &Library<Validated>, found &Library<Unvalidated>`, so a regression that relaxed an emitter to accept any `Library<S>` would fail the test.
 
 ### Claude skill emitter
-What: produces one skill **per home layer** — `skills/<home-slug>/SKILL.md` with valid YAML front-matter (`name`, `description`). Not one skill per rule (P6; decision 2026-08-13). The `description` value is YAML-double-quoted, so a `:` or `"` in a rule title stays valid front-matter.
+What: produces one skill **per home layer** — `skills/<home-slug>/SKILL.md` with valid YAML front-matter (`name`, `description`). Not one skill per rule (P6; decision 2026-08-13). The `description` value is YAML-double-quoted, so a `:` stays valid front-matter. Since 2026-09-19 the only string reaching that field that can carry one is a **project home's path**, which on Windows begins `C:` — titles no longer reach it and a tag cannot contain a colon.
 
 ### A skill `description` is a bounded trigger, not an inventory
-What: `description` is a lead sentence saying *when* the layer applies (derived from `Home`), followed by as many of the home's rule **titles** as fit **1024 characters**, with any remainder counted (`; +7 more`). Error classes are excluded: they are reviewer-facing prose about the failure, useless to a matcher, and they are what made the field overflow. The full text of every rule remains in the file body, so the cap bounds the trigger and not the content.
+What: `description` is a lead sentence saying *when* the layer applies (derived from `Home`), followed by as many of the home's rules as fit **1024 characters**, with any remainder counted (`; +7 more`). **The subject of that list was a rule's title until 2026-09-19 and is its tag body now** — see *"A skill description names every rule in its home, and no longer truncates"* below, which is where the change and its budget check are recorded. What this row states is the *shape*, unchanged since 2026-09-06: a lead sentence, a bounded list, a counted remainder. What the later fix changed is that on this corpus the bound no longer binds. Error classes are excluded: they are reviewer-facing prose about the failure, useless to a matcher, and they are what made the field overflow. The full text of every rule remains in the file body, so the cap bounds the trigger and not the content.
 
 *Why this is a correctness row and not a style one (fixed 2026-09-06).* `description` is the only string Claude reads when deciding whether to load a skill, and it is capped at install time. The previous format interpolated every rule's title **and error class**, producing **6924** characters for `global` and **4322** for `domain-rust` against a 1024 cap — so the two skills that matter were **uninstallable**, and would have been useless matchers if they had installed. Nothing caught it because nothing measured it: the emitter's unit tests build two-rule libraries, where the old format is comfortably short and stays short forever. The bound only binds at the size the real library reached.
 
-**Enforced by:** `emit::claude::SkillDescription` (private field; the only constructor truncates, so an over-cap description is unrepresentable rather than a bug to catch — `[R:prefer-by-construction]`) + `tests/corpus.rs::every_emitted_skill_description_fits_the_frontmatter_cap`, which asserts the bound over the **real corpus** rather than a generated one, because that is the only size at which it binds + `emit::claude` unit pins `a_short_description_keeps_every_title_and_names_no_remainder`, `an_over_long_list_is_truncated_within_the_cap_and_counts_the_remainder`, `a_single_oversized_title_does_not_overflow_the_cap` (the first title alone exceeding the cap must not overflow), `the_lead_sentence_says_when_the_skill_applies`, `description_leads_with_when_the_skill_applies`, `description_covers_each_rule_in_the_home` (which now also asserts error classes are *absent*).
+**Enforced by:** `emit::claude::SkillDescription` (private field; the only constructor truncates, so an over-cap description is unrepresentable rather than a bug to catch — `[R:prefer-by-construction]`) + `tests/corpus.rs::every_emitted_skill_description_fits_the_frontmatter_cap`, which asserts the bound over the **real corpus** rather than a generated one, because that is the only size at which it binds + `emit::claude` unit pins `a_short_description_keeps_every_title_and_names_no_remainder`, `an_over_long_list_is_truncated_within_the_cap_and_counts_the_remainder`, `a_single_oversized_title_does_not_overflow_the_cap` (the first entry alone exceeding the cap must not overflow — these three keep the word *title* in their names because they build synthetic libraries where the entry is one, and they hold the residual truncation path the real corpus no longer reaches), `the_lead_sentence_says_when_the_skill_applies`, `description_leads_with_when_the_skill_applies`, `description_covers_each_rule_in_the_home` (which now also asserts error classes are *absent*).
 
-**Enforced by (skill emitter):** `emit::claude::emit` (groups by `HomeSlug`, one `OutputFile` per home, rules sorted by tag) + `emit::claude` tests (`one_skill_per_home_layer`, `home_skill_aggregates_its_rules_sorted_by_tag`, `front_matter_names_the_home_slug`, `description_is_quoted_so_a_colon_in_a_title_stays_valid_yaml`).
+**Enforced by (skill emitter):** `emit::claude::emit` (groups by `HomeSlug`, one `OutputFile` per home, rules sorted by tag) + `emit::claude` tests (`one_skill_per_home_layer`, `home_skill_aggregates_its_rules_sorted_by_tag`, `front_matter_names_the_home_slug`, `description_is_quoted_so_a_colon_in_a_home_label_stays_valid_yaml`).
 
 ### Cursor rules emitter
 What: produces `.cursor/rules/<tag-body>.mdc` (one per rule; filename is the colon-free tag body) with front-matter `description`, `globs`, `alwaysApply`, where `globs`/`alwaysApply` are **derived from `Home`** via the shared `LoadSemantics` helper — not carried on the rule (P2; decision 2026-08-13). A global/project rule is `alwaysApply: true`; a known-language domain auto-attaches on that language's globs; an unknown domain is agent-requested (no globs, not always-on), never blanket-applied.
@@ -740,10 +740,17 @@ does not + `emit::claude::description_order` (the one place the rank is applied)
 the old tag sort and all three ordering pins failed, then restored and they passed. A test that
 passes under the behaviour it is supposed to forbid locks nothing.
 
-**NOTHING YET — exposed:** the rank decides *which* titles are dropped, not *that* titles are
-dropped. `global` still drops fifteen of thirty and `domain-low-latency` will truncate again as it
-grows. A cap that cannot hold an inventory is a question about what the field should contain, and
-is carried in `TODO.md`.
+~~**NOTHING YET — exposed:**~~ **Closed the same day** — by *"A skill description names every rule
+in its home, and no longer truncates"* below. Was: the rank decides *which* titles are dropped, not
+*that* titles are dropped; `global` still drops fifteen of thirty and `domain-low-latency` will
+truncate again as it grows. A cap that cannot hold an inventory is a question about what the field
+should contain, and is carried in `TODO.md`. It was answered by changing what the field contains —
+tag bodies, not titles — and `tests/description_reaches_every_rule.rs` is now the budget check that
+fails the day a home stops fitting.
+
+**The rank did not become redundant**, which is why this row keeps its enforcing artefacts rather
+than being struck through whole: it still orders the field, and it still decides the drops in the
+residual case, on a corpus that has outgrown the budget twice already.
 
 ### The corpus carries a Java discipline and a mechanism-level low-latency discipline
 
@@ -822,7 +829,9 @@ additive).
 the YAML quoting was load-bearing; titles no longer reach the field and a tag cannot contain a
 colon, so left alone it would have passed while asserting nothing. The colon can still arrive by
 one route — a **project path**, which `description_lead` interpolates and which on Windows begins
-`C:` — so it now exercises that channel (`[R:verify-through-production-path]`). And the truncation
+`C:` — so it now exercises that channel (`[R:verify-through-production-path]`) under the name
+`description_is_quoted_so_a_colon_in_a_home_label_stays_valid_yaml`, renamed with the premise
+because a test whose name states the wrong channel is the next reader's wrong belief. And the truncation
 detector first matched the word `" more"`, which reported `global` as truncated when all thirty
 rules were present, because `five-files-no-more` renders as `five files no more`: a detector whose
 pattern occurs in the data it counts (`[R:detector-excludes-own-definitions]`). It matches
