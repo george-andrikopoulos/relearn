@@ -31,6 +31,22 @@ The pipeline `rules/*.md → parse → validate → emit → write` works today 
 ## Usage
 
 ```sh
+# Author a rule. This scaffolds the front matter and nothing else — the body
+# and the incident are the rule, and no tool writes those for you. Prose comes
+# from a literal or a file, and is required either way: a rule whose body
+# defaulted to a placeholder parses, emits, and says nothing.
+#
+# --home takes the authorable form (global, domain=<name>, org=<name>,
+# project=<path>), NOT the slug that `list --home` takes: a slug is a one-way
+# filesystem identity that cannot reconstruct a project path. The date is given
+# rather than read from a clock. --dry-run prints the document and writes
+# nothing, and `new` never writes over anything, including the same tag.
+relearn new --rules ./rules --tag R:some-rule --title "The practice, imperative" \
+    --error-class "what goes wrong without it, and the observable harm" \
+    --home domain=rust --on 2026-09-18 \
+    --incident-file ./incident.md --body-file ./body.md
+relearn new --rules ./rules --tag R:some-rule ... --dry-run
+
 # Validate the rule library; write nothing. Non-zero exit on any failure.
 relearn check --rules ./rules
 
@@ -137,11 +153,28 @@ title       = "Parse wide, then range-check"
 error_class = "Range-check collapses out-of-range into not-a-number"
 home        = { kind = "domain", name = "rust" }
 created     = "2026-07-23"
+origin      = "mined"
 status      = { kind = "active" }
 incident    = "Grouping task 01: 5/5 samples parsed into u16, so 70000 read as NotANumber."
 +++
 
 Parse into a type wide enough to represent the out-of-range value, then range-check.
+```
+
+Every key above is required. `origin` is one of `mined` (a real failure sits behind it),
+`codified` (standing practice written down) or `mandated` (a control framework requires it,
+and an `approval` table naming a signer, a date and a control is then required too). It is
+the counter-metric to recurrence: a rule that has never fired **and** was never mined from
+a real failure is evidence of nothing, and the corpus's *inert* fraction is what stops the
+recurrence count being a number you can author your way past.
+
+A **codified** rule may also name the artefact it was written down from — a page, a paper,
+a specification clause. Optional, and refused on any other origin rather than quietly
+dropped, because a mined rule's provenance is its incident and a mandate's is its approval:
+
+```
+origin = "codified"
+source = "Dmitry Vyukov, Intrusive MPSC node-based queue, 1024cores"
 ```
 
 `home` says who **owns** a rule, and there is exactly one. An optional

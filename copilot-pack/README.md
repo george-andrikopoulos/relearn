@@ -17,12 +17,17 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 27 | The repository discipline and its controls, plus language-agnostic verification, provenance, disclosure and cost reasoning — see below |
+| `global` | 30 | The repository discipline and its controls, plus language-agnostic verification, provenance, disclosure and cost reasoning — see below |
 | `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
+| `domain-low-latency` | 2 | Reasoning discipline for latency-sensitive work: answer a requirement at the layer it lives at, and attack a design in a pass that builds nothing |
 | `project-*` | 7 | Rules belonging to the `relearn`, `stochos-lab` and `design-architecture-tool` repositories specifically |
 
-These counts are hand-written and nothing checks them. `grep -c '^## '` on the
-instruction file is the number that cannot go stale.
+These counts are hand-written and nothing checks them — which is exactly how they went
+wrong: this table read 27 / 18 / 7 for long enough to sum to 52 while the line above it
+said 57, and the `domain-low-latency` layer was missing from it altogether. `grep -c '^## '`
+on the instruction file is the number that cannot go stale, and
+`grep -c '^home = ' ../rules/*.md` grouped by home is the breakdown that cannot.
+`[R:doc-currency]`
 
 ### The repository discipline
 
