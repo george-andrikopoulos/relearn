@@ -1092,6 +1092,42 @@ near-duplicate finding against the 84-rule baseline) + `relearn verify` on all t
 roots (100 / 1 / 7) + `tests/pack_counts.rs`, which refused the change until the pack
 READMEs' hand-written counts matched — 84 → 86 rules, 2125 → 2163 lines, 31 → 33 global.
 
+### `[R:money-is-not-a-float]`, and a rule that ships with nothing holding it
+
+What: `rules/` gained `[R:money-is-not-a-float]` on 2026-09-20 — *money is an exact quantity,
+and no binary float holds one*. `global`, **no `applies_to`**, `mined`, `active`. Two halves:
+the representation (an exact decimal type or integer minor units, never a binary float and
+never a binary-radix fixed-point type, which relocates the rounding without making the
+decimal quantity representable), and **division**, which no representation fixes — £100 split
+three ways has no exact answer in currency, so the money type does not implement `Div` and
+splitting goes through a function that distributes the remainder, making "divided money and
+lost a penny" unconstructible rather than a review item.
+
+**Mined, not codified, and not a recurrence.** A greenfield financial build selected binary
+floating point for monetary fields with the discipline loaded and the domain stated in its
+own documentation. Checked against the two near neighbours before writing:
+`[R:newtype-liberally]` is two concepts becoming interchangeable — `Price(f64)` satisfies it
+completely, and its own worked example is `Miles(f64)` beside `Kilometers(f64)`, so it
+*endorses* the shape at issue; `[R:make-illegal-states-unrepresentable]` is contradictory
+states, and a float holding a decimal is lossy rather than contradictory. Recording a
+recurrence on either would have blunted the class rather than sharpened it.
+
+**Enforced by: NOTHING YET — exposed.** Deliberately `active` rather than `partial`: `Partial`
+must name the part its controls do not cover, and with no control the answer is *everything*,
+which is a gap and not a status. This is the honest position and it is also the uncomfortable
+one, because the incident is a **greenfield** failure — the model authors the type layer, so
+layers 1 to 3 of the hierarchy have nothing to stand on and the guarantee falls to layer 4,
+the layer `[R:verify-the-glyph-exists]` already showed can be read and then contradicted. The
+rule body says so in its own last paragraph rather than leaving a reader to infer it. Three
+items in `TODO.md`: a source scan reading the *concept* (a numeric field in a monetary role),
+attached to the push rather than to a command a person must remember
+(`[R:signal-needs-a-consequence]`), and — the only one that actually closes the class — a
+scaffolding crate carrying `Money<C>`, `Price` and `Qty` with no `Div`, so a greenfield
+financial project starts with the types present and the model selects rather than invents.
+
+**Found by the gate:** `tests/pack_counts.rs` refused the change until both pack READMEs
+matched the generated files — 87 → 88 rules, 2199 → 2217 lines, 34 → 35 global.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.
