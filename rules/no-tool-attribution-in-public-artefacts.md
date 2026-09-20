@@ -15,7 +15,16 @@ Attribution a tool inserts on your behalf is **off by decision and verified**, n
 
 **A note saying it is disabled is not the disabling.** The failure mode is specific and it is worse than simple omission: a line in an always-loaded document asserting *"attribution is disabled globally in the config"* ends the inquiry for every reader who meets it, including the reader who would otherwise have checked. `[R:guarantee-needs-a-reader]` is the general form. Name the key, and read the key.
 
-**Check the artefact, not the intention.** `git log --grep` over the real history, the generated header in a real output file, the document properties of a real export. A policy of this kind is falsifiable in one command, and until that command has been run the compliance position is unknown rather than good.
+**Check the artefact, not the intention** -- the real history, the generated header in a real output file, the document properties of a real export. A policy of this kind is falsifiable in one command, and until that command has been run the compliance position is unknown rather than good.
+
+**Count the field, not the text, or the count is wrong the moment you write about it.** A search for the literal string matches prose that *mentions* it -- this rule, the commit that fixed it, the incident note -- so the instrument inflates exactly as the subject gets discussed `[R:detector-excludes-own-definitions]`. Ask git for the parsed trailer instead of grepping the message:
+
+```
+git log --format='%(trailers:key=Co-Authored-By)' | grep -c 'Co-Authored-By:'   # the field
+git log --grep='Co-Authored-By' --oneline | wc -l                              # the text: over-counts
+```
+
+Measured on the day this rule was written, the two disagreed by two and the gap was widening with every commit describing the problem.
 
 **An audit is a measurement of a day, not a description of a configuration.** "Zero found on the 16th" is a fact about the 16th. It becomes a false claim the moment it is carried forward as though it described a setting `[R:check-the-claim-you-inherit]`.
 
