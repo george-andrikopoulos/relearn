@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; doc currency; no silent spend; verify through production path; verdict survives the channel; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; detector excludes own definitions; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; names travel with the quote; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; prefer by construction; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; signal needs a consequence; source practice from its artefact; wired artifact; definition of done every change; case collision; report the hit not the match"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; verify through production path; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; detector excludes own definitions; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; names travel with the quote; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; prefer by construction; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; signal needs a consequence; source practice from its artefact; wired artifact; definition of done every change; case collision; report the hit not the match"
 ---
 
 # global rules
@@ -16,6 +16,42 @@ Merge into the existing file, with a section heading, rather than creating the c
 The damage is invisible from where the work was done. On the authoring filesystem both files exist and everything looks correct; the collision appears only after a sync, as content that vanished with no diff and no error to attribute it to.
 
 This rule has graduated: a write-time hook now blocks the collision deterministically, so the instruction layer no longer has to carry it for that path. It still applies to every creation path the hook does not see -- a shell redirect, a git operation, another tool -- which is why the guidance is kept rather than retired.
+
+## Check an inherited claim about the world before repeating it [R:check-the-claim-you-inherit]
+
+Before repeating a document's factual claim about live state, query the state.
+
+A document can tell you two different kinds of thing, and they do not deserve the same
+trust. A claim about *intent* -- why a threshold is 18, what was rejected and why, which
+invariant a file exists to hold -- is only recorded in prose, and the document is the
+authoritative source. A claim about *the world* -- a sensor is absent, a service is
+disabled, a count is 23, a capability is unenforced -- describes something that can be
+observed directly, and the document is a cached reading with no expiry date.
+
+Repeating the second kind without observing is how a stale or never-true claim gets
+laundered into a fresh report. It is worse than the original error, because the claim
+now arrives with today's date and the authority of having just been "checked", and
+because the report is the thing the reader acts on. Whoever wrote it may have been right
+at the time, may have been guessing, or may have copied it from somewhere else; none of
+that is visible by the time you are reading it, and a claim copied into four documents
+looks four times corroborated while resting on one unverified assertion.
+
+This is the reader's half of `[R:doc-currency]`. That rule tells the writer to update
+the document in the same change as the thing it describes, and it will sometimes fail --
+so the reader is the last position where the error can still be caught. It is also the
+mirror of `[R:measure-the-claim-not-a-subset]`: that one guards the moment you are about
+to *overwrite* a recorded figure, this one the moment you are about to *repeat* it.
+Between them, a recorded number is never simply passed along unexamined in either
+direction.
+
+The check is cheap and it is bounded. You are not re-deriving the document; you are
+spot-checking the specific assertions you are about to put your own name to, and only
+those that name observable state.
+
+Failure-mode check: **is this a claim about the world, and can I observe the world?**
+If both, the document is a hypothesis and your report needs the observation, not the
+quotation. If you cannot observe it, repeat it with its provenance attached -- "TODO.md
+records X, unverified" -- rather than asserting it flat.
 
 ## The project charter is written to the recreation standard [R:claude-md-recreates-the-project]
 
@@ -532,9 +568,9 @@ prevents *describing* what does not.
 
 ## A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
 
-> Also enforced by hook:gate-verdict-intact (pipeline half) + hook:multiline-pattern-eol (edit half).
+> Partly enforced by hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (shell edit half); write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; and a verdict read from a side channel that is structurally incapable of carrying a failure is held by this instruction alone.
 
-> Has recurred 1 time(s) since it was written; most recently 2026-09-06.
+> Has recurred 2 time(s) since it was written; most recently 2026-09-20.
 
 Read a check's own verdict, never a status that merely travelled beside it.
 
@@ -583,4 +619,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=b7f5f569b9c9785a1bf9c6c5d5dab77729d08dac5e5e5cfa7b8c4501866652b2 rules=R:case-collision,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=f5be089aa4e4027055e7a350347ecbefaeb6235934f6a08e0d35d6d85fce7b2a rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
