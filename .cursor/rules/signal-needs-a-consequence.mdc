@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Give a repeated signal a consequence, or stop emitting it [R:signal-needs-a-consequence]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-20.
+
 Attach a consequence to a signal, or stop emitting it. A check that is right, whose verdict arrives whole, and that changes nothing is read once out of novelty and never again -- and the condition it reports then degrades quietly behind a line of text that says it is degrading.
 
 **The consequence is what makes a signal a control.** Exit non-zero. Fail the build. Block the write. Refuse the push. Until one of those is attached, what exists is a description of a problem, and a ledger that counts it as coverage is overstating what the system holds.
@@ -20,4 +22,4 @@ The test, at the moment you write the warning: *what breaks if nobody reads this
 
 Fourth position in an existing family, and the one where every link holds. `[R:guarantee-needs-a-reader]` -- nothing checks the claim. `[R:wired-artifact]` -- something checks it and accepts evidence anything could produce. `[R:verdict-survives-the-channel]` -- the check is right and its verdict is destroyed in transit. `[R:reconcile-wiring-at-start]` -- the control goes dark without announcing it. Here the check is correct, the wiring is live, the verdict is intact and delivered, and the chain still ends, because its last link was a person with nothing at stake.
 
-<!-- relearn:generated v0.1.0 sha256=5173f0d13c29145bc6b3771f0a83f3c86074ad7532d0df514f5ad49a747a0391 rules=R:signal-needs-a-consequence -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=e6c65925174754c022b15e0a64c51ed109074cd477813085d871b975fe6aff75 rules=R:signal-needs-a-consequence -- DO NOT EDIT; regenerate with `relearn build` -->
