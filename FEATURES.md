@@ -1128,6 +1128,40 @@ financial project starts with the types present and the model selects rather tha
 **Found by the gate:** `tests/pack_counts.rs` refused the change until both pack READMEs
 matched the generated files — 87 → 88 rules, 2199 → 2217 lines, 34 → 35 global.
 
+### The compliance rules come out of a vault skill, and `global` splits to fit them
+
+What: three disclosure rules were rehomed out of `skills/second-brain` — a skill that loads
+only when that vault workflow loads — into the corpus, and joined by the two already there to
+form **`domain=disclosure`** (5 rules). `rules/` is 88 → 91. `global` is 38 → 33.
+
+**The rehoming found the policy was not in force.** `[R:no-tool-attribution-in-public-artefacts]`
+is `mined`, not house style, because checking it produced a measurement: **72 commits across two
+repositories carry an assistant `Co-Authored-By` trailer and 67 are already pushed**, against a
+standing rule of never. Two causes compounded — the rule lived behind a conditional load, and the
+always-loaded layer carried the sentence *"Attribution disabled globally via settings.json"* for a
+key that **is not in that file**. Nothing read the state the sentence asserted, and the sentence
+is what stopped anyone looking. Recorded as the third recurrence of `[R:guarantee-needs-a-reader]`
+and repaired at the artefact rather than only in the doc about it
+(`[R:repair-the-lying-artefact]`).
+
+**The protected terms did not travel.** All three rules are written generically — no employer
+name, no product name, no role title — so a public corpus can carry the policy while the hashed
+term list stays machine-local, which is the existing design and the reason it exists
+(`[R:names-travel-with-the-quote]`).
+
+**Enforced by:** `tests/description_reaches_every_rule.rs`, which **failed on this change** at
+1010 of 1024 characters and five dropped subjects, and passes at 956 after the split — the gate
+added the day before doing exactly the job it was added for + `tests/pack_counts.rs`, which
+refused until both pack inventories carried the new skill and the corrected counts
+(`global` 38 → 33, a new `domain-disclosure` row, copilot 88 → 91 rules and 2217 → 2263 lines).
+
+**What the split is not.** It is not a relaxation: the first remedy tried was to permit a
+*graduated* rule's subject to be dropped, and it was measured and rejected — only two of the 38
+were graduated, leaving the prose-reliant 36 sixty characters over the cap before any choice was
+available. `ARCHITECTURE.md` carries the decision, including the premise that had to be corrected
+first: `global` is **not** in the always-loaded rules layer, so its description was already the
+only route into a session, and splitting costs nothing.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.

@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; verify through production path; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; detector excludes own definitions; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; money is not a float; names travel with the quote; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; prefer by construction; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; signal needs a consequence; source practice from its artefact; wired artifact; definition of done every change; case collision; report the hit not the match"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; verify through production path; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; detector excludes own definitions; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; money is not a float; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; prefer by construction; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; signal needs a consequence; source practice from its artefact; wired artifact; definition of done every change; case collision"
 ---
 
 # global rules
@@ -182,7 +182,7 @@ Do not duplicate domain rules into the project layer. Reference them. A rule sta
 
 > Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs is held by this instruction alone.
 
-> Has recurred 2 time(s) since it was written; most recently 2026-09-19.
+> Has recurred 3 time(s) since it was written; most recently 2026-09-20.
 
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
 
@@ -245,40 +245,6 @@ Money is an exact decimal quantity. No binary floating-point type holds one, and
 **The failure-mode check, before declaring any numeric field:** *is this quantity counted or measured?* A **counted** quantity — money, shares, basis points, anything that must reconcile exactly against another system — is never a float. A **measured** one — a latency, a temperature, a ratio, a rate — may be, and usually should be. The question is about the quantity, not about the precision you think you need.
 
 **What holds this rule today: nothing, and that is stated rather than implied.** It is prose, and prose is the layer this class has already defeated — `[R:verify-the-glyph-exists]` is the precedent, where a rule was read and then prescribed the exact defect it forbade. Worse, the failure it comes from is a *greenfield* one, where the model authors the type layer: layers 1 to 3 of the hierarchy of controls have nothing to stand on, because there are no types yet to make the state unrepresentable and no tests that could cover types that do not exist. Writing this down names the class so it can travel and be cited. It is not expected to hold the founding decision on its own, and the controls that would are recorded as open work rather than claimed here.
-
-## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
-
-Before an incident, a log line, a trace or a path leaves the repository that holds it,
-scan the destination with the source's own detector -- not the destination's.
-
-A detector for private identifiers is scoped to a tree. It is a list of names somebody
-enumerated, matched against the files of one repository, and it is correct exactly there.
-Every quotation moves content across that boundary and none of it moves the check: the
-paper, the public rule corpus, the issue comment and the conference slide each inherit
-the source's *names* and none of its *gates*. The source stays green, because nothing
-about it changed.
-
-The trap is that writing the incident down is the discipline working. A rule with no
-provenance cannot be audited, so the incident narrative is mandatory -- and a narrative
-is verbatim by nature, because the specifics are what make it interpretable. The very
-field that makes a correction durable is the one that carries the name out.
-
-So the check belongs at the boundary the content crosses, which is the publication, not
-the repository. Where the destination is public, the term list usually cannot be
-committed alongside it: a salted digest of a short name is a few million candidates and
-publishing the list discloses what it detects. Keep the matcher in the public artefact
-and the list outside it, and make the absence of the list an ERROR rather than a pass, or
-the gate arrives disarmed and reports the same green as a clean tree
-`[R:guarantee-needs-a-reader]`.
-
-Failure-mode check, before anything private is quoted anywhere: **which repository's
-detector covers the file I am about to write into?** If the answer is the repository the
-quotation came FROM, nothing covers the destination.
-
-This is the sibling of `[R:report-the-hit-not-the-match]`, which governs the moment a
-search prints what it found. That one is about output; this one is about content coming
-to rest in a second artefact, where it is committed, pushed, indexed and mirrored. Same
-identifier, different surface, and the fixes do not substitute for one another.
 
 ## No sentinel values: absent states are enum variants [R:no-sentinel-values]
 
@@ -467,33 +433,6 @@ exercise the real channel; this one says the real channel must also tell the tru
 what it produced — verifying through a production path that reports a path it never
 resolved proves nothing.
 
-## Report the hit, never the match [R:report-the-hit-not-the-match]
-
-> Also enforced by hook:banned-name-in-output.
-
-When what you are searching for is a thing whose whole problem is that it exists, your
-search output is another copy of it. Report **location, count and length**; never the
-matched text, and never a field that can contain it.
-
-Run the check before the output leaves your hands: *for every field I am about to print
--- path, parent directory, filename, context line, error message, commit summary -- can
-the thing I am hiding be inside it?* If you cannot answer for one of them, drop that
-field. A path whose last component IS the name defeats a redaction that prints the
-parent, and `find | xargs` prints the path whole.
-
-**This binds ad-hoc work exactly as it binds a committed detector, and that is the half
-that fails.** A one-off shell pipeline, a `grep -o`, a loop written to answer one
-question, and the sentence you type afterwards are all publication surfaces -- and so is
-the transcript. A carefully built scanner in the same repository does not cover you; it
-covers its own output.
-
-Sibling, deliberately not merged: `[R:detector-excludes-own-definitions]` is the
-FALSE-POSITIVE half of self-reference -- a check that matches its own text is always red,
-gets muted, and leaves the system looking guarded. This is the DISCLOSURE half. Same
-shape, opposite failure, different fixes: strip comments there, never emit the match
-here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
-printing it, but writing it down somewhere with a wider audience.
-
 ## Review a change against the behaviour contract, never against the plan that produced it [R:review-against-contract-not-plan]
 
 Review a change against the **behaviour contract**, never against the plan or the template that produced it.
@@ -637,4 +576,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=4eb8ce3fe75c3557c571d41bc669a9bebfddfb9e2afde5f2bf2282803d859b1f rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=532adfb12c65216a69467f58110629b5d1db04bdf1f01fc0faea25739694e2b9 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->

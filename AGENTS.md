@@ -177,7 +177,7 @@ Do not duplicate domain rules into the project layer. Reference them. A rule sta
 
 > Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs is held by this instruction alone.
 
-> Has recurred 2 time(s) since it was written; most recently 2026-09-19.
+> Has recurred 3 time(s) since it was written; most recently 2026-09-20.
 
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
 
@@ -240,40 +240,6 @@ Money is an exact decimal quantity. No binary floating-point type holds one, and
 **The failure-mode check, before declaring any numeric field:** *is this quantity counted or measured?* A **counted** quantity — money, shares, basis points, anything that must reconcile exactly against another system — is never a float. A **measured** one — a latency, a temperature, a ratio, a rate — may be, and usually should be. The question is about the quantity, not about the precision you think you need.
 
 **What holds this rule today: nothing, and that is stated rather than implied.** It is prose, and prose is the layer this class has already defeated — `[R:verify-the-glyph-exists]` is the precedent, where a rule was read and then prescribed the exact defect it forbade. Worse, the failure it comes from is a *greenfield* one, where the model authors the type layer: layers 1 to 3 of the hierarchy of controls have nothing to stand on, because there are no types yet to make the state unrepresentable and no tests that could cover types that do not exist. Writing this down names the class so it can travel and be cited. It is not expected to hold the founding decision on its own, and the controls that would are recorded as open work rather than claimed here.
-
-## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
-
-Before an incident, a log line, a trace or a path leaves the repository that holds it,
-scan the destination with the source's own detector -- not the destination's.
-
-A detector for private identifiers is scoped to a tree. It is a list of names somebody
-enumerated, matched against the files of one repository, and it is correct exactly there.
-Every quotation moves content across that boundary and none of it moves the check: the
-paper, the public rule corpus, the issue comment and the conference slide each inherit
-the source's *names* and none of its *gates*. The source stays green, because nothing
-about it changed.
-
-The trap is that writing the incident down is the discipline working. A rule with no
-provenance cannot be audited, so the incident narrative is mandatory -- and a narrative
-is verbatim by nature, because the specifics are what make it interpretable. The very
-field that makes a correction durable is the one that carries the name out.
-
-So the check belongs at the boundary the content crosses, which is the publication, not
-the repository. Where the destination is public, the term list usually cannot be
-committed alongside it: a salted digest of a short name is a few million candidates and
-publishing the list discloses what it detects. Keep the matcher in the public artefact
-and the list outside it, and make the absence of the list an ERROR rather than a pass, or
-the gate arrives disarmed and reports the same green as a clean tree
-`[R:guarantee-needs-a-reader]`.
-
-Failure-mode check, before anything private is quoted anywhere: **which repository's
-detector covers the file I am about to write into?** If the answer is the repository the
-quotation came FROM, nothing covers the destination.
-
-This is the sibling of `[R:report-the-hit-not-the-match]`, which governs the moment a
-search prints what it found. That one is about output; this one is about content coming
-to rest in a second artefact, where it is committed, pushed, indexed and mirrored. Same
-identifier, different surface, and the fixes do not substitute for one another.
 
 ## No sentinel values: absent states are enum variants [R:no-sentinel-values]
 
@@ -462,33 +428,6 @@ exercise the real channel; this one says the real channel must also tell the tru
 what it produced — verifying through a production path that reports a path it never
 resolved proves nothing.
 
-## Report the hit, never the match [R:report-the-hit-not-the-match]
-
-> Also enforced by hook:banned-name-in-output.
-
-When what you are searching for is a thing whose whole problem is that it exists, your
-search output is another copy of it. Report **location, count and length**; never the
-matched text, and never a field that can contain it.
-
-Run the check before the output leaves your hands: *for every field I am about to print
--- path, parent directory, filename, context line, error message, commit summary -- can
-the thing I am hiding be inside it?* If you cannot answer for one of them, drop that
-field. A path whose last component IS the name defeats a redaction that prints the
-parent, and `find | xargs` prints the path whole.
-
-**This binds ad-hoc work exactly as it binds a committed detector, and that is the half
-that fails.** A one-off shell pipeline, a `grep -o`, a loop written to answer one
-question, and the sentence you type afterwards are all publication surfaces -- and so is
-the transcript. A carefully built scanner in the same repository does not cover you; it
-covers its own output.
-
-Sibling, deliberately not merged: `[R:detector-excludes-own-definitions]` is the
-FALSE-POSITIVE half of self-reference -- a check that matches its own text is always red,
-gets muted, and leaves the system looking guarded. This is the DISCLOSURE half. Same
-shape, opposite failure, different fixes: strip comments there, never emit the match
-here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
-printing it, but writing it down somewhere with a wider audience.
-
 ## Review a change against the behaviour contract, never against the plan that produced it [R:review-against-contract-not-plan]
 
 Review a change against the **behaviour contract**, never against the plan or the template that produced it.
@@ -631,6 +570,113 @@ Ask before wiring any check: *what else in this system can produce the string my
 The same test applies to enforcement claimed on a component: *what produces this, what consumes it, and does the cited artefact cross that seam?* If nothing crosses it, the feature is inert and the honest ledger entry says so rather than naming the component's own tests.
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
+
+## An employer name, internal product name or role title never reaches a public artefact [R:employer-identity-not-in-public-artefacts]
+
+An employer's name, an internal product name and a role title never reach an artefact with a public audience.
+
+**The artefact is wider than the file.** A repository publishes its history, not its working tree: branch names, commit messages, commit *trees*, tags, issue text and release notes all travel, and a name removed from `main` today is still in the clone somebody took last month. Fix the working tree if you like, but the honest question is what the history contains.
+
+**The protected list is machine-local, and that is not an oversight.** A committed list of terms to avoid is a published list of the things being protected — and a short name normalises to a handful of characters, so publishing the salt publishes the name. Keep the list out of the repository and have the gate read it from outside. A gate with no list must **fail**, not pass: a disarmed detector reporting clean is worse than no detector, because it ends the inquiry `[R:guarantee-needs-a-reader]`.
+
+**Report a location and a length, never the match.** The output of a search for a protected name is another copy of it — in the matched text, a context line, a path whose last component *is* the name, or an error message. `[R:report-the-hit-not-the-match]` is the authority; this rule is the reason it matters here.
+
+**This policy does not belong in a conditionally-loaded home.** A disclosure rule that is only in force when some unrelated workflow happens to load is in force on the days you did not need it. It belongs in the layer that loads for every session in every repository, and a pointer is what the specialised home should keep `[R:one-home-per-rule]`.
+
+**Quoting is the leak nobody plans.** An incident description, a paper, a talk, a bug report — each is a place where text is copied *out* of the repository that was protecting it and into one whose detector has never heard of the term. `[R:names-travel-with-the-quote]`.
+
+Failure-mode check, before any artefact becomes public: *does the history contain it, and which repository's detector covers the destination?* If the answer to the second is the repository the text came from, nothing covers where it is going.
+
+## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
+
+Before an incident, a log line, a trace or a path leaves the repository that holds it,
+scan the destination with the source's own detector -- not the destination's.
+
+A detector for private identifiers is scoped to a tree. It is a list of names somebody
+enumerated, matched against the files of one repository, and it is correct exactly there.
+Every quotation moves content across that boundary and none of it moves the check: the
+paper, the public rule corpus, the issue comment and the conference slide each inherit
+the source's *names* and none of its *gates*. The source stays green, because nothing
+about it changed.
+
+The trap is that writing the incident down is the discipline working. A rule with no
+provenance cannot be audited, so the incident narrative is mandatory -- and a narrative
+is verbatim by nature, because the specifics are what make it interpretable. The very
+field that makes a correction durable is the one that carries the name out.
+
+So the check belongs at the boundary the content crosses, which is the publication, not
+the repository. Where the destination is public, the term list usually cannot be
+committed alongside it: a salted digest of a short name is a few million candidates and
+publishing the list discloses what it detects. Keep the matcher in the public artefact
+and the list outside it, and make the absence of the list an ERROR rather than a pass, or
+the gate arrives disarmed and reports the same green as a clean tree
+`[R:guarantee-needs-a-reader]`.
+
+Failure-mode check, before anything private is quoted anywhere: **which repository's
+detector covers the file I am about to write into?** If the answer is the repository the
+quotation came FROM, nothing covers the destination.
+
+This is the sibling of `[R:report-the-hit-not-the-match]`, which governs the moment a
+search prints what it found. That one is about output; this one is about content coming
+to rest in a second artefact, where it is committed, pushed, indexed and mirrored. Same
+identifier, different surface, and the fixes do not substitute for one another.
+
+## Tool attribution is off by decision and verified, never off by assumption [R:no-tool-attribution-in-public-artefacts]
+
+Attribution a tool inserts on your behalf is **off by decision and verified**, never off by assumption.
+
+**The default is on, and the artefact is published.** Commit trailers, generated-file headers, document properties and export metadata are written by tooling that defaults to identifying itself. Where a disclosure policy forbids that, the policy is not satisfied by anybody intending to comply: it is satisfied by the setting being off, and by someone having read the setting rather than a sentence about it.
+
+**A note saying it is disabled is not the disabling.** The failure mode is specific and it is worse than simple omission: a line in an always-loaded document asserting *"attribution is disabled globally in the config"* ends the inquiry for every reader who meets it, including the reader who would otherwise have checked. `[R:guarantee-needs-a-reader]` is the general form. Name the key, and read the key.
+
+**Check the artefact, not the intention.** `git log --grep` over the real history, the generated header in a real output file, the document properties of a real export. A policy of this kind is falsifiable in one command, and until that command has been run the compliance position is unknown rather than good.
+
+**An audit is a measurement of a day, not a description of a configuration.** "Zero found on the 16th" is a fact about the 16th. It becomes a false claim the moment it is carried forward as though it described a setting `[R:check-the-claim-you-inherit]`.
+
+**Publication is the boundary that matters.** A trailer in an unpushed commit is an edit; the same trailer pushed is a disclosure that deletion does not undo, because clones, forks and mirrors do not take the deletion with them. Fix the default before the next push, and treat the already-published set as a separate decision with its own cost.
+
+Failure-mode check, for any tool that can sign its own work: *what would I see if this were on, and have I looked at that rather than at a document about it?*
+
+## Report the hit, never the match [R:report-the-hit-not-the-match]
+
+> Also enforced by hook:banned-name-in-output.
+
+When what you are searching for is a thing whose whole problem is that it exists, your
+search output is another copy of it. Report **location, count and length**; never the
+matched text, and never a field that can contain it.
+
+Run the check before the output leaves your hands: *for every field I am about to print
+-- path, parent directory, filename, context line, error message, commit summary -- can
+the thing I am hiding be inside it?* If you cannot answer for one of them, drop that
+field. A path whose last component IS the name defeats a redaction that prints the
+parent, and `find | xargs` prints the path whole.
+
+**This binds ad-hoc work exactly as it binds a committed detector, and that is the half
+that fails.** A one-off shell pipeline, a `grep -o`, a loop written to answer one
+question, and the sentence you type afterwards are all publication surfaces -- and so is
+the transcript. A carefully built scanner in the same repository does not cover you; it
+covers its own output.
+
+Sibling, deliberately not merged: `[R:detector-excludes-own-definitions]` is the
+FALSE-POSITIVE half of self-reference -- a check that matches its own text is always red,
+gets muted, and leaves the system looking guarded. This is the DISCLOSURE half. Same
+shape, opposite failure, different fixes: strip comments there, never emit the match
+here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
+printing it, but writing it down somewhere with a wider audience.
+
+## A repository is created private; going public is an explicit decision [R:repository-private-by-default]
+
+A new repository is created **private**. Going public is a decision somebody takes, states and can point at.
+
+**The asymmetry is the whole argument.** Making a private repository public is reversible in the only sense that matters least — the button flips back, and the clones, forks, mirrors and archived crawls do not. Making a public repository private does not unpublish it. So the two defaults are not symmetric choices with different odds; one of them has an undo and the other has not.
+
+**Default-public is publication by omission**, and by the time it is noticed the decision has already been taken by whoever typed the create command fastest. Pass the flag explicitly at creation rather than auditing visibility afterwards.
+
+**An exception is named, not inferred.** Where a repository is genuinely meant to be public, say which one and why, so that "this one is public" is a fact a reader can check rather than a state somebody assumes was intended.
+
+**Before any visibility change, the history is the artefact.** A repository about to go public publishes every commit tree, message, branch name and tag, not the tip. `[R:employer-identity-not-in-public-artefacts]` is what to check for, and a detector that has no list must fail rather than pass.
+
+Failure-mode check, at creation: *did I choose this visibility, or accept it?*
 
 ## A path optimised on yesterday's inputs deoptimises when today's arrive [R:a-speculated-path-deoptimises-when-the-input-changes]
 
@@ -2214,4 +2260,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=c0d57c0ff12716445087e224a42a37c3c8b53a3e847a1984afeeda371edf338c rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:names-travel-with-the-quote,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:report-the-hit-not-the-match,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=daabdee76ed72adbb1982685f50deb36b95351c1b9102c2e789a46a893e65468 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

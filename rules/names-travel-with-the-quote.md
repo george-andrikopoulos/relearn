@@ -2,7 +2,7 @@
 tag = "R:names-travel-with-the-quote"
 title = "Quoting an incident carries its names past the gate that was holding them"
 error_class = "A private identifier -- a product name, a customer, a hostname, a path -- copied out of the repository that protects it and into an artefact with a wider audience: a public rule corpus, a paper, an issue, a talk. The source repository's detector is still correct and still green, because a gate belongs to a repository and the quotation travelled without it"
-home = { kind = "global" }
+home = { kind = "domain", name = "disclosure" }
 created = "2026-09-06"
 origin = "mined"
 status = { kind = "active" }

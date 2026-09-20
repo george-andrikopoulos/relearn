@@ -7,7 +7,8 @@ install it on claude.ai, without cloning this repository or building anything.
 ```
 claude-pack/
 └── skills/
-    ├── global/SKILL.md                          35 rules — every project, every language
+    ├── global/SKILL.md                          33 rules — every project, every language
+    ├── domain-disclosure/SKILL.md                5 rules — what may leave for a public audience
     ├── domain-rust/SKILL.md                     18 rules — the Rust type-driven discipline
     ├── domain-low-latency/SKILL.md              15 rules — latency-sensitive systems work
     ├── domain-java/SKILL.md                     13 rules — the Java language discipline

@@ -2,7 +2,7 @@
 tag = "R:report-the-hit-not-the-match"
 title = "Report the hit, never the match"
 error_class = "A search for something whose whole problem is that it exists -- a secret, a credential, a banned name, someone's personal data -- printing the thing it found, in any field of its output: the matched text, a context line, an error message, or a path whose last component IS the name"
-home = { kind = "global" }
+home = { kind = "domain", name = "disclosure" }
 created = "2026-09-05"
 origin = "mined"
 status = { kind = "graduated", to = "hook:banned-name-in-output", date = "2026-09-05" }

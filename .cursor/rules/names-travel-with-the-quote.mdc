@@ -1,7 +1,7 @@
 ---
 description: Quoting an incident carries its names past the gate that was holding them (A private identifier -- a product name, a customer, a hostname, a path -- copied out of the repository that protects it and into an artefact with a wider audience: a public rule corpus, a paper, an issue, a talk. The source repository's detector is still correct and still green, because a gate belongs to a repository and the quotation travelled without it)
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
@@ -38,4 +38,4 @@ search prints what it found. That one is about output; this one is about content
 to rest in a second artefact, where it is committed, pushed, indexed and mirrored. Same
 identifier, different surface, and the fixes do not substitute for one another.
 
-<!-- relearn:generated v0.1.0 sha256=7425bcf4fb0150ec7ad44b7808047df54662a5c852a4d8c2be72ed52b1115e19 rules=R:names-travel-with-the-quote -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=afe63633db20f415b431136ce4e14798904fe1e926d3c07652970a92fed30bdd rules=R:names-travel-with-the-quote -- DO NOT EDIT; regenerate with `relearn build` -->

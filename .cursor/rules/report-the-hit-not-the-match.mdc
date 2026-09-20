@@ -1,7 +1,7 @@
 ---
 description: Report the hit, never the match (A search for something whose whole problem is that it exists -- a secret, a credential, a banned name, someone's personal data -- printing the thing it found, in any field of its output: the matched text, a context line, an error message, or a path whose last component IS the name)
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Report the hit, never the match [R:report-the-hit-not-the-match]
@@ -31,4 +31,4 @@ shape, opposite failure, different fixes: strip comments there, never emit the m
 here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
 printing it, but writing it down somewhere with a wider audience.
 
-<!-- relearn:generated v0.1.0 sha256=7df61568a4711768c5062f0b053ee6449fb279ca3a3e128a7be2d638b629a53f rules=R:report-the-hit-not-the-match -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=39753cd91b6ad3fc73df73efa53f500509b179832b760983b6d859c11612f19e rules=R:report-the-hit-not-the-match -- DO NOT EDIT; regenerate with `relearn build` -->

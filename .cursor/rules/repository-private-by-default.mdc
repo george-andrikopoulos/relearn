@@ -1,0 +1,21 @@
+---
+description: A repository is created private; going public is an explicit decision (A repository created with public visibility by default, so publication happens by omission rather than by decision -- and unlike privacy, publication has no undo, because clones and mirrors do not take a later visibility change with them)
+globs: 
+alwaysApply: false
+---
+
+# A repository is created private; going public is an explicit decision [R:repository-private-by-default]
+
+A new repository is created **private**. Going public is a decision somebody takes, states and can point at.
+
+**The asymmetry is the whole argument.** Making a private repository public is reversible in the only sense that matters least — the button flips back, and the clones, forks, mirrors and archived crawls do not. Making a public repository private does not unpublish it. So the two defaults are not symmetric choices with different odds; one of them has an undo and the other has not.
+
+**Default-public is publication by omission**, and by the time it is noticed the decision has already been taken by whoever typed the create command fastest. Pass the flag explicitly at creation rather than auditing visibility afterwards.
+
+**An exception is named, not inferred.** Where a repository is genuinely meant to be public, say which one and why, so that "this one is public" is a fact a reader can check rather than a state somebody assumes was intended.
+
+**Before any visibility change, the history is the artefact.** A repository about to go public publishes every commit tree, message, branch name and tag, not the tip. `[R:employer-identity-not-in-public-artefacts]` is what to check for, and a detector that has no list must fail rather than pass.
+
+Failure-mode check, at creation: *did I choose this visibility, or accept it?*
+
+<!-- relearn:generated v0.1.0 sha256=135adad1c4723a31c4af508d108228864232ede73ed4bc76c627209dfb38fde6 rules=R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->
