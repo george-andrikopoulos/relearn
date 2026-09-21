@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# pre-push — refuse to publish a private name.
+# pre-push — refuse to publish a private name, or a monetary float.
+#
+# Two gates, both attached here rather than to a command somebody must remember
+# to type (`[R:signal-needs-a-consequence]`). The first is about publication and
+# could live nowhere else; the second is the interim control for
+# `[R:money-is-not-a-float]` and is here because the push is the event that
+# happens anyway. BOTH must pass; the first to fail refuses the push.
 #
 # This repository is public and quotes private working sessions verbatim: a
 # rule's `incident` field, and TODO.md's narration of the same material. The
@@ -33,7 +39,7 @@ bash "$CHECK"
 status=$?
 
 case "$status" in
-    0) exit 0 ;;
+    0) ;;
     1)
         echo "[pre-push] BLOCKED: a banned name is in the tree." >&2
         echo "[pre-push] Redact it, then push. Do NOT print the term to fix it." >&2
@@ -43,6 +49,55 @@ case "$status" in
         echo "[pre-push] BLOCKED: the banned-name gate is disarmed (exit $status)." >&2
         echo "[pre-push] A disarmed gate is not a pass. Install the term list, or" >&2
         echo "[pre-push] set BANNED_TERMS_FILE, and push again." >&2
+        exit 1
+        ;;
+esac
+
+# --- Gate 2: no monetary quantity in binary floating point -------------------
+#
+# `[R:money-is-not-a-float]`. Its real subject is a financial application's
+# source, not this tree, so the script takes roots and is meant to be copied
+# into the repository it is about — see FEATURES.md. Running it here keeps the
+# detector exercised against a real tree at every push rather than against
+# fixtures alone, and it is what a clone of this repository gets for free.
+#
+# `--self-test` runs FIRST and its status is read. A detector that has stopped
+# detecting must not be allowed to report a clean tree
+# (`[R:guarantee-needs-a-reader]`), so a broken matcher blocks exactly as a hit
+# does. Neither call is piped into anything: the verdict reaches the reader
+# intact. `[R:verdict-survives-the-channel]`
+
+MONEY="$ROOT/scripts/no-float-money.sh"
+
+if [ ! -f "$MONEY" ]; then
+    echo "[pre-push] BLOCKED: $MONEY is missing." >&2
+    echo "[pre-push] The gate cannot run, so the push is refused." >&2
+    exit 1
+fi
+
+bash "$MONEY" --self-test
+status=$?
+
+if [ "$status" -ne 0 ]; then
+    echo "[pre-push] BLOCKED: the monetary-float detector failed its own" >&2
+    echo "[pre-push] self-test (exit $status). A broken gate is not a pass." >&2
+    exit 1
+fi
+
+bash "$MONEY"
+status=$?
+
+case "$status" in
+    0) exit 0 ;;
+    1)
+        echo "[pre-push] BLOCKED: a monetary quantity is in binary floating point." >&2
+        echo "[pre-push] Named above. Use integer minor units or a fixed-scale" >&2
+        echo "[pre-push] decimal, or mark a measured quantity // money-scan: measured" >&2
+        exit 1
+        ;;
+    *)
+        echo "[pre-push] BLOCKED: the monetary-float gate is disarmed (exit $status)." >&2
+        echo "[pre-push] A disarmed gate is not a pass." >&2
         exit 1
         ;;
 esac

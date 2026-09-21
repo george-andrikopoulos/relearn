@@ -296,6 +296,79 @@ where a maintainer installed the hook, and TODO.md carries it.
 and twice in `TODO.md`, present in all 52 commit trees and in TODO.md since the first
 commit. Redacted in the same change; the history rewrite is carried in TODO.md.
 
+### A monetary quantity cannot be declared as a binary float
+
+What: `scripts/no-float-money.sh` reads Rust source for an identifier in a **monetary role**
+declared as `f32`/`f64`, in the three shapes the defect wears — a field or parameter
+(`amount: f64`), the tuple newtype the rule names by name (`struct Price(f64);`), and the
+alias that hides the representation from every use site (`type Notional = f64;`). It reads
+the **concept**, not a spelling: the identifier is lowercased, split on camel-case and
+underscore boundaries and de-pluralised, so `unit_price`, `NotionalAmount` and `fees` all
+match while `costume_weight`, `valuation_model_id` and `totality` do not — the near misses a
+substring matcher would flag and then be muted for. Output is `path:line: identifier: why`,
+printed in full: a field name is not a private identifier, and naming it is the entire point.
+
+**The newtype shape is in scope deliberately.** `Price(f64)` satisfies
+`[R:newtype-liberally]` completely — that rule's own worked example is `Miles(f64)` — and is
+still exactly the defect. A scan reading struct fields alone would pass the example the rule
+was written to forbid.
+
+**Enforced by:** `scripts/no-float-money.sh --self-test`, which runs the matcher over
+`scripts/fixtures/money-scan/`: `caught.rs` must produce byte-for-byte the eleven hits in
+`caught.expected`, `clean.rs` must produce none, and the two fixture **exit codes** are read
+as well as their text, so an awk that died cannot pass as a clean file. A detector that has
+stopped detecting therefore fails before it can certify a tree
+(`[R:guarantee-needs-a-reader]`). The self-test runs first in `.githooks/pre-push` and as its
+own CI step, ahead of the scan in both.
+
+**Attached to the push and to CI, never to a command.** A gate somebody must remember to
+invoke is the defect one level up, and that is the whole content of
+`[R:signal-needs-a-consequence]`, whose own incident is a gate that existed and was not run.
+Unlike the banned-name gate above, this one needs no machine-local list, so **CI can run it**
+and a fork is not failed for something that is none of its business.
+
+**Probed on every path on 2026-09-21 before being trusted**, through the real script and not
+a stand-in: a clean tree → 0; a tree seeded with the fixture → 1, naming all eleven
+declarations; a root that does not exist → 2; `awk` removed from `PATH` → 2; `find` removed
+from `PATH` → 2; the fixtures moved away → 3. 2 and 3 are failures, never passes — a check
+reporting the same green whether or not it ran is worse than none.
+
+**The `find` probe is there because the design pass found the hole.** The first version
+checked only for `awk`. A missing `find` produces an **empty file list**, which the scan
+would have reported as a clean tree — a false green inside the gate for a rule about false
+greens. Every external tool the check depends on (`awk`, `find`, `sort`, `diff`) is now
+named before anything runs, and absence is 2. `[R:verdict-survives-the-channel]` Nothing is piped into anything, so the verdict
+reaches its reader intact (`[R:verdict-survives-the-channel]`).
+
+**Its real subject is not this repository, and the script is built to leave.** A monetary
+field will never appear in `relearn`, so a `cargo test` here could only report green by
+measuring nothing — a control placed where the thing it controls is absent
+(`[R:wired-artifact]`). The roots are therefore command-line arguments, and the intended
+install into a financial repository is two files and one command:
+
+```bash
+cp scripts/no-float-money.sh <repo>/scripts/ && cp -r scripts/fixtures/money-scan <repo>/scripts/fixtures/
+# call it from that repository's .githooks/pre-push, then, once per clone:
+git config core.hooksPath .githooks
+```
+
+Running it here keeps the detector exercised against a real tree at every push rather than
+against fixtures alone.
+
+**An escape exists, on purpose.** `// money-scan: measured` on the declaration's own line
+excludes it, and the marker is read *before* comments are stripped, which is why it can live
+in one. A measured quantity may legitimately be a float and may legitimately be called
+`spread` or `total`; without an escape the check goes red on the first honest false positive
+and is then muted, which is worse than the gap.
+
+**`[R:detector-excludes-own-definitions]`:** the vocabulary lives in the script, which is
+`.sh`, and in the fixtures, which are excluded by path; only `.rs` files are read, so neither
+the script's own header nor `rules/money-is-not-a-float.md` can match the check they
+describe.
+
+**The rule it holds:** `[R:money-is-not-a-float]`, and it holds **half** of it — see that
+rule's row above and its `uncovered` field for the half a scan structurally cannot reach.
+
 ### Every dependency is priced in the decisions log, and so is every refusal
 
 What: `[R:price-every-dependency]`, codified 2026-09-12 — a dependency is a decision that arrives as one line in a manifest, so it gets an entry in the ARCHITECTURE decisions log (what it is for, why this one, what was refused — including writing it by hand — whether the default features were taken, whether it is dev-only), and a decision *not* to take one gets an entry too. The manifest comment points at the entry; it does not restate it.
@@ -1092,7 +1165,7 @@ near-duplicate finding against the 84-rule baseline) + `relearn verify` on all t
 roots (100 / 1 / 7) + `tests/pack_counts.rs`, which refused the change until the pack
 READMEs' hand-written counts matched — 84 → 86 rules, 2125 → 2163 lines, 31 → 33 global.
 
-### `[R:money-is-not-a-float]`, and a rule that ships with nothing holding it
+### `[R:money-is-not-a-float]`, and the scan that came to hold half of it
 
 What: `rules/` gained `[R:money-is-not-a-float]` on 2026-09-20 — *money is an exact quantity,
 and no binary float holds one*. `global`, **no `applies_to`**, `mined`, `active`. Two halves:
@@ -1112,18 +1185,27 @@ completely, and its own worked example is `Miles(f64)` beside `Kilometers(f64)`,
 states, and a float holding a decimal is lossy rather than contradictory. Recording a
 recurrence on either would have blunted the class rather than sharpened it.
 
-**Enforced by: NOTHING YET — exposed.** Deliberately `active` rather than `partial`: `Partial`
-must name the part its controls do not cover, and with no control the answer is *everything*,
-which is a gap and not a status. This is the honest position and it is also the uncomfortable
-one, because the incident is a **greenfield** failure — the model authors the type layer, so
+**Enforced by:** `scripts/no-float-money.sh`, run by `.githooks/pre-push` and by CI on both
+platforms — the source scan the row below specifies in full. The rule moved `active` →
+`partial` on 2026-09-21 and its `uncovered` field names what the scan does not reach.
+
+**It shipped with nothing holding it, and that was the honest position for a day.** The
+original entry read `NOTHING YET — exposed` and argued `active` over `partial` on the
+grounds that `Partial` must name the part its controls do not cover, and with no control
+the answer is *everything*, which is a gap and not a status. That argument was right and
+is now spent: there is a control, so there is a nameable remainder, and continuing to read
+`active` would have understated the rule's own coverage — the failure mode the 2026-09-19
+status repair found in five other rules.
+
+**What is still exposed is the half the rule was mined from, and it is not this row's to
+close.** The incident is a **greenfield** failure — the model authors the type layer, so
 layers 1 to 3 of the hierarchy have nothing to stand on and the guarantee falls to layer 4,
-the layer `[R:verify-the-glyph-exists]` already showed can be read and then contradicted. The
-rule body says so in its own last paragraph rather than leaving a reader to infer it. Three
-items in `TODO.md`: a source scan reading the *concept* (a numeric field in a monetary role),
-attached to the push rather than to a command a person must remember
-(`[R:signal-needs-a-consequence]`), and — the only one that actually closes the class — a
-scaffolding crate carrying `Money<C>`, `Price` and `Qty` with no `Div`, so a greenfield
-financial project starts with the types present and the model selects rather than invents.
+the layer `[R:verify-the-glyph-exists]` already showed can be read and then contradicted. A
+scan reads declarations that exist; it cannot read a decision not yet written. The item that
+closes the class is the one still open in `TODO.md`: a scaffolding crate carrying `Money<C>`,
+`Price` and `Qty` with an exact representation and no `Div`, so a greenfield financial
+project starts with the types present and the representation is selected rather than
+invented.
 
 **Found by the gate:** `tests/pack_counts.rs` refused the change until both pack READMEs
 matched the generated files — 87 → 88 rules, 2199 → 2217 lines, 34 → 35 global.

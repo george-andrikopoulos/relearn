@@ -134,6 +134,12 @@ cargo fmt --check
 
 bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `cargo test`)
 
+# The interim control for `[R:money-is-not-a-float]`. Run by .githooks/pre-push and
+# by CI; the roots are arguments because its real subject is a FINANCIAL repository's
+# source, not this tree — copy the script and its fixtures into that repository.
+bash scripts/no-float-money.sh [ROOT ...]   # 0 clean / 1 hit / 2 disarmed
+bash scripts/no-float-money.sh --self-test  # the detector's own probe, both directions
+
 # Author a rule. Scaffolds the front matter only — the body and the incident are
 # the rule, and it refuses to write over anything, including the same tag.
 relearn new --tag R:x --title "..." --error-class "..." --home domain=low-latency \

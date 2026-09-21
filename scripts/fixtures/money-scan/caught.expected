@@ -1,0 +1,11 @@
+caught.rs:10: Price: tuple newtype over a binary float
+caught.rs:12: Balance: tuple newtype over a binary float
+caught.rs:15: Notional: type alias over a binary float
+caught.rs:18: price: declared f32/f64
+caught.rs:19: filled_quantity: declared f32/f64
+caught.rs:20: commission: declared f32/f64
+caught.rs:21: fees: declared f32/f64
+caught.rs:22: unrealised_pnl: declared f32/f64
+caught.rs:27: amount: declared f32/f64
+caught.rs:28: total_cost: declared f32/f64
+caught.rs:34: NotionalAmount: declared f32/f64

@@ -72,3 +72,18 @@ jobs:
       # (`[R:doc-currency]`). Flags are unavoidable: they name the second root.
       - name: verify (claude-pack in sync with rules)
         run: cargo run --quiet -- verify --targets claude --out claude-pack
+      # The interim control for `[R:money-is-not-a-float]`, in both halves and
+      # in this order. `--self-test` runs the matcher over two committed
+      # fixtures — one that must produce exactly the listed hits, one that must
+      # produce none — so a detector that has stopped detecting fails here
+      # rather than reporting a clean tree (`[R:guarantee-needs-a-reader]`).
+      # The bare run then scans this repository. Unlike the banned-name gate,
+      # this one needs no machine-local list, so CI can run it and a fork is
+      # not failed for something that is none of its business. `shell: bash`
+      # is explicit because the Windows runner defaults to PowerShell.
+      - name: money-scan self-test (the detector still detects)
+        shell: bash
+        run: bash scripts/no-float-money.sh --self-test
+      - name: money-scan (no monetary quantity in binary floating point)
+        shell: bash
+        run: bash scripts/no-float-money.sh
