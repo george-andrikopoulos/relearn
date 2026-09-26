@@ -6,9 +6,9 @@ alwaysApply: true
 
 # A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
 
-> Partly enforced by hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (shell edit half); write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; and a verdict read from a side channel that is structurally incapable of carrying a failure is held by this instruction alone.
+> Partly enforced by hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (multi-line shell edit patterns only); write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; a verdict read from a side channel that is structurally incapable of carrying a failure; and every shell edit that is not a multi-line pattern -- a missing interpreter, a single-line substitution matching nothing, an edit chained with ; ahead of the run that verifies it -- plus a counting instrument never calibrated on a known answer is held by this instruction alone.
 
-> Has recurred 2 time(s) since it was written; most recently 2026-09-20.
+> Has recurred 3 time(s) since it was written; most recently 2026-09-26.
 
 Read a check's own verdict, never a status that merely travelled beside it.
 
@@ -37,8 +37,19 @@ status explicitly -- and never place a filter between a gate and an `&&`. After 
 whose purpose is to change a file, verify the change by reading the file back, not the
 status the command returned.
 
+Never chain an edit and the run that depends on it with `;`. If the edit fails -- a
+missing interpreter, a pattern that matched nothing -- the run that follows certifies the
+tree as it was, and its green is the most convincing wrong answer available: the thing you
+expected to change passes because it did not change. Read back the property the edit was
+meant to establish before running anything that relies on it.
+
+The same holds for the instruments that read the verdict. A count is a program's output
+too: before trusting one to say a defect is absent, run it once on an input whose answer
+you know. A count that reports every line, or none, on a file you have not looked at is
+measuring the tool.
+
 Failure-mode check: **what does this exit code actually measure?** If the answer names
 the last stage of a pipeline, or names "the program ran" rather than "the work was done",
 there is no evidence yet.
 
-<!-- relearn:generated v0.1.0 sha256=d37dac847ca422d8c5355abcf6ccd109901ac20e089f1119efbb8271ce88f6ee rules=R:verdict-survives-the-channel -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=a2ad07271d6d2b12b851d5683c531404d7d30d79667db1cd0da06d39ff50e509 rules=R:verdict-survives-the-channel -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -119,6 +119,8 @@ for either reason is falsifiable by nothing.
 
 ## A detector excludes its own definitions from its scan [R:detector-excludes-own-definitions]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-26.
+
 Any check whose subject matter is text it must itself contain -- a linter, a secret scanner, a policy grep, a rules sweep -- matches itself by construction. Exclude the detector's own source, comments, and docstrings from its scan, strip comments before matching, and normalise paths to placeholders so documentation *about* a pattern is never read as an instance of it.
 
 The reason is not tidiness. An always-red check gets muted, and a muted check is worse than no check, because the system still looks guarded. Alarm fatigue is negative value, not neutral: it spends the attention that a real finding will need, and it trains the reader to skip exactly the output that will one day matter.
@@ -126,6 +128,8 @@ The reason is not tidiness. An always-red check gets muted, and a muted check is
 This extends past the detector's own file to anything that quotes the pattern for a legitimate reason. A correction note explaining that a bad string was removed, written with the bad string in it, becomes a permanent false positive in the very sweep it was written to satisfy -- so describe the string, do not reproduce it, and where reproduction is genuinely necessary put it somewhere the scan excludes by rule rather than by luck.
 
 Ask before shipping any scan: *does this check appear in its own corpus, and if so what does its output look like on a clean tree?* If the clean-tree output is not empty, the check does not yet work, however correct its logic.
+
+**The process table is a corpus too.** `pkill -f PAT`, `pgrep -f PAT` and `ps | grep PAT` match the full command line of every process -- including the shell running them, whose argv holds PAT verbatim whenever the command travels as a string: `bash -c`, `bash -lc`, `wsl.exe -- bash -lc`, `ssh host '...'`, and every agent tool that runs a command through a shell. There the harm is not alarm fatigue but a shell that kills itself, or a wait loop that waits on itself forever. Write the pattern so its own text cannot match it -- `[r]elease/frame` matches `release/frame` and not itself -- or match an exact process name with `pgrep -x`, or a PID you recorded when you started the process. The clean-tree question becomes: *before anything else is running, what does this matcher find?* If the answer is not nothing, it found itself.
 
 ## Update the doc in the same change as the thing it describes [R:doc-currency]
 
@@ -175,17 +179,19 @@ Do not duplicate domain rules into the project layer. Reference them. A rule sta
 
 ## A stated guarantee names what enforces it, or is deleted [R:guarantee-needs-a-reader]
 
-> Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs is held by this instruction alone.
+> Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs; and, inside them, whether a named reader's input space covers what the claim ranges over -- the ledger check proves the artefact exists, not that it can see the failure is held by this instruction alone.
 
-> Has recurred 3 time(s) since it was written; most recently 2026-09-20.
+> Has recurred 4 time(s) since it was written; most recently 2026-09-26.
 
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
 
 A claim of completeness must also state what the check actually consumed. Not "verified", but "verified by grepping `model:` across N agent files" -- so the gap between the scope of the check and the scope of the claim is visible on the face of the entry rather than reconstructable only by rerunning it. Most false completeness claims are not lies; they are a narrow check reported in wide language.
 
+**A sampled reader's scope is its generator.** A property test, a fuzz target or a fixture suite reads exactly the inputs its generator can produce, which is usually far narrower than the name of the law it checks. Before citing one as the reader of a claim, set what the generator can reach -- roles, states, message kinds, error paths -- beside what the claim ranges over, and drill it: break the claim at a site the generator was not written around, and confirm the reader goes red. A reader whose input space does not contain the failure is not a reader of it, and naming it converts an open question into a closed one.
+
 **Error paths are where these hide.** A message asserting a state must be produced by *checking that state*, not by which branch printed it. The failure path is the one nobody exercises, so a confident sentence with nothing behind it survives there longest, and it is read at exactly the moment the reader is least able to question it. Ask of every error message: *did anything read the world before this printed?*
 
-Where a mechanical reader exists, use it and leave the prose to what it cannot see: an unread binding is already a hard error under a compiler run with warnings denied. What no linter can see is a true-looking sentence with nothing behind it, and that is what this rule is for.
+Where a mechanical reader exists, use it and leave the prose to what it cannot see: an unread binding is already a hard error under a compiler run with warnings denied -- unless it is handed to `let _ =`, which exists to switch that reader off (R:no-let-underscore-on-a-local). What no linter can see is a true-looking sentence with nothing behind it, and that is what this rule is for.
 
 The test: *what would have to be true for this sentence to be false, and what reads that?* R:wired-artifact is the neighbouring failure -- there a check exists and accepts forgeable evidence; here there is no check at all.
 
@@ -339,7 +345,11 @@ at the consuming end instead. A repository can satisfy either and fail the other
 
 ## Prefer by-construction impossibility over after-the-fact controls [R:prefer-by-construction]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-26.
+
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
+
+**A convention followed everywhere is not construction.** When correctness needs two actions paired at every call site -- advance a counter then emit, acquire then release, validate then store -- and a new call site could do one without the other and still compile, the pairing is held by memory, however consistently it has been followed so far. Fold the pair into one function that does both, and make the unpaired half unreachable from outside it. Test: *could the next call site I write omit half of this and still compile?* If it could, the words "by construction" do not apply, and a comment using them is a guarantee with no reader (R:guarantee-needs-a-reader).
 
 ## Every dependency is priced in the decisions log, and so is every dependency refused [R:price-every-dependency]
 
@@ -528,9 +538,9 @@ prevents *describing* what does not.
 
 ## A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
 
-> Partly enforced by hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (shell edit half); write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; and a verdict read from a side channel that is structurally incapable of carrying a failure is held by this instruction alone.
+> Partly enforced by hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (multi-line shell edit patterns only); write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; a verdict read from a side channel that is structurally incapable of carrying a failure; and every shell edit that is not a multi-line pattern -- a missing interpreter, a single-line substitution matching nothing, an edit chained with ; ahead of the run that verifies it -- plus a counting instrument never calibrated on a known answer is held by this instruction alone.
 
-> Has recurred 2 time(s) since it was written; most recently 2026-09-20.
+> Has recurred 3 time(s) since it was written; most recently 2026-09-26.
 
 Read a check's own verdict, never a status that merely travelled beside it.
 
@@ -558,6 +568,17 @@ filtered, make the pipeline report the gate -- enable pipefail, or read the firs
 status explicitly -- and never place a filter between a gate and an `&&`. After a command
 whose purpose is to change a file, verify the change by reading the file back, not the
 status the command returned.
+
+Never chain an edit and the run that depends on it with `;`. If the edit fails -- a
+missing interpreter, a pattern that matched nothing -- the run that follows certifies the
+tree as it was, and its green is the most convincing wrong answer available: the thing you
+expected to change passes because it did not change. Read back the property the edit was
+meant to establish before running anything that relies on it.
+
+The same holds for the instruments that read the verdict. A count is a program's output
+too: before trusting one to say a defect is absent, run it once on an input whose answer
+you know. A count that reports every line, or none, on a file you have not looked at is
+measuring the tool.
 
 Failure-mode check: **what does this exit code actually measure?** If the answer names
 the last stage of a pipeline, or names "the program ran" rather than "the work was done",
@@ -2059,6 +2080,21 @@ Give every domain concept its own type, even when the underlying representation 
 
 Library crates return typed error enums (thiserror), so a Result says exactly what can go wrong and callers can match on it. anyhow belongs only at the outermost binary edge. This rule has graduated: the no-anyhow-in-lib hook now enforces it deterministically at write time.
 
+## Do not silence an unused local with let _ =; use it, report it, or delete it [R:no-let-underscore-on-a-local]
+
+The compiler's unused-binding warning is a reader. It says that a value you went to the trouble of computing reaches nothing. `let _ = x;` exists to switch that reader off, and on a local it almost always switches it off at the moment it was right.
+
+It takes two shapes, and both compile clean under `-D warnings` while reading to a reviewer as a decision someone made:
+
+- **A distinction computed and dropped.** A flag is parsed, a mode is decoded, a config value is read -- and then discarded, so the cases it was meant to separate are silently handled as one.
+- **A failure caught and dropped.** `if let Err(e) = op() { let _ = e; continue; }` leaves no event anywhere; the failure happened, and nothing in the system can say so afterwards.
+
+When the warning fires, do one of three things. **Use the value** -- an unused distinction usually means a branch is missing, and the warning is pointing at it. **Report or propagate it** -- an error that is genuinely safe to ignore still gets a named event, or a comment saying why nobody downstream needs to know. **Or delete the code that computed it.** Where a binding is dead by design, such as the last assignment to a loop variable, restructure so the dead assignment does not happen rather than muting the warning over it.
+
+`let _ = f();` on a *call* is a different case: it discards a return value, which R:must-use-on-consequential-returns governs. This rule is about a local you already hold. R:guarantee-needs-a-reader relies on the compiler to catch unread bindings; `let _ =` is the one spelling it cannot see.
+
+Failure-mode check, whenever you are about to write `let _ = name;`: *what was this value computed to decide, and where does that decision now happen?* If the answer is "nowhere", the warning was right.
+
 ## No unwrap() in production code [R:no-unwrap-in-production]
 
 > Also enforced by hook:no-unwrap-in-src + hook:no-expect-empty-msg.
@@ -2277,4 +2313,4 @@ When a repository versions configuration that is meant to be shared, keep the se
 
 After moving or renaming a tracked file in a repository whose .gitignore is a whitelist, verify the file is still tracked before considering the change done. A whitelist ignore silently drops anything outside its re-included paths, so a relocation can remove a file from version control with no error and no diff line to notice. Run the repo's tracking/deploy verification as the gate: the failure mode is invisible precisely when you most assume the move was safe.
 
-<!-- relearn:generated v0.1.0 sha256=74a3f827aa053d350cc658ca94e6c0c29bbbd31bc08e19937f14b260f620d3b0 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=08a16f2e00593f0fc5d69dc660d3937b749f08c84d47341057802ae60820c553 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

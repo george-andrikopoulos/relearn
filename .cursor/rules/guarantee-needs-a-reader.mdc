@@ -6,18 +6,20 @@ alwaysApply: true
 
 # A stated guarantee names what enforces it, or is deleted [R:guarantee-needs-a-reader]
 
-> Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs is held by this instruction alone.
+> Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs; and, inside them, whether a named reader's input space covers what the claim ranges over -- the ledger check proves the artefact exists, not that it can see the failure is held by this instruction alone.
 
-> Has recurred 3 time(s) since it was written; most recently 2026-09-20.
+> Has recurred 4 time(s) since it was written; most recently 2026-09-26.
 
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
 
 A claim of completeness must also state what the check actually consumed. Not "verified", but "verified by grepping `model:` across N agent files" -- so the gap between the scope of the check and the scope of the claim is visible on the face of the entry rather than reconstructable only by rerunning it. Most false completeness claims are not lies; they are a narrow check reported in wide language.
 
+**A sampled reader's scope is its generator.** A property test, a fuzz target or a fixture suite reads exactly the inputs its generator can produce, which is usually far narrower than the name of the law it checks. Before citing one as the reader of a claim, set what the generator can reach -- roles, states, message kinds, error paths -- beside what the claim ranges over, and drill it: break the claim at a site the generator was not written around, and confirm the reader goes red. A reader whose input space does not contain the failure is not a reader of it, and naming it converts an open question into a closed one.
+
 **Error paths are where these hide.** A message asserting a state must be produced by *checking that state*, not by which branch printed it. The failure path is the one nobody exercises, so a confident sentence with nothing behind it survives there longest, and it is read at exactly the moment the reader is least able to question it. Ask of every error message: *did anything read the world before this printed?*
 
-Where a mechanical reader exists, use it and leave the prose to what it cannot see: an unread binding is already a hard error under a compiler run with warnings denied. What no linter can see is a true-looking sentence with nothing behind it, and that is what this rule is for.
+Where a mechanical reader exists, use it and leave the prose to what it cannot see: an unread binding is already a hard error under a compiler run with warnings denied -- unless it is handed to `let _ =`, which exists to switch that reader off (R:no-let-underscore-on-a-local). What no linter can see is a true-looking sentence with nothing behind it, and that is what this rule is for.
 
 The test: *what would have to be true for this sentence to be false, and what reads that?* R:wired-artifact is the neighbouring failure -- there a check exists and accepts forgeable evidence; here there is no check at all.
 
-<!-- relearn:generated v0.1.0 sha256=4cbf68d8cb102931b3c6da174b3ee12ed4aaf2bc8452318d5f7b6ac0e4bbced9 rules=R:guarantee-needs-a-reader -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=f3a799cb7dce286c307e4c3163e5a36139942b73f7d990551abce04b710dd2d6 rules=R:guarantee-needs-a-reader -- DO NOT EDIT; regenerate with `relearn build` -->

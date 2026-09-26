@@ -9,7 +9,7 @@ claude-pack/
 └── skills/
     ├── global/SKILL.md                          33 rules — every project, every language
     ├── domain-disclosure/SKILL.md                5 rules — what may leave for a public audience
-    ├── domain-rust/SKILL.md                     18 rules — the Rust type-driven discipline
+    ├── domain-rust/SKILL.md                     19 rules — the Rust type-driven discipline
     ├── domain-low-latency/SKILL.md              15 rules — latency-sensitive systems work
     ├── domain-java/SKILL.md                     13 rules — the Java language discipline
     ├── project-relearn/SKILL.md                  2 rules — the relearn repository

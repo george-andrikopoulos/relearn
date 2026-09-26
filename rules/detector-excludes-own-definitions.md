@@ -1,13 +1,17 @@
 +++
 tag = "R:detector-excludes-own-definitions"
 title = "A detector excludes its own definitions from its scan"
-error_class = "A check whose subject matter is text it must itself contain matching on its own source, comments, or documentation, so it is always red -- and an always-red check is muted, leaving the system looking guarded by something that no longer reports"
+error_class = "A check whose subject matter is text it must itself contain matching on its own source, comments, documentation or command line, so it is always red -- and an always-red check is muted, leaving the system looking guarded by something that no longer reports; or, where the corpus is the process table, a matcher that kills or waits on its own shell"
 home = { kind = "global" }
 created = "2026-07-22"
 origin = "mined"
 status = { kind = "active" }
 incident = "2026-07-22, twice within one hour. A model-reach detector flagged all six of the files it protected, because each contained the config-directory path the detector matched on. A deploy verifier flagged its own docstring, which described the pattern it was looking for. Neither found a real defect; both produced a red run that had to be reasoned past, which is the first step toward a run nobody reads. Ported into this library 2026-08-25."
 published_incident = "Twice within one hour, two detectors flagged themselves. One scanned for a configuration path and matched every file it was written to protect, because each of them contained that path. The other matched its own docstring, which described the pattern it was looking for. Neither found a real defect, and both produced a red run that had to be reasoned past — which is the first step toward a run nobody reads, and a muted check is worse than no check at all."
+
+[[recurrence]]
+date = "2026-09-26"
+incident = "fix-gateway close-out, three times in one session, in a corpus this rule's text never named: the process table. `pkill -f` with the pattern cargo fuzz, run inside `wsl.exe -- bash -lc '...'`, matched the bash process whose argv carried that same string and killed the shell running it, so the command printed nothing. An `until ! pgrep -f` wait loop on the fuzzer's binary path matched its own shell and could never finish; it hit a 300 s timeout long after the fuzzer had exited. Then a `pkill -f` written to stop that loop matched its own command line and killed itself too. The failure is not alarm fatigue here but a shell that kills itself or a wait that never ends -- the same shape, a matcher scanning a corpus that contains the matcher. The bracket idiom that defeats it was used correctly for `ps | grep` in the same session and not carried to pgrep or pkill, because the rule was read as being about files."
 +++
 
 Any check whose subject matter is text it must itself contain -- a linter, a secret scanner, a policy grep, a rules sweep -- matches itself by construction. Exclude the detector's own source, comments, and docstrings from its scan, strip comments before matching, and normalise paths to placeholders so documentation *about* a pattern is never read as an instance of it.
@@ -17,3 +21,5 @@ The reason is not tidiness. An always-red check gets muted, and a muted check is
 This extends past the detector's own file to anything that quotes the pattern for a legitimate reason. A correction note explaining that a bad string was removed, written with the bad string in it, becomes a permanent false positive in the very sweep it was written to satisfy -- so describe the string, do not reproduce it, and where reproduction is genuinely necessary put it somewhere the scan excludes by rule rather than by luck.
 
 Ask before shipping any scan: *does this check appear in its own corpus, and if so what does its output look like on a clean tree?* If the clean-tree output is not empty, the check does not yet work, however correct its logic.
+
+**The process table is a corpus too.** `pkill -f PAT`, `pgrep -f PAT` and `ps | grep PAT` match the full command line of every process -- including the shell running them, whose argv holds PAT verbatim whenever the command travels as a string: `bash -c`, `bash -lc`, `wsl.exe -- bash -lc`, `ssh host '...'`, and every agent tool that runs a command through a shell. There the harm is not alarm fatigue but a shell that kills itself, or a wait loop that waits on itself forever. Write the pattern so its own text cannot match it -- `[r]elease/frame` matches `release/frame` and not itself -- or match an exact process name with `pgrep -x`, or a PID you recorded when you started the process. The clean-tree question becomes: *before anything else is running, what does this matcher find?* If the answer is not nothing, it found itself.

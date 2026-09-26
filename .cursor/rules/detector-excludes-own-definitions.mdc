@@ -1,10 +1,12 @@
 ---
-description: A detector excludes its own definitions from its scan (A check whose subject matter is text it must itself contain matching on its own source, comments, or documentation, so it is always red -- and an always-red check is muted, leaving the system looking guarded by something that no longer reports)
+description: A detector excludes its own definitions from its scan (A check whose subject matter is text it must itself contain matching on its own source, comments, documentation or command line, so it is always red -- and an always-red check is muted, leaving the system looking guarded by something that no longer reports; or, where the corpus is the process table, a matcher that kills or waits on its own shell)
 globs: 
 alwaysApply: true
 ---
 
 # A detector excludes its own definitions from its scan [R:detector-excludes-own-definitions]
+
+> Has recurred 1 time(s) since it was written; most recently 2026-09-26.
 
 Any check whose subject matter is text it must itself contain -- a linter, a secret scanner, a policy grep, a rules sweep -- matches itself by construction. Exclude the detector's own source, comments, and docstrings from its scan, strip comments before matching, and normalise paths to placeholders so documentation *about* a pattern is never read as an instance of it.
 
@@ -14,4 +16,6 @@ This extends past the detector's own file to anything that quotes the pattern fo
 
 Ask before shipping any scan: *does this check appear in its own corpus, and if so what does its output look like on a clean tree?* If the clean-tree output is not empty, the check does not yet work, however correct its logic.
 
-<!-- relearn:generated v0.1.0 sha256=132e8aa547b9eacd4990a6f7cdd736e47868d571ba751aec091acd6dd7f71972 rules=R:detector-excludes-own-definitions -- DO NOT EDIT; regenerate with `relearn build` -->
+**The process table is a corpus too.** `pkill -f PAT`, `pgrep -f PAT` and `ps | grep PAT` match the full command line of every process -- including the shell running them, whose argv holds PAT verbatim whenever the command travels as a string: `bash -c`, `bash -lc`, `wsl.exe -- bash -lc`, `ssh host '...'`, and every agent tool that runs a command through a shell. There the harm is not alarm fatigue but a shell that kills itself, or a wait loop that waits on itself forever. Write the pattern so its own text cannot match it -- `[r]elease/frame` matches `release/frame` and not itself -- or match an exact process name with `pgrep -x`, or a PID you recorded when you started the process. The clean-tree question becomes: *before anything else is running, what does this matcher find?* If the answer is not nothing, it found itself.
+
+<!-- relearn:generated v0.1.0 sha256=8966185110fcc7adcc1e2dc7852c54606952c174f67dcb0167cbfad0cfff58d5 rules=R:detector-excludes-own-definitions -- DO NOT EDIT; regenerate with `relearn build` -->

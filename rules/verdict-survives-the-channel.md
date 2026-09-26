@@ -5,7 +5,7 @@ error_class = "A correct check's verdict lost between the check and the decision
 home = { kind = "global" }
 created = "2026-09-03"
 origin = "mined"
-status = { kind = "partial", by = "hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (shell edit half)", uncovered = "write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; and a verdict read from a side channel that is structurally incapable of carrying a failure", date = "2026-09-20" }
+status = { kind = "partial", by = "hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (multi-line shell edit patterns only)", uncovered = "write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; a verdict read from a side channel that is structurally incapable of carrying a failure; and every shell edit that is not a multi-line pattern -- a missing interpreter, a single-line substitution matching nothing, an edit chained with ; ahead of the run that verifies it -- plus a counting instrument never calibrated on a known answer", date = "2026-09-26" }
 incident = "Design-Architecture-Tool, 2026-09-02/03: roughly fifty runs of the project's single verification gate in one session, and not one of them unfiltered -- every invocation was `sh scripts/verify.sh 2>&1 | tail -N` or piped into grep. One run printed '[verify] BLOCKED -- failing gates:' followed by five named gates and came back reported as '[exited with code 0]', because the pipeline's status was tail's; `tail -3` had also cropped the BLOCKED header off the top, leaving three gate names that read like ordinary progress. Twice the shape was `verify.sh 2>&1 | tail -3 && git add -A`, where the && tests the filter, so staging proceeded whatever the gate had said. The same session carried the mirror image: a perl substitution whose \\Q...\\E inside a single-quoted shell argument searched for literal backslashes, matched nothing, exited zero and reported success -- twice, costing two changelog entries. The pushed tree was never at risk, because the pre-push hook execs the gate unfiltered; the damage was work continuing on a tree the gate had already rejected."
 published_incident = "A verification gate was run roughly fifty times in one session and not once unfiltered: every invocation piped it into a line-limiting filter. One run printed a BLOCKED verdict naming five failing gates and was reported as having exited zero, because a pipeline's status is its last stage's -- and the filter had cropped the verdict line off the top, leaving gate names that read like ordinary progress. Twice the filter sat between the gate and an && , so the step that followed tested the filter rather than the gate and proceeded regardless. The same class ran in the other direction in the same session: substitutions that matched nothing, exited zero, and left an edit believed to have landed unmade."
 
@@ -16,6 +16,10 @@ incident = "The rule was deployed in halves. The hook enforced the pipeline half
 [[recurrence]]
 date = "2026-09-20"
 incident = "Home Assistant heating config, and the reason this rule's status moved from graduated back to partial. Both hooks that graduated it read shell -- a pipeline's exit status and a multi-line edit pattern -- and the class recurred twice in one session on paths neither can see. First: automation.heating_trv_calibration_sync called number.set_value on six Zigbee valves every 30 minutes for over a week. Home Assistant returned success on every call and the automation trace was clean every time, while Zigbee2MQTT threw 'TypeError: Cannot read properties of undefined (reading to)' on every single write, because the device converter named a library symbol absent from the installed version and the expression resolved to undefined. Roughly 336 writes per valve, zero effect, and recorder showed not one calibration value changing in 168 hours. The caller-side return value reported dispatch, not effect -- an exit code by another name. Second, in the same session and found only by accident: the self-test result was read by querying the persistent_notification domain for an empty list, but notifications are not entities in that Home Assistant version, so the list is ALWAYS empty and the check could not have expressed a failure. It was caught only because a deliberate fault injection was expected to go red and appeared not to; the correct channel was the script trace's own last_step. Fixed by asserting outcomes: a new self-test assertion compares each valve's reported temperature with its room thermometer, and the converter is now defined inline so it cannot resolve to undefined."
+
+[[recurrence]]
+date = "2026-09-26"
+incident = "fix-gateway close-out, on shell paths neither hook parses. An edit and the run that verifies it were chained with a semicolon -- a Python heredoc falling back to a second Python heredoc, then `cargo test` on the property being widened -- on a machine with no Python. Both interpreters failed with one line each, the chain carried on, and the test exited 0: the unchanged law passing, one sentence from being reported as the widened law passing. Caught only because the widening was expected to fail and a read-back found the edit absent. The instrument half the same day: a count of lines containing a carriage return, written with a dollar-quoted pattern, reported 916 on a file holding none, because in this shell the pattern collapsed to the empty string and matched every line; a byte count with tr and wc said 0, and cat -A agreed. An exit code measured that a program ran, and a count measured that grep ran."
 +++
 
 Read a check's own verdict, never a status that merely travelled beside it.
@@ -44,6 +48,17 @@ filtered, make the pipeline report the gate -- enable pipefail, or read the firs
 status explicitly -- and never place a filter between a gate and an `&&`. After a command
 whose purpose is to change a file, verify the change by reading the file back, not the
 status the command returned.
+
+Never chain an edit and the run that depends on it with `;`. If the edit fails -- a
+missing interpreter, a pattern that matched nothing -- the run that follows certifies the
+tree as it was, and its green is the most convincing wrong answer available: the thing you
+expected to change passes because it did not change. Read back the property the edit was
+meant to establish before running anything that relies on it.
+
+The same holds for the instruments that read the verdict. A count is a program's output
+too: before trusting one to say a defect is absent, run it once on an input whose answer
+you know. A count that reports every line, or none, on a file you have not looked at is
+measuring the tool.
 
 Failure-mode check: **what does this exit code actually measure?** If the answer names
 the last stage of a pipeline, or names "the program ran" rather than "the work was done",

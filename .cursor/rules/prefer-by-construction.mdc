@@ -6,6 +6,10 @@ alwaysApply: true
 
 # Prefer by-construction impossibility over after-the-fact controls [R:prefer-by-construction]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-26.
+
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
 
-<!-- relearn:generated v0.1.0 sha256=6a1961ce03d3d515a7c364b86788e9bfc48b444154ba5becd5451b44939a6c6d rules=R:prefer-by-construction -- DO NOT EDIT; regenerate with `relearn build` -->
+**A convention followed everywhere is not construction.** When correctness needs two actions paired at every call site -- advance a counter then emit, acquire then release, validate then store -- and a new call site could do one without the other and still compile, the pairing is held by memory, however consistently it has been followed so far. Fold the pair into one function that does both, and make the unpaired half unreachable from outside it. Test: *could the next call site I write omit half of this and still compile?* If it could, the words "by construction" do not apply, and a comment using them is a guarantee with no reader (R:guarantee-needs-a-reader).
+
+<!-- relearn:generated v0.1.0 sha256=66e0e4c10927352cde1db4b664f211a3e0aaf3153dd44a1690aa8c1c98ef0300 rules=R:prefer-by-construction -- DO NOT EDIT; regenerate with `relearn build` -->

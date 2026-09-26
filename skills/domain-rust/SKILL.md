@@ -1,6 +1,6 @@
 ---
 name: domain-rust
-description: "Engineering discipline for working in rust. Covers: borrow in signatures; design types first; errors name what failed; module visibility is deliberate; must use on consequential returns; newtype liberally; parse dont validate; parse wide then range check; seal closed trait sets; typestate builder for required fields; typestate for protocols; verify the abstraction compiled away; xplat fixtures; async all the way; justify every clone; private fields only; no anyhow in libraries; no unwrap in production"
+description: "Engineering discipline for working in rust. Covers: borrow in signatures; design types first; errors name what failed; module visibility is deliberate; must use on consequential returns; newtype liberally; no let underscore on a local; parse dont validate; parse wide then range check; seal closed trait sets; typestate builder for required fields; typestate for protocols; verify the abstraction compiled away; xplat fixtures; async all the way; justify every clone; private fields only; no anyhow in libraries; no unwrap in production"
 ---
 
 # domain: rust rules
@@ -96,6 +96,21 @@ Give every domain concept its own type, even when the underlying representation 
 > Also enforced by hook:no-anyhow-in-lib.
 
 Library crates return typed error enums (thiserror), so a Result says exactly what can go wrong and callers can match on it. anyhow belongs only at the outermost binary edge. This rule has graduated: the no-anyhow-in-lib hook now enforces it deterministically at write time.
+
+## Do not silence an unused local with let _ =; use it, report it, or delete it [R:no-let-underscore-on-a-local]
+
+The compiler's unused-binding warning is a reader. It says that a value you went to the trouble of computing reaches nothing. `let _ = x;` exists to switch that reader off, and on a local it almost always switches it off at the moment it was right.
+
+It takes two shapes, and both compile clean under `-D warnings` while reading to a reviewer as a decision someone made:
+
+- **A distinction computed and dropped.** A flag is parsed, a mode is decoded, a config value is read -- and then discarded, so the cases it was meant to separate are silently handled as one.
+- **A failure caught and dropped.** `if let Err(e) = op() { let _ = e; continue; }` leaves no event anywhere; the failure happened, and nothing in the system can say so afterwards.
+
+When the warning fires, do one of three things. **Use the value** -- an unused distinction usually means a branch is missing, and the warning is pointing at it. **Report or propagate it** -- an error that is genuinely safe to ignore still gets a named event, or a comment saying why nobody downstream needs to know. **Or delete the code that computed it.** Where a binding is dead by design, such as the last assignment to a loop variable, restructure so the dead assignment does not happen rather than muting the warning over it.
+
+`let _ = f();` on a *call* is a different case: it discards a return value, which R:must-use-on-consequential-returns governs. This rule is about a local you already hold. R:guarantee-needs-a-reader relies on the compiler to catch unread bindings; `let _ =` is the one spelling it cannot see.
+
+Failure-mode check, whenever you are about to write `let _ = name;`: *what was this value computed to decide, and where does that decision now happen?* If the answer is "nowhere", the warning was right.
 
 ## No unwrap() in production code [R:no-unwrap-in-production]
 
@@ -212,4 +227,4 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=cf2ef5964c2d18f0c51e2b373b1dc36f3776a134276d186b3f99579ca673f8f1 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=389b8e7fb476a272f6b1eda6abe8aaebe97da2695b3d67e9b8e26f91d5ec4f19 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

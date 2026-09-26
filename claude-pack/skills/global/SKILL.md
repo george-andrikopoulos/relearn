@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; signal needs a consequence; verify through production path; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; detector excludes own definitions; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; prefer by construction; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; definition of done every change; money is not a float; case collision"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; detector excludes own definitions; doc currency; no silent spend; prefer by construction; signal needs a consequence; verify through production path; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; definition of done every change; money is not a float; case collision"
 ---
 
 # global rules
@@ -124,6 +124,8 @@ for either reason is falsifiable by nothing.
 
 ## A detector excludes its own definitions from its scan [R:detector-excludes-own-definitions]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-26.
+
 Any check whose subject matter is text it must itself contain -- a linter, a secret scanner, a policy grep, a rules sweep -- matches itself by construction. Exclude the detector's own source, comments, and docstrings from its scan, strip comments before matching, and normalise paths to placeholders so documentation *about* a pattern is never read as an instance of it.
 
 The reason is not tidiness. An always-red check gets muted, and a muted check is worse than no check, because the system still looks guarded. Alarm fatigue is negative value, not neutral: it spends the attention that a real finding will need, and it trains the reader to skip exactly the output that will one day matter.
@@ -131,6 +133,8 @@ The reason is not tidiness. An always-red check gets muted, and a muted check is
 This extends past the detector's own file to anything that quotes the pattern for a legitimate reason. A correction note explaining that a bad string was removed, written with the bad string in it, becomes a permanent false positive in the very sweep it was written to satisfy -- so describe the string, do not reproduce it, and where reproduction is genuinely necessary put it somewhere the scan excludes by rule rather than by luck.
 
 Ask before shipping any scan: *does this check appear in its own corpus, and if so what does its output look like on a clean tree?* If the clean-tree output is not empty, the check does not yet work, however correct its logic.
+
+**The process table is a corpus too.** `pkill -f PAT`, `pgrep -f PAT` and `ps | grep PAT` match the full command line of every process -- including the shell running them, whose argv holds PAT verbatim whenever the command travels as a string: `bash -c`, `bash -lc`, `wsl.exe -- bash -lc`, `ssh host '...'`, and every agent tool that runs a command through a shell. There the harm is not alarm fatigue but a shell that kills itself, or a wait loop that waits on itself forever. Write the pattern so its own text cannot match it -- `[r]elease/frame` matches `release/frame` and not itself -- or match an exact process name with `pgrep -x`, or a PID you recorded when you started the process. The clean-tree question becomes: *before anything else is running, what does this matcher find?* If the answer is not nothing, it found itself.
 
 ## Update the doc in the same change as the thing it describes [R:doc-currency]
 
@@ -180,17 +184,19 @@ Do not duplicate domain rules into the project layer. Reference them. A rule sta
 
 ## A stated guarantee names what enforces it, or is deleted [R:guarantee-needs-a-reader]
 
-> Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs is held by this instruction alone.
+> Partly enforced by test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed + test:tests/pack_counts.rs; any guarantee stated outside FEATURES.md and the pack READMEs; and, inside them, whether a named reader's input space covers what the claim ranges over -- the ledger check proves the artefact exists, not that it can see the failure is held by this instruction alone.
 
-> Has recurred 3 time(s) since it was written; most recently 2026-09-20.
+> Has recurred 4 time(s) since it was written; most recently 2026-09-26.
 
 Every safety claim in prose names the line, test, or check that enforces it -- or the sentence is deleted. A guarantee with no reader is worse than no guarantee, because it is read as coverage and it ends the inquiry.
 
 A claim of completeness must also state what the check actually consumed. Not "verified", but "verified by grepping `model:` across N agent files" -- so the gap between the scope of the check and the scope of the claim is visible on the face of the entry rather than reconstructable only by rerunning it. Most false completeness claims are not lies; they are a narrow check reported in wide language.
 
+**A sampled reader's scope is its generator.** A property test, a fuzz target or a fixture suite reads exactly the inputs its generator can produce, which is usually far narrower than the name of the law it checks. Before citing one as the reader of a claim, set what the generator can reach -- roles, states, message kinds, error paths -- beside what the claim ranges over, and drill it: break the claim at a site the generator was not written around, and confirm the reader goes red. A reader whose input space does not contain the failure is not a reader of it, and naming it converts an open question into a closed one.
+
 **Error paths are where these hide.** A message asserting a state must be produced by *checking that state*, not by which branch printed it. The failure path is the one nobody exercises, so a confident sentence with nothing behind it survives there longest, and it is read at exactly the moment the reader is least able to question it. Ask of every error message: *did anything read the world before this printed?*
 
-Where a mechanical reader exists, use it and leave the prose to what it cannot see: an unread binding is already a hard error under a compiler run with warnings denied. What no linter can see is a true-looking sentence with nothing behind it, and that is what this rule is for.
+Where a mechanical reader exists, use it and leave the prose to what it cannot see: an unread binding is already a hard error under a compiler run with warnings denied -- unless it is handed to `let _ =`, which exists to switch that reader off (R:no-let-underscore-on-a-local). What no linter can see is a true-looking sentence with nothing behind it, and that is what this rule is for.
 
 The test: *what would have to be true for this sentence to be false, and what reads that?* R:wired-artifact is the neighbouring failure -- there a check exists and accepts forgeable evidence; here there is no check at all.
 
@@ -344,7 +350,11 @@ at the consuming end instead. A repository can satisfy either and fail the other
 
 ## Prefer by-construction impossibility over after-the-fact controls [R:prefer-by-construction]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-09-26.
+
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.
+
+**A convention followed everywhere is not construction.** When correctness needs two actions paired at every call site -- advance a counter then emit, acquire then release, validate then store -- and a new call site could do one without the other and still compile, the pairing is held by memory, however consistently it has been followed so far. Fold the pair into one function that does both, and make the unpaired half unreachable from outside it. Test: *could the next call site I write omit half of this and still compile?* If it could, the words "by construction" do not apply, and a comment using them is a guarantee with no reader (R:guarantee-needs-a-reader).
 
 ## Every dependency is priced in the decisions log, and so is every dependency refused [R:price-every-dependency]
 
@@ -533,9 +543,9 @@ prevents *describing* what does not.
 
 ## A check's verdict reaches the decision intact, or the check did not run [R:verdict-survives-the-channel]
 
-> Partly enforced by hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (shell edit half); write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; and a verdict read from a side channel that is structurally incapable of carrying a failure is held by this instruction alone.
+> Partly enforced by hook:gate-verdict-intact (shell pipeline half) + hook:multiline-pattern-eol (multi-line shell edit patterns only); write paths that are not shell commands -- an API or service call whose caller-side return value reports dispatch rather than effect; a verdict read from a side channel that is structurally incapable of carrying a failure; and every shell edit that is not a multi-line pattern -- a missing interpreter, a single-line substitution matching nothing, an edit chained with ; ahead of the run that verifies it -- plus a counting instrument never calibrated on a known answer is held by this instruction alone.
 
-> Has recurred 2 time(s) since it was written; most recently 2026-09-20.
+> Has recurred 3 time(s) since it was written; most recently 2026-09-26.
 
 Read a check's own verdict, never a status that merely travelled beside it.
 
@@ -564,6 +574,17 @@ status explicitly -- and never place a filter between a gate and an `&&`. After 
 whose purpose is to change a file, verify the change by reading the file back, not the
 status the command returned.
 
+Never chain an edit and the run that depends on it with `;`. If the edit fails -- a
+missing interpreter, a pattern that matched nothing -- the run that follows certifies the
+tree as it was, and its green is the most convincing wrong answer available: the thing you
+expected to change passes because it did not change. Read back the property the edit was
+meant to establish before running anything that relies on it.
+
+The same holds for the instruments that read the verdict. A count is a program's output
+too: before trusting one to say a defect is absent, run it once on an input whose answer
+you know. A count that reports every line, or none, on a file you have not looked at is
+measuring the tool.
+
 Failure-mode check: **what does this exit code actually measure?** If the answer names
 the last stage of a pipeline, or names "the program ran" rather than "the work was done",
 there is no evidence yet.
@@ -584,4 +605,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=ca8ddd1e0e03668731ff65bc19a86eda0b00357d7a5d117314f608d85664f693 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=ce727f3eb3f9eaaafbc64927ca5493405c37ceef519d6c624b64ce15b884646d rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
