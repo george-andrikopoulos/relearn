@@ -5,7 +5,7 @@ error_class = "A check whose subject matter is text it must itself contain match
 home = { kind = "global" }
 created = "2026-07-22"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:no-self-matching-pkill (pkill -f and pgrep -f in a Bash or PowerShell command string, judged by matching the pattern against the command's own text)", uncovered = "the rule's original half -- a scan over files matching its own source, comments or docs; ps | grep; a pattern taken from a variable; a matcher inside a script file rather than a command string", date = "2026-09-26" }
 incident = "2026-07-22, twice within one hour. A model-reach detector flagged all six of the files it protected, because each contained the config-directory path the detector matched on. A deploy verifier flagged its own docstring, which described the pattern it was looking for. Neither found a real defect; both produced a red run that had to be reasoned past, which is the first step toward a run nobody reads. Ported into this library 2026-08-25."
 published_incident = "Twice within one hour, two detectors flagged themselves. One scanned for a configuration path and matched every file it was written to protect, because each of them contained that path. The other matched its own docstring, which described the pattern it was looking for. Neither found a real defect, and both produced a red run that had to be reasoned past — which is the first step toward a run nobody reads, and a muted check is worse than no check at all."
 
