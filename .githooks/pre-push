@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# pre-push — refuse to publish a private name, or a monetary float.
+# pre-push — refuse to publish a private name, to leave this machine's layers
+# stale, or a monetary float.
 #
-# Two gates, both attached here rather than to a command somebody must remember
+# Three gates, all attached here rather than to a command somebody must remember
 # to type (`[R:signal-needs-a-consequence]`). The first is about publication and
-# could live nowhere else; the second is the interim control for
+# could live nowhere else; the second runs only where a downstream layer check
+# exists (see Gate 2); the third is the interim control for
 # `[R:money-is-not-a-float]` and is here because the push is the event that
-# happens anyway. BOTH must pass; the first to fail refuses the push.
+# happens anyway. ALL must pass; the first to fail refuses the push.
 #
 # This repository is public and quotes private working sessions verbatim: a
 # rule's `incident` field, and TODO.md's narration of the same material. The
@@ -53,7 +55,47 @@ case "$status" in
         ;;
 esac
 
-# --- Gate 2: no monetary quantity in binary floating point -------------------
+# --- Gate 2: a machine that loads this corpus is not left behind by it --------
+#
+# `[R:signal-needs-a-consequence]`. A commit here changes what every assistant
+# on a machine is told -- but only once the generated layers are rebuilt, and
+# nothing on this side ever asked whether they had been. On 2026-09-21 a rule
+# commit left one machine's global skill stale for five days: its downstream
+# gate fired only when THAT repository was pushed, and nobody pushed it.
+#
+# So the push of the corpus asks the downstream check directly. The check is
+# the downstream's own script, named by RELEARN_DOWNSTREAM_CHECK and defaulting
+# to the stochos-lab layer check under ~/.claude. A clone with no such script
+# has no downstream on this machine, and the gate stays silent: it is a
+# consumer's check, not a property of the corpus, and a fork must not inherit
+# a refusal it cannot satisfy. Its exit contract is the script's own:
+# 0 in sync / 1 drifted / 2 cannot check.
+
+DOWNSTREAM="${RELEARN_DOWNSTREAM_CHECK:-$HOME/.claude/scripts/verify-relearn-layers.sh}"
+
+if [ -f "$DOWNSTREAM" ]; then
+    out=$(RELEARN_RULES="$ROOT/rules" bash "$DOWNSTREAM" 2>&1)
+    status=$?
+    case "$status" in
+        0) ;;
+        1)
+            echo "[pre-push] BLOCKED: this machine's generated layers are stale against" >&2
+            echo "[pre-push] the corpus being pushed:" >&2
+            printf '%s\n' "$out" | sed 's/^/[pre-push]   /' >&2
+            echo "[pre-push] Rebuild them, refresh what reads them, commit there, then push:" >&2
+            echo "[pre-push]   relearn build --rules rules --targets claude --out ~/.claude" >&2
+            echo "[pre-push]   relearn build --rules rules --targets claude-rules --home domain-rust --out ~" >&2
+            echo "[pre-push]   bash ~/.claude/scripts/mine-rules.sh && bash ~/.claude/scripts/export-cowork-bundle.sh" >&2
+            exit 1
+            ;;
+        *)
+            echo "[pre-push] note: the downstream layer check could not run (exit $status);" >&2
+            echo "[pre-push] the corpus push proceeds, the layers are unverified." >&2
+            ;;
+    esac
+fi
+
+# --- Gate 3: no monetary quantity in binary floating point -------------------
 #
 # `[R:money-is-not-a-float]`. Its real subject is a financial application's
 # source, not this tree, so the script takes roots and is meant to be copied

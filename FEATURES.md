@@ -1244,6 +1244,24 @@ available. `ARCHITECTURE.md` carries the decision, including the premise that ha
 first: `global` is **not** in the always-loaded rules layer, so its description was already the
 only route into a session, and splitting costs nothing.
 
+### A corpus push asks whether this machine's layers kept up (added 2026-09-27)
+
+**What.** Pushing the corpus runs the downstream layer check, if this machine has
+one, against the rules being pushed, and refuses the push when the generated
+layers that machine loads are stale — printing the rebuild commands. On
+2026-09-21 a rule commit left one machine's global skill stale for five days,
+because the downstream gate fired only when *that* repository was pushed.
+
+**Configuration-dependent, deliberately.** The check is the downstream's own
+script, `RELEARN_DOWNSTREAM_CHECK` or by default the stochos-lab layer check
+under `~/.claude`. Where it does not exist the gate is silent — a fork has no
+downstream on its machine, and must not inherit a refusal it cannot satisfy.
+"Cannot check" (exit 2) is printed as a note and the push proceeds, unverified.
+
+**Enforced by:** `.githooks/pre-push`, Gate 2. Probed on all four paths against
+the real tree on 2026-09-27: stale layers blocked (the live state at the time),
+in sync passed, no downstream script silent, cannot-check noted.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.

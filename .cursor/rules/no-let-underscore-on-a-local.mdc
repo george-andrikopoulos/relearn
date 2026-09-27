@@ -13,10 +13,10 @@ It takes two shapes, and both compile clean under `-D warnings` while reading to
 - **A distinction computed and dropped.** A flag is parsed, a mode is decoded, a config value is read -- and then discarded, so the cases it was meant to separate are silently handled as one.
 - **A failure caught and dropped.** `if let Err(e) = op() { let _ = e; continue; }` leaves no event anywhere; the failure happened, and nothing in the system can say so afterwards.
 
-When the warning fires, do one of three things. **Use the value** -- an unused distinction usually means a branch is missing, and the warning is pointing at it. **Report or propagate it** -- an error that is genuinely safe to ignore still gets a named event, or a comment saying why nobody downstream needs to know. **Or delete the code that computed it.** Where a binding is dead by design, such as the last assignment to a loop variable, restructure so the dead assignment does not happen rather than muting the warning over it.
+When the warning fires, do one of three things. **Use the value** -- an unused distinction usually means a branch is missing, and the warning is pointing at it. **Report or propagate it** -- an error that is genuinely safe to ignore still gets a named event, or a comment saying why nobody downstream needs to know. **Or delete the code that computed it.** Where a binding is dead by design, such as the last assignment to a loop variable, rewrite the loop so the dead assignment never happens rather than muting the warning over it.
 
 `let _ = f();` on a *call* is a different case: it discards a return value, which R:must-use-on-consequential-returns governs. This rule is about a local you already hold. R:guarantee-needs-a-reader relies on the compiler to catch unread bindings; `let _ =` is the one spelling it cannot see.
 
 Failure-mode check, whenever you are about to write `let _ = name;`: *what was this value computed to decide, and where does that decision now happen?* If the answer is "nowhere", the warning was right.
 
-<!-- relearn:generated v0.1.0 sha256=ebf82d5e3428aa8db978d0376502e7976e108146e3de6ffe078bfcd5e54f40d6 rules=R:no-let-underscore-on-a-local -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=2c66a8b7242079008680f836b9afb697162cf0dca02a6f9ad82707f55fe0ca90 rules=R:no-let-underscore-on-a-local -- DO NOT EDIT; regenerate with `relearn build` -->
