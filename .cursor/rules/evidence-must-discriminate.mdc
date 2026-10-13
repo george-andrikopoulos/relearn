@@ -1,0 +1,32 @@
+---
+description: Name the rival hypothesis before calling one confirmed (An observation that both a hypothesis and its rival predict is taken as confirmation, and the unearned conclusion is written into decisions and documents before the discriminating measurement is taken)
+globs: 
+alwaysApply: true
+---
+
+# Name the rival hypothesis before calling one confirmed [R:evidence-must-discriminate]
+
+Before calling a hypothesis confirmed, name its rival and check the evidence tells them apart.
+
+An observation supports a hypothesis only to the extent that it would have come out
+differently if the hypothesis were false. Evidence that both explanations predict is not
+evidence for either, however neatly it fits the one you are holding. The trap is that a
+fitting observation feels like confirmation, and the feeling arrives before anyone asks
+what else would have produced it.
+
+So when a result seems to settle a question, write down the most plausible rival
+explanation — "it ignores the setting", "load also dropped", "the test passed before the
+fix too" — and ask what each predicts for this observation. If they predict the same
+thing, the question is still open: say so, and find the measurement on which they
+disagree before anything is marked kept, fixed or confirmed. That measurement is usually
+the one you have not yet taken because it needs waiting for — the next night, the next
+load, the case that was not exercised.
+
+This matters most when the conclusion is about to be written down. A claim recorded in
+a decision log, a contract or several documents acquires authority it never earned, and
+`[R:repair-the-lying-artefact]` then has to undo it everywhere.
+
+Failure-mode check: **what does the rival hypothesis predict for exactly this
+observation?** If the answer is "the same", you have not confirmed anything yet.
+
+<!-- relearn:generated v0.1.0 sha256=6e9effc8304b30de3327c8b53d68f3b925d4dd4229cf348ab6806fe9a04f239b rules=R:evidence-must-discriminate -- DO NOT EDIT; regenerate with `relearn build` -->

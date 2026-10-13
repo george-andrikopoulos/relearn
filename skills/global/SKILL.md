@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; prefer by construction; signal needs a consequence; verify through production path; detector excludes own definitions; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; definition of done every change; money is not a float; case collision"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; prefer by construction; signal needs a consequence; verify through production path; detector excludes own definitions; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; diff against the known good state; evidence must discriminate; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; definition of done every change; money is not a float; case collision"
 ---
 
 # global rules
@@ -138,6 +138,30 @@ Ask before shipping any scan: *does this check appear in its own corpus, and if 
 
 **The process table is a corpus too.** `pkill -f PAT`, `pgrep -f PAT` and `ps | grep PAT` match the full command line of every process -- including the shell running them, whose argv holds PAT verbatim whenever the command travels as a string: `bash -c`, `bash -lc`, `wsl.exe -- bash -lc`, `ssh host '...'`, and every agent tool that runs a command through a shell. There the harm is not alarm fatigue but a shell that kills itself, or a wait loop that waits on itself forever. Write the pattern so its own text cannot match it -- `[r]elease/frame` matches `release/frame` and not itself -- or match an exact process name with `pgrep -x`, or a PID you recorded when you started the process. The clean-tree question becomes: *before anything else is running, what does this matcher find?* If the answer is not nothing, it found itself.
 
+## When something used to work, test what changed since then first [R:diff-against-the-known-good-state]
+
+When something used to work, find what changed since then and test that first.
+
+A regression has a known-good state behind it, and that state is the most valuable fact
+in the diagnosis: everything that did not change between it and now is, for this
+symptom, already exonerated. Tuning the parts that stayed the same spends effort where
+the evidence says the fault is not, and each plausible tweak that half-helps makes the
+search longer, because it looks like progress.
+
+So before adjusting anything, write down the differences between the working
+configuration and the failing one — hardware, settings, versions, controllers, people,
+weather — and rank them by how cheaply each can be neutralised. Then run the cheapest
+experiment that recreates the known-good state for one difference at a time: revert it,
+bypass it, or force it to the old behaviour. One such experiment can retire a whole
+family of theories that tuning would only ever nibble at.
+
+If the owner volunteers a known-good state ("it worked with the old thermostat", "it was
+fine before the upgrade"), treat it as the starting map, not as background.
+
+Failure-mode check: **what is different from when it worked, and have I tested
+neutralising that difference?** If the honest answer is "I have been adjusting things
+that were the same then", stop and run the diff experiment first.
+
 ## Update the doc in the same change as the thing it describes [R:doc-currency]
 
 > Has recurred 1 time(s) since it was written; most recently 2026-09-13.
@@ -155,6 +179,31 @@ That sibling was named here in prose rather than by tag from 2026-08-16 until
 this rule used to carry -- and a real citation would have dangled. It was ported
 into this library on 2026-08-25, so the citation above is now a live reference
 and this paragraph is the record of why it was not one before.
+
+## Name the rival hypothesis before calling one confirmed [R:evidence-must-discriminate]
+
+Before calling a hypothesis confirmed, name its rival and check the evidence tells them apart.
+
+An observation supports a hypothesis only to the extent that it would have come out
+differently if the hypothesis were false. Evidence that both explanations predict is not
+evidence for either, however neatly it fits the one you are holding. The trap is that a
+fitting observation feels like confirmation, and the feeling arrives before anyone asks
+what else would have produced it.
+
+So when a result seems to settle a question, write down the most plausible rival
+explanation — "it ignores the setting", "load also dropped", "the test passed before the
+fix too" — and ask what each predicts for this observation. If they predict the same
+thing, the question is still open: say so, and find the measurement on which they
+disagree before anything is marked kept, fixed or confirmed. That measurement is usually
+the one you have not yet taken because it needs waiting for — the next night, the next
+load, the case that was not exercised.
+
+This matters most when the conclusion is about to be written down. A claim recorded in
+a decision log, a contract or several documents acquires authority it never earned, and
+`[R:repair-the-lying-artefact]` then has to undo it everywhere.
+
+Failure-mode check: **what does the rival hypothesis predict for exactly this
+observation?** If the answer is "the same", you have not confirmed anything yet.
 
 ## Every feature-ledger entry names the artefact that enforces it, or declares itself exposed [R:features-ledger-names-its-artefact]
 
@@ -607,4 +656,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=6dcbab1f99385955ef80d2330e117b2e41fb2101a4946fcc376e6421fc5f5e43 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=8c83ee69a590b403c66a66dc29c161ae3ce52515618094f0b52a0d6a7d9b5adb rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->

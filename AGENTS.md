@@ -133,6 +133,30 @@ Ask before shipping any scan: *does this check appear in its own corpus, and if 
 
 **The process table is a corpus too.** `pkill -f PAT`, `pgrep -f PAT` and `ps | grep PAT` match the full command line of every process -- including the shell running them, whose argv holds PAT verbatim whenever the command travels as a string: `bash -c`, `bash -lc`, `wsl.exe -- bash -lc`, `ssh host '...'`, and every agent tool that runs a command through a shell. There the harm is not alarm fatigue but a shell that kills itself, or a wait loop that waits on itself forever. Write the pattern so its own text cannot match it -- `[r]elease/frame` matches `release/frame` and not itself -- or match an exact process name with `pgrep -x`, or a PID you recorded when you started the process. The clean-tree question becomes: *before anything else is running, what does this matcher find?* If the answer is not nothing, it found itself.
 
+## When something used to work, test what changed since then first [R:diff-against-the-known-good-state]
+
+When something used to work, find what changed since then and test that first.
+
+A regression has a known-good state behind it, and that state is the most valuable fact
+in the diagnosis: everything that did not change between it and now is, for this
+symptom, already exonerated. Tuning the parts that stayed the same spends effort where
+the evidence says the fault is not, and each plausible tweak that half-helps makes the
+search longer, because it looks like progress.
+
+So before adjusting anything, write down the differences between the working
+configuration and the failing one — hardware, settings, versions, controllers, people,
+weather — and rank them by how cheaply each can be neutralised. Then run the cheapest
+experiment that recreates the known-good state for one difference at a time: revert it,
+bypass it, or force it to the old behaviour. One such experiment can retire a whole
+family of theories that tuning would only ever nibble at.
+
+If the owner volunteers a known-good state ("it worked with the old thermostat", "it was
+fine before the upgrade"), treat it as the starting map, not as background.
+
+Failure-mode check: **what is different from when it worked, and have I tested
+neutralising that difference?** If the honest answer is "I have been adjusting things
+that were the same then", stop and run the diff experiment first.
+
 ## Update the doc in the same change as the thing it describes [R:doc-currency]
 
 > Has recurred 1 time(s) since it was written; most recently 2026-09-13.
@@ -150,6 +174,31 @@ That sibling was named here in prose rather than by tag from 2026-08-16 until
 this rule used to carry -- and a real citation would have dangled. It was ported
 into this library on 2026-08-25, so the citation above is now a live reference
 and this paragraph is the record of why it was not one before.
+
+## Name the rival hypothesis before calling one confirmed [R:evidence-must-discriminate]
+
+Before calling a hypothesis confirmed, name its rival and check the evidence tells them apart.
+
+An observation supports a hypothesis only to the extent that it would have come out
+differently if the hypothesis were false. Evidence that both explanations predict is not
+evidence for either, however neatly it fits the one you are holding. The trap is that a
+fitting observation feels like confirmation, and the feeling arrives before anyone asks
+what else would have produced it.
+
+So when a result seems to settle a question, write down the most plausible rival
+explanation — "it ignores the setting", "load also dropped", "the test passed before the
+fix too" — and ask what each predicts for this observation. If they predict the same
+thing, the question is still open: say so, and find the measurement on which they
+disagree before anything is marked kept, fixed or confirmed. That measurement is usually
+the one you have not yet taken because it needs waiting for — the next night, the next
+load, the case that was not exercised.
+
+This matters most when the conclusion is about to be written down. A claim recorded in
+a decision log, a contract or several documents acquires authority it never earned, and
+`[R:repair-the-lying-artefact]` then has to undo it everywhere.
+
+Failure-mode check: **what does the rival hypothesis predict for exactly this
+observation?** If the answer is "the same", you have not confirmed anything yet.
 
 ## Every feature-ledger entry names the artefact that enforces it, or declares itself exposed [R:features-ledger-names-its-artefact]
 
@@ -2321,4 +2370,4 @@ Failure-mode check: *what did this correct change quietly stop tracking?*
 
 (Clause recovered 2026-09-27. It survived only in the rules ledger's 2026-07-22 entry, in neither rule home, until the 2026-08-16 audit found it and the port to this corpus did not carry it.)
 
-<!-- relearn:generated v0.1.0 sha256=21606ab0621fbc1c97cb8fac025136239ca7219c6303b996f9fdcefa0e9273a2 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:doc-currency,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=5fedaf98479114db1e00aaec3878d12f59883c8398333990509d9733d6b99cd7 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

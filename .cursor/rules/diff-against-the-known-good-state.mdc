@@ -1,0 +1,31 @@
+---
+description: When something used to work, test what changed since then first (A regression diagnosed by tuning parts that did not change since the known-good state, while the actual difference goes untested; each half-helping tweak looks like progress and lengthens the search)
+globs: 
+alwaysApply: true
+---
+
+# When something used to work, test what changed since then first [R:diff-against-the-known-good-state]
+
+When something used to work, find what changed since then and test that first.
+
+A regression has a known-good state behind it, and that state is the most valuable fact
+in the diagnosis: everything that did not change between it and now is, for this
+symptom, already exonerated. Tuning the parts that stayed the same spends effort where
+the evidence says the fault is not, and each plausible tweak that half-helps makes the
+search longer, because it looks like progress.
+
+So before adjusting anything, write down the differences between the working
+configuration and the failing one — hardware, settings, versions, controllers, people,
+weather — and rank them by how cheaply each can be neutralised. Then run the cheapest
+experiment that recreates the known-good state for one difference at a time: revert it,
+bypass it, or force it to the old behaviour. One such experiment can retire a whole
+family of theories that tuning would only ever nibble at.
+
+If the owner volunteers a known-good state ("it worked with the old thermostat", "it was
+fine before the upgrade"), treat it as the starting map, not as background.
+
+Failure-mode check: **what is different from when it worked, and have I tested
+neutralising that difference?** If the honest answer is "I have been adjusting things
+that were the same then", stop and run the diff experiment first.
+
+<!-- relearn:generated v0.1.0 sha256=4f7a263c78aa45f6333b8b7bc021483a95cd5003c8a38896014e5ed13fd49561 rules=R:diff-against-the-known-good-state -- DO NOT EDIT; regenerate with `relearn build` -->
