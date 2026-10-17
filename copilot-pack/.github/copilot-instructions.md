@@ -1,5 +1,41 @@
 # Copilot instructions
 
+## Keep a check's trust anchor out of reach of the party it checks [R:anchor-outside-the-checked-partys-reach]
+
+Every check that protects something against a party compares that party's input with an
+anchor: a public key, an allow-list, a permission, a policy, a hash-chain head. The check
+is only as strong as the anchor's position. If the party being checked can write the
+anchor, the check verifies the adversary against the adversary's own data, and it passes
+for them exactly as it passes for you.
+
+So before trusting any such check, ask: *who can write the thing it compares against, and
+is the checked party among them?* Trace write access by every path, not by the one the API
+offers. A table the surface has no endpoint for is still writable by any process that can
+open the file; a config file is writable by anything running as the same user; a value a
+plugin stores in its own namespace is the plugin's to change. If the checked party can
+reach the anchor by any path, the guarantee is not held, however correct the cryptography
+or the comparison.
+
+Put the anchor where the checked party cannot reach it: in hardware (a TPM-held key
+read from the device), in a separate trust domain, in a signed or out-of-band source, or
+compiled into the binary the checked party does not control. Where no such place exists
+yet, say in the threat model which parties the check does not stop, rather than letting
+the check imply it stops them.
+
+The tell is a guarantee stated in the form "X cannot do Y because Z is verified": check
+where Z's reference value lives before writing the sentence. A claim of unforgeability is a
+claim about write access to the anchor, and it is false whenever that write access was not
+traced.
+
+This is the security-design sibling of `[R:wired-artifact]`: that rule catches a check
+accepting evidence anything can produce; this one catches a check whose reference value
+anything the check is aimed at can produce. Same family as `[R:guarantee-needs-a-reader]`
+and `[R:check-the-claim-you-inherit]`: a stated guarantee with no traced basis.
+
+Failure-mode check: **can the party this check constrains write, by any path, the value
+the check compares against?** If yes, or if you have not traced it, the check is not yet a
+control.
+
 ## Check for a case-differing sibling before creating a file [R:case-collision]
 
 > Also enforced by hook:no-case-collision.
@@ -2370,4 +2406,4 @@ Failure-mode check: *what did this correct change quietly stop tracking?*
 
 (Clause recovered 2026-09-27. It survived only in the rules ledger's 2026-07-22 entry, in neither rule home, until the 2026-08-16 audit found it and the port to this corpus did not carry it.)
 
-<!-- relearn:generated v0.1.0 sha256=44a5ec32720afb434cc0574c96f74616039868bea0d010d5253becbd5f9dda17 rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=9f6d0b940579bf5ba2465ea2b204f1174c3b30fe38972520b2475c68a8c63207 rules=R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -1,9 +1,45 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; prefer by construction; signal needs a consequence; verify through production path; detector excludes own definitions; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; diff against the known good state; evidence must discriminate; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; definition of done every change; money is not a float; case collision"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; doc currency; no silent spend; prefer by construction; signal needs a consequence; verify through production path; detector excludes own definitions; anchor outside the checked partys reach; check the claim you inherit; claude md recreates the project; decisions log records rejected alternatives; delegate a fan out; diff against the known good state; evidence must discriminate; features ledger names its artefact; five files no more; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; repair the lying artefact; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; +3 more"
 ---
 
 # global rules
+
+## Keep a check's trust anchor out of reach of the party it checks [R:anchor-outside-the-checked-partys-reach]
+
+Every check that protects something against a party compares that party's input with an
+anchor: a public key, an allow-list, a permission, a policy, a hash-chain head. The check
+is only as strong as the anchor's position. If the party being checked can write the
+anchor, the check verifies the adversary against the adversary's own data, and it passes
+for them exactly as it passes for you.
+
+So before trusting any such check, ask: *who can write the thing it compares against, and
+is the checked party among them?* Trace write access by every path, not by the one the API
+offers. A table the surface has no endpoint for is still writable by any process that can
+open the file; a config file is writable by anything running as the same user; a value a
+plugin stores in its own namespace is the plugin's to change. If the checked party can
+reach the anchor by any path, the guarantee is not held, however correct the cryptography
+or the comparison.
+
+Put the anchor where the checked party cannot reach it: in hardware (a TPM-held key
+read from the device), in a separate trust domain, in a signed or out-of-band source, or
+compiled into the binary the checked party does not control. Where no such place exists
+yet, say in the threat model which parties the check does not stop, rather than letting
+the check imply it stops them.
+
+The tell is a guarantee stated in the form "X cannot do Y because Z is verified": check
+where Z's reference value lives before writing the sentence. A claim of unforgeability is a
+claim about write access to the anchor, and it is false whenever that write access was not
+traced.
+
+This is the security-design sibling of `[R:wired-artifact]`: that rule catches a check
+accepting evidence anything can produce; this one catches a check whose reference value
+anything the check is aimed at can produce. Same family as `[R:guarantee-needs-a-reader]`
+and `[R:check-the-claim-you-inherit]`: a stated guarantee with no traced basis.
+
+Failure-mode check: **can the party this check constrains write, by any path, the value
+the check compares against?** If yes, or if you have not traced it, the check is not yet a
+control.
 
 ## Check for a case-differing sibling before creating a file [R:case-collision]
 
@@ -656,4 +692,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=8c83ee69a590b403c66a66dc29c161ae3ce52515618094f0b52a0d6a7d9b5adb rules=R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=93eb0e6395aa6954e57653cb5fde7f2dce804a2c15f484f5fa4857af782aa85c rules=R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
