@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Repair the artefact that made the false claim, not only the doc about it [R:repair-the-lying-artefact]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-10-24.
+
 When an incident traces to a false claim, find the artefact the person was actually
 reading at the moment they were misled, and repair **that** first. Usually it is not the
 document — it is something that printed during the work: a script's final "Binary:" line,
@@ -35,4 +37,4 @@ exercise the real channel; this one says the real channel must also tell the tru
 what it produced — verifying through a production path that reports a path it never
 resolved proves nothing.
 
-<!-- relearn:generated v0.1.0 sha256=6cc2b88fc3467060e398c68798cbe2cf5e2baafe1c82cc1743bcbf2dc804fc80 rules=R:repair-the-lying-artefact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=25fbbf61e60dab3a440ae8affcad2772ca176f576d8ee71cd369d7245f7e4150 rules=R:repair-the-lying-artefact -- DO NOT EDIT; regenerate with `relearn build` -->
