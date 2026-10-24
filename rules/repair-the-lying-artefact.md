@@ -1,7 +1,7 @@
 +++
 tag = "R:repair-the-lying-artefact"
 title = "Repair the artefact that made the false claim, not only the doc about it"
-error_class = "Closing an incident by writing or correcting prose while the executable artefact that actually misled — a script's printed path, a status line, a generated header, a success message — goes on emitting the same false claim, so the defect stays fully operational behind a note that makes it look handled"
+error_class = "Closing an incident by writing or correcting prose while the artefact that actually misled — a script's printed path, a status line, a generated header, a success message, an always-loaded instruction file — goes on emitting the same false claim, so the defect stays fully operational behind a note (a doc paragraph, a memory scoped to one project) that makes it look handled"
 home = { kind = "global" }
 created = "2026-08-24"
 origin = "mined"
@@ -20,6 +20,11 @@ document — it is something that printed during the work: a script's final "Bin
 a deploy script's success message, a generated file's header, a status endpoint, a test
 name. A document is consulted; an artefact is *emitted at you* while your attention is on
 the task. That asymmetry decides who gets believed.
+
+For a model, an always-loaded instruction file is that artefact: it is emitted into every
+session whether or not anyone opens it. Finding a false claim there and writing the
+correction into a memory, a note or one project's file leaves it lying everywhere else —
+fix the instruction file itself.
 
 A doc and a script disagreeing is not a tie. People run the script. Correcting the doc and
 stopping there leaves the defect fully operational and adds a paragraph that makes it look
