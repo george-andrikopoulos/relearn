@@ -694,6 +694,50 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
+## Spend a model turn only where the next step needs judgment [R:a-model-turn-is-for-judgment]
+
+> Written down from Programmatic tool calling, Claude API documentation, https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling -- read 2026-10-24, re-read and every cited figure checked 2026-10-25.
+
+For every edge in a chain of tool calls, ask what the next call reads from the previous
+result: **a field, or a conclusion?** A model turn is worth its round trip only when the
+answer is a conclusion.
+
+If the next call reads a field -- an id out of the last response, a row count, a status, a
+filter over a list -- the dependency is mechanical, and code can follow it. Routing it
+through the model instead pays a full sampling round trip per call and pours every
+intermediate result into context so that the model can do what one line of a script would
+have done. This is the shape that tempts people to route through the model *because* it is
+dependent: "each call needs the last result" sounds like a reason to stop and think, and
+usually it is only a reason to read a key. Put the mechanical stretch in one script, and
+return the model only what it has to judge.
+
+If the next call reads a conclusion -- whether a result looks wrong, which of three
+readings of an ambiguous record is meant, whether to stop -- the round trip cannot be
+skipped. Moving that edge into a script does not remove the judgment; it hands it to
+whatever the script hard-coded, and pays container and script overhead on top. The case
+is real and measured: on workloads of one or two strictly sequential calls per turn,
+scripting them left scores unchanged and cost more, while on a broad multi-tool workload
+it cut billed input tokens by over a third. Neither direction is the default; the shape
+of the chain decides.
+
+A second cost hides in the mechanical direction and is the reason the line matters: a
+result that stays inside a script never enters context, so the model never sees it. That
+is the saving, and it is also a blindfold. A tool that can return an error string, a
+partial page or an anomalous value in a field the script parses blindly belongs on a
+judgment edge, or the script has to check that field and hand back what it found.
+
+The independent fan-out -- the same lookup over an already enumerated list -- is the easy
+case and is `[R:delegate-a-fan-out]`'s shape with a different mechanism: once the list
+exists, walking it one model turn at a time buys nothing. This rule is the dependent case,
+which that one does not reach. And because the trade turns on workload shape rather than
+on the mechanism's reputation, decide it the way `[R:measure-cost-per-task]` says: billed
+tokens with and without, on representative traffic, before enabling it everywhere.
+
+Failure-mode check: **for each edge, name what the next call takes from the last result.**
+If it is a value at a known path, the round trip bought nothing. If it is a decision, the
+script cannot make it -- and if you cannot say which, you do not yet know the chain well
+enough to choose either.
+
 ## An employer name, internal product name or role title never reaches a public artefact [R:employer-identity-not-in-public-artefacts]
 
 An employer's name, an internal product name and a role title never reach an artefact with a public audience.
@@ -2413,4 +2457,4 @@ Failure-mode check: *what did this correct change quietly stop tracking?*
 
 (Clause recovered 2026-09-27. It survived only in the rules ledger's 2026-07-22 entry, in neither rule home, until the 2026-08-16 audit found it and the port to this corpus did not carry it.)
 
-<!-- relearn:generated v0.1.0 sha256=7fc7a9db0d93e6e1c66283c76d16c75367ff0e20c7b8ee2da29030f9e4c278fd rules=R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=1a908dfa3c9fe250b233953f7ae30ae1469886cfcc8dbb33b10c3a1ef3d1dadd rules=R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:features-ledger-names-its-artefact,R:five-files-no-more,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:a-model-turn-is-for-judgment,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

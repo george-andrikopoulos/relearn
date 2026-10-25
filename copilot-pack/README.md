@@ -9,7 +9,7 @@ as custom instructions. Download this folder, copy one file into your repository
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        92 rules, 2324 lines — the instruction file
+    └── copilot-instructions.md        96 rules, 2460 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -17,11 +17,12 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 33 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
+| `global` | 36 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
 | `domain-disclosure` | 5 | What may leave for a public audience: employer identity, tool attribution, repository visibility, quoting an incident, and reporting a hit without reprinting it |
-| `domain-rust` | 18 | The complete Rust type-driven design discipline — see below |
+| `domain-rust` | 19 | The complete Rust type-driven design discipline — see below |
 | `domain-low-latency` | 15 | Mechanism and measurement discipline for latency-sensitive work: contended paths, publication windows, memory ordering, and the instruments that report confidently wrong numbers |
 | `domain-java` | 13 | The Java language discipline — nullability, equality, sealed alternatives, safe publication, resource and inheritance rules |
+| `domain-agent-tooling` | 1 | Building tools and tool loops for agents: where a model turn earns its round trip and where a script should carry the chain instead |
 | `project-*` | 7 | Rules belonging to the `relearn`, `stochos-lab` and `design-architecture-tool` repositories specifically |
 
 These counts are hand-written, and they went wrong exactly as you would expect while
