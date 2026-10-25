@@ -1262,6 +1262,29 @@ downstream on its machine, and must not inherit a refusal it cannot satisfy.
 the real tree on 2026-09-27: stale layers blocked (the live state at the time),
 in sync passed, no downstream script silent, cannot-check noted.
 
+### `domain=agent-tooling`, and the first rule codified from vendor API documentation (2026-10-25)
+
+**What.** A new home, `domain=agent-tooling`, emitted as `skills/domain-agent-tooling/` (and
+in `claude-pack/`), holding `[R:a-model-turn-is-for-judgment]`: in a chain of tool calls, a
+model turn earns its round trip only where the next call needs a judgment about the previous
+result rather than a value read out of it. Codified with `source` naming the Claude API's
+programmatic tool calling page and the dates it was read. Two other candidate classes from the
+same page were weighed and not added. The decisions log records why, and the corpus did not
+grow by a rule that a type or an existing rule already holds. `rules/` is 95 → 96.
+
+**Enforced by:** `relearn check` (the codified-only `source` payload parses) + `relearn verify`,
+bare and over both packs (the new layer is emitted, stamped and current) + `tests/pack_counts.rs`,
+which needed both pack inventories updated. That test was **already red at HEAD**: the three
+preceding rule commits left `copilot-pack/README.md` at 92 against 95 rules and both READMEs at
+33 global against 36. Those counts were corrected in this change, and so was the copilot
+table's unchecked `domain-rust` row (18 against 19). The rule itself is prose and `active`, so
+nothing mechanical holds the practice it states. That is the normal state for a codified rule
+until a recurrence says otherwise.
+
+**Not fixed here, and still red:** `tests/description_reaches_every_rule.rs`. The `global`
+description overflows at 36 rules and drops three subjects, which was true before this change
+and is unaffected by it, since the new rule is not homed in `global`. Carried in `TODO.md`.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.
