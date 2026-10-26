@@ -132,10 +132,15 @@ cargo test                     # unit + property tests
 cargo clippy -- -D warnings
 cargo fmt --check
 
+# The local gate: every stage hosted CI used to run (fmt, clippy, test, the three
+# verifies, lint --deny error, the money scan). Run by .githooks/pre-push on every
+# push since hosted CI was switched off on 2026-10-26. Ends with one PASS/FAIL line.
+bash scripts/check.sh
+
 bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `cargo test`)
 
 # The interim control for `[R:money-is-not-a-float]`. Run by .githooks/pre-push and
-# by CI; the roots are arguments because its real subject is a FINANCIAL repository's
+# by scripts/check.sh; the roots are arguments because its real subject is a FINANCIAL repository's
 # source, not this tree — copy the script and its fixtures into that repository.
 bash scripts/no-float-money.sh [ROOT ...]   # 0 clean / 1 hit / 2 disarmed
 bash scripts/no-float-money.sh --self-test  # the detector's own probe, both directions
@@ -217,8 +222,8 @@ Before writing an incident, ask: **which repository's detector covers the file I
 
 ## Where the rest is
 
-- `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and CI runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
-- `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; CI verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
+- `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and `scripts/check.sh` runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
+- `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; `scripts/check.sh` verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
 - `docs/session-start-poke.md` — the `SessionStart` hook snippet for the poke, **deliberately not installed**: anything under `~/.claude` edits the layer loaded into every session on the machine, and no gate in this repository could see it.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.
 - `FEATURES.md` — the regression ledger; every feature names the artifact that enforces it.

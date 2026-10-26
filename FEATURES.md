@@ -161,7 +161,7 @@ What: reports advisory findings; writes nothing and never deletes. `--deny <warn
 
 *Why the flag exists (2026-09-06).* Every finding until then was a structural defect fixable by editing the library, so "any actionable finding fails the run" was the whole policy. `UnheldRecurrence` is the first that is legitimately long-lived — it says a rule needs promoting to a stronger control, and building that control may be work in **another repository**. Blocking CI on it leaves `main` permanently red, and an always-red check is a muted check (`[R:xplat-fixtures]`).
 
-**Invocation:** `.github/workflows/ci.yml` step *"lint (rule library; errors fail, warnings reported)"* runs `cargo run --quiet -- lint --deny error` on both `ubuntu-latest` and `windows-latest`. Before 2026-09-06 this row named no invocation at all — the check existed and CI never ran it, which is `[R:wired-artifact]`, and it was found by the change that added the first finding capable of failing it.
+**Invocation:** `scripts/check.sh` stage `lint` runs `cargo run --quiet -- lint --deny error`, and `.githooks/pre-push` runs that script on every push (Gate 4). Hosted CI ran it on `ubuntu-latest` and `windows-latest` until it was switched off on 2026-10-26. Before 2026-09-06 this row named no invocation at all — the check existed and CI never ran it, which is `[R:wired-artifact]`, and it was found by the change that added the first finding capable of failing it.
 
 `--upstream <clone>` adds the federation's pokes, which are printed after the verdict and can never change it — see *The poke* below.
 
@@ -170,7 +170,7 @@ What: reports advisory findings; writes nothing and never deletes. `--deny <warn
 ### `relearn verify` — the committed generated tree is in sync
 What: reads only, writes nothing, and checks that the files `build` would emit from the current rules match what is on disk under `--out`. Each expected file is classified `Ok` / `Missing` / `Unversioned` (a non-generated file shadows the path) / `HandEdited` (body no longer hashes to its own header's recorded `sha256`) / `Stale` (self-consistent but not what the current rules emit); and any marker-bearing file in a relearn-owned location that the current rules no longer emit — its rule or home was deleted — is reported `Orphan`. Exits `FAILURE` if any file drifted, `SUCCESS` (exit 0) when all match — the CI gate that a checkout's generated files were not hand-edited, are not stale, and left no orphan behind. `build` and `verify` emit through the **same** `cli::emit_selected`, so they can never disagree about the expected set. **Ownership policy:** orphan detection scans only the subtrees relearn emits to (`skills/`, `.cursor/rules/`, `.claude/rules/`, and the fixed `AGENTS.md`/`.github/copilot-instructions.md`) and flags only files carrying the generated-by marker, so a hand-authored file — even inside an owned dir — is never claimed. The repository-root `CLAUDE.md` is **not** an owned path: it is the hand-authored charter, and `verify` does not classify it.
 
-**Invocation (this row records it deliberately — see below).** `.github/workflows/ci.yml`, step *"verify (generated tree in sync with rules)"*, running `cargo run --quiet -- verify` — **bare**, no `--targets` and no `--out`, so the command CI takes is the default one. The emitted tree is committed (53 files as of 2026-08-25) so a clean checkout has something to verify, and `.gitattributes` pins those paths to LF so the body hash survives a Windows checkout. Runs on `ubuntu-latest` and `windows-latest`.
+**Invocation (this row records it deliberately — see below).** `scripts/check.sh` stage `verify`, run by `.githooks/pre-push` on every push (Gate 4), running `cargo run --quiet -- verify` — **bare**, no `--targets` and no `--out`, so the command the gate takes is the default one. Until 2026-10-26 this was a hosted CI step. The emitted tree is committed (53 files as of 2026-08-25) so a clean checkout has something to verify, and `.gitattributes` pins those paths to LF so the body hash survives a Windows checkout. It ran on `ubuntu-latest` and `windows-latest` while hosted CI existed; the local gate grades the OS it runs on.
 
 > **Correction, 2026-08-22.** This row previously called `verify` "the CI gate" and was wrong on both halves: CI ran only `fmt`/`clippy`/`test`, and `git ls-files` returned nothing under any emitted path, so a clean clone contained no generated files for the gate to check. The artefact was real, correctly named and well tested; its default invocation ran nowhere, on a tree that could not have satisfied it. This is precisely the limit Paper 3 §9 names — *the enforced-by column records enforcement, not invocation* — occurring in the repository the paper uses as its case. The fix is the **Invocation** paragraph above: the column now names the artefact *and* the command that runs it, and that command is the one CI takes. Ledger rows added since should be read with that distinction in mind: naming an artefact is not naming an invocation.
 **Enforced by:** `cli::verify` (`load_rules` → `validate` → `emit_selected` → `fsio::verify_all`; `ExitCode::FAILURE` iff any report is not `Ok`) + `fsio::verify_all` / `fsio::classify` / `fsio::parse_generated` (the integrity + freshness classification; `render_with_header` hashes the **body only** so a hand edit is detectable) + `fsio::scan_orphans` / `fsio::collect_files` (the owned-location, marker-scoped orphan pass) + `tests/verify.rs` (`freshly_built_files_verify_clean`, `a_missing_file_is_reported`, `a_hand_edited_body_is_detected`, `an_unversioned_file_at_a_target_path_is_reported`, `a_file_that_no_longer_matches_the_rules_is_stale`, `an_orphan_generated_file_is_reported`, `an_unmarked_file_in_an_owned_dir_is_not_an_orphan`) + `fsio` unit pins (`parse_generated_recovers_the_exact_body_and_hash`, `parse_generated_handles_a_body_without_a_trailing_newline`, `parse_generated_rejects_a_file_without_the_marker`, `verify_reports_ok_for_a_freshly_written_file_and_missing_when_absent`, `an_orphaned_fixed_target_is_reported`, `a_marked_file_outside_owned_locations_is_not_scanned`) + `cli` unit pins (`verify_succeeds_on_a_fresh_build_and_fails_after_drift`, `verify_fails_when_a_generated_file_is_missing`). Verified through the binary on the real seed: clean build → exit 0; hand-edited `AGENTS.md` → `hand-edited`, exit 1; a deleted rule → its `.cursor/rules/*.mdc` reported `orphan` (+ the concatenated files `stale`), exit 1.
@@ -319,13 +319,14 @@ was written to forbid.
 as well as their text, so an awk that died cannot pass as a clean file. A detector that has
 stopped detecting therefore fails before it can certify a tree
 (`[R:guarantee-needs-a-reader]`). The self-test runs first in `.githooks/pre-push` and as its
-own CI step, ahead of the scan in both.
+own stage of `scripts/check.sh`, ahead of the scan in both (it was a hosted CI step until
+CI was switched off on 2026-10-26).
 
-**Attached to the push and to CI, never to a command.** A gate somebody must remember to
+**Attached to the push, never to a command.** A gate somebody must remember to
 invoke is the defect one level up, and that is the whole content of
 `[R:signal-needs-a-consequence]`, whose own incident is a gate that existed and was not run.
-Unlike the banned-name gate above, this one needs no machine-local list, so **CI can run it**
-and a fork is not failed for something that is none of its business.
+Unlike the banned-name gate above, this one needs no machine-local list, so **any clone's
+local gate can run it** and a fork is not failed for something that is none of its business.
 
 **Probed on every path on 2026-09-21 before being trusted**, through the real script and not
 a stand-in: a clean tree → 0; a tree seeded with the fixture → 1, naming all eleven
@@ -375,7 +376,7 @@ What: `[R:price-every-dependency]`, codified 2026-09-12 — a dependency is a de
 
 **Enforced by:** `tests/dependencies.rs::every_dependency_is_priced_in_the_decisions_log` — it walks every `Cargo.toml` in the repository (`target/` excluded), collects runtime, dev, build and per-target dependency keys, and fails naming any that no decisions-log row prices. Three further tests hold the check itself upright: `no_grandfathered_dependency_is_already_priced` and `no_grandfathered_dependency_has_left_the_manifest` force the exemption list to shrink and never rot, and `the_decisions_log_is_where_this_gate_thinks_it_is` fails if the log section is renamed or emptied — without it, the priced set would go quietly to zero while every dependency was still grandfathered, and the gate would pass while measuring nothing (`[R:guarantee-needs-a-reader]`).
 
-**Invocation.** `cargo test`, which `.github/workflows/ci.yml` already runs on `ubuntu-latest` and `windows-latest`. A test rather than a shell script deliberately: it is wired by construction and cannot arrive disarmed the way a script needing an installed hook or a remembered CI step can. `scripts/verify-dependencies.sh` is a hand-invocable front door to the same test — `0` passed, `101` failed, `2` disarmed because cargo is absent, each observed rather than assumed — and it carries **no check of its own**: it explains the marker format, forwards its arguments, and does not filter cargo's output. The enforcement is the test; the script is a door onto it, and a second implementation there would be a second home for the rule.
+**Invocation.** `cargo test`, which `scripts/check.sh` runs (stage `test`) on every push through `.githooks/pre-push`. Hosted CI ran it on `ubuntu-latest` and `windows-latest` until it was switched off on 2026-10-26. A test rather than a shell script deliberately: it is wired by construction and cannot arrive disarmed the way a script needing an installed hook or a remembered CI step can. `scripts/verify-dependencies.sh` is a hand-invocable front door to the same test — `0` passed, `101` failed, `2` disarmed because cargo is absent, each observed rather than assumed — and it carries **no check of its own**: it explains the marker format, forwards its arguments, and does not filter cargo's output. The enforcement is the test; the script is a door onto it, and a second implementation there would be a second home for the rule.
 
 **What it proves, and what it does not.** It proves a dependency is *named* by a row that declares itself to be about dependencies — a row whose **Decision** cell opens with `Dependency:` or `Dependencies:`, the crate in backticks. It cannot read the row and judge whether the price is real: whether the rejected list is honest, whether the default features were weighed, whether writing the thing by hand was considered. The marker must open the cell rather than appear anywhere in the row, so that a row *about* the convention cannot price a crate by mentioning it — `[R:detector-excludes-own-definitions]`, which this check would have failed on its first day, and which the 2026-09-12 decisions entry now exercises: that row backticks three crate names and prices none of them.
 
@@ -431,7 +432,7 @@ What: `copilot-pack/README.md` states a rule count and a line count for the inst
 
 **Scope, stated because `[R:measure-the-claim-not-a-subset]` is exactly what goes wrong here.** A *rule* is a `## ` heading ending in its `[R:tag]` — the form every emitter writes, which no prose heading can accidentally match; a *line* is `str::lines()`, which strips a trailing `\r` so the count is identical on a CRLF checkout (`[R:xplat-fixtures]`). A README stating no counts at all **fails**, because a parser that has stopped recognising the inventory would otherwise pass silently. File paths are resolved by suffix match rather than by parsing the ASCII tree: the tree is decoration, and a check that read it would break on a redrawn box character while the numbers it guards stayed wrong.
 
-**What it does not check:** that a pack matches the rules. `relearn verify --targets copilot --out copilot-pack` holds that and CI runs it as a second output root. The two compose — README ↔ pack ↔ rules — and **each owns its own denominator**, so neither needs to know how the other measures.
+**What it does not check:** that a pack matches the rules. `relearn verify --targets copilot --out copilot-pack` holds that, and `scripts/check.sh` runs it as a second output root. The two compose — README ↔ pack ↔ rules — and **each owns its own denominator**, so neither needs to know how the other measures.
 
 **Probed both ways (2026-09-13):** raising the copilot README's line count by one fails naming the file, the line and the true count; deleting the `project-design-architecture-tool` line from the claude README leaves every remaining claim correct and fails the *second* test naming the uncounted file. Restored, both green.
 
@@ -589,7 +590,7 @@ What: `Home::Org { name }` carries an organisation's own engineering principles 
 
 **The wildcard check is the half a compiler cannot hold.** `_ => Publishable` compiles forever and silently publishes every variant added after it, so that test reads `home.rs` itself, with comments stripped so the prose explaining the rule cannot trip it (`[R:detector-excludes-own-definitions]`). **Probed 2026-09-13:** replacing the two explicit arms with `_ =>` makes it fail naming the arm; restoring them makes it pass.
 
-**Invocation.** `cargo test`, on both OSes in CI.
+**Invocation.** `cargo test`, run by `scripts/check.sh` on every push (hosted CI ran it on both OSes until 2026-10-26).
 
 **What it does not prove.** That a home variant added in 2027 is classified *correctly* — only that it must be classified at all. And **nothing consumes the answer yet**: `contribute` and `report` are later phases, so today this is a decision with an enforcing artefact and no caller. `Project` is also `Withheld` — its home carries a filesystem path, which is a private identifier, and a stranger's project home is meaningless upstream — a decision the exhaustive match forced this phase to take and which B2 should confirm; `TODO.md` carries it.
 
@@ -1024,7 +1025,7 @@ What: `relearn` is a compiler a single engineer points at their own rules to emi
 
 **Enforced by:** `tests/solo_mode.rs` — `the_tool_opens_no_socket` (no `std::net`, `TcpStream`, `TcpListener`, `UdpSocket`, `SocketAddr`, `ToSocketAddrs` anywhere in `src/`), `the_tool_spawns_no_process` (no `Command::new` — shelling out to `git` or `curl` is the back door to both the network and to ambient state), `the_tool_reads_no_ambient_state` (no `home_dir`, `dirs::`, `XDG_`, `env::var`, so the same corpus compiles identically on two machines), and `no_network_crate_is_in_the_dependency_tree` (a deny-list of networking, TLS and async-runtime crates checked against `Cargo.lock`, so a transitive arrival is caught too). Comments are stripped before matching, so a doc comment that *names* a marker while explaining we do not use it cannot turn the gate permanently red — `[R:detector-excludes-own-definitions]`.
 
-**Invocation.** `cargo test`, which CI runs on `ubuntu-latest` and `windows-latest`. A test rather than a script, for the same reason as the dependency gate: it is wired by construction and cannot arrive disarmed.
+**Invocation.** `cargo test`, which `scripts/check.sh` runs on every push. Hosted CI ran it on `ubuntu-latest` and `windows-latest` until it was switched off on 2026-10-26. A test rather than a script, for the same reason as the dependency gate: it is wired by construction and cannot arrive disarmed.
 
 **What it proves, and what it does not.** It proves nothing in this codebase *calls* a socket, a child process or the environment — which is what matters, since an uncalled socket cannot open — and that no network stack is in the tree. It does **not** prove emission is unchanged; `relearn verify` holds that and is the artifact to run beside this one. Two of the four invariants in §1 are not held here at all: *no configuration is required, and its absence is never a filter* waits on `Audience::Everything` and the emission round-trip, because there is no configuration yet to assert about, and *every federated field is optional* waits on the first such field. Both are carried in TODO.md Phase J rather than claimed here.
 
@@ -1185,8 +1186,8 @@ completely, and its own worked example is `Miles(f64)` beside `Kilometers(f64)`,
 states, and a float holding a decimal is lossy rather than contradictory. Recording a
 recurrence on either would have blunted the class rather than sharpened it.
 
-**Enforced by:** `scripts/no-float-money.sh`, run by `.githooks/pre-push` and by CI on both
-platforms — the source scan the row below specifies in full. The rule moved `active` →
+**Enforced by:** `scripts/no-float-money.sh`, run by `.githooks/pre-push` (Gate 3, and
+again inside `scripts/check.sh`, Gate 4; hosted CI ran it on both platforms until 2026-10-26) — the source scan the row below specifies in full. The rule moved `active` →
 `partial` on 2026-09-21 and its `uncovered` field names what the scan does not reach.
 
 **It shipped with nothing holding it, and that was the honest position for a day.** The
@@ -1284,6 +1285,31 @@ until a recurrence says otherwise.
 **Not fixed here, and still red:** `tests/description_reaches_every_rule.rs`. The `global`
 description overflows at 36 rules and drops three subjects, which was true before this change
 and is unaffected by it, since the new rule is not homed in `global`. Carried in `TODO.md`.
+*(Closed 2026-10-26 by the `domain=project-files` split below.)*
+
+### `domain=project-files`, and the local gate that replaced hosted CI (2026-10-26)
+
+**What.** The five rules about a repository's standing documents (`five-files-no-more`,
+`claude-md-recreates-the-project`, `decisions-log-records-rejected-alternatives`,
+`features-ledger-names-its-artefact`, `definition-of-done-every-change`) leave `global` for
+`domain=project-files`, emitted as `skills/domain-project-files/`. `global` holds 31 rules, and
+its description names every one of them again.
+
+**Enforced by:** `tests/description_reaches_every_rule.rs` (every rule's subject reaches its
+home's description; it was red at 36 global rules and is green at 31) and
+`tests/pack_counts.rs` (both pack READMEs list the new layer with its real count).
+
+**What.** Hosted CI is switched off, and `scripts/check.sh` runs every stage it ran:
+`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, the bare
+`verify` and the two pack `verify`s, `lint --deny error`, and the money scan with its
+self-test. Every stage runs even after a failure, and the script ends with one PASS/FAIL line.
+
+**Enforced by:** `.githooks/pre-push` Gate 4, which runs `scripts/check.sh` on every push and
+refuses the push on a non-zero exit. Probed in both directions on 2026-10-26: the tree passed,
+and a pack README count changed from 31 to 30 gave `FAIL: test`. **Configuration-dependent**
+like the hook's other gates: a clone that has not run `git config core.hooksPath .githooks`
+has no gate at all. **What it does not do:** grade the other OS. CI ran Ubuntu and Windows;
+a push grades the platform it is made from. Carried in `TODO.md`.
 
 ## Deliberately out of scope for v0.1
 

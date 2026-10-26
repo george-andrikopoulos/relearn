@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # pre-push — refuse to publish a private name, to leave this machine's layers
-# stale, or a monetary float.
+# stale, a monetary float, or a change the local gate fails.
 #
-# Three gates, all attached here rather than to a command somebody must remember
+# Four gates, all attached here rather than to a command somebody must remember
 # to type (`[R:signal-needs-a-consequence]`). The first is about publication and
 # could live nowhere else; the second runs only where a downstream layer check
 # exists (see Gate 2); the third is the interim control for
 # `[R:money-is-not-a-float]` and is here because the push is the event that
-# happens anyway. ALL must pass; the first to fail refuses the push.
+# happens anyway; the fourth is the gate hosted CI used to run (see Gate 4).
+# ALL must pass; the first to fail refuses the push.
 #
 # This repository is public and quotes private working sessions verbatim: a
 # rule's `incident` field, and TODO.md's narration of the same material. The
@@ -130,7 +131,7 @@ bash "$MONEY"
 status=$?
 
 case "$status" in
-    0) exit 0 ;;
+    0) ;;
     1)
         echo "[pre-push] BLOCKED: a monetary quantity is in binary floating point." >&2
         echo "[pre-push] Named above. Use integer minor units or a fixed-scale" >&2
@@ -143,3 +144,32 @@ case "$status" in
         exit 1
         ;;
 esac
+
+# --- Gate 4: the local gate, replacing hosted CI ------------------------------
+#
+# Hosted CI was switched off on 2026-10-26 (Actions disabled for the
+# repository). CI ran fmt, clippy, the test suite, the three `verify`s and
+# `lint --deny error` on every push, and nothing else did: a rule commit's local
+# path is `check` / `build` / `verify`, and two count tests went red on `main`
+# that way. So the push runs the same stages here. `scripts/check.sh` runs every
+# stage even after a failure and ends with one PASS/FAIL line; its own status is
+# read, never a filter's `[R:verdict-survives-the-channel]`.
+
+GATE="$ROOT/scripts/check.sh"
+
+if [ ! -f "$GATE" ]; then
+    echo "[pre-push] BLOCKED: $GATE is missing." >&2
+    echo "[pre-push] The gate cannot run, so the push is refused." >&2
+    exit 1
+fi
+
+bash "$GATE"
+status=$?
+
+if [ "$status" -ne 0 ]; then
+    echo "[pre-push] BLOCKED: the local gate failed (exit $status); the failing" >&2
+    echo "[pre-push] stages are named on its FAIL line above." >&2
+    exit 1
+fi
+
+exit 0
