@@ -2,7 +2,7 @@
 tag = "R:claude-md-recreates-the-project"
 title = "The project charter is written to the recreation standard"
 error_class = "A project charter that describes what the code is rather than what would be needed to rebuild it, so the decisions and their reasons live only in the head of whoever made them and are re-litigated or silently reversed by the next reader"
-home = { kind = "global" }
+home = { kind = "domain", name = "project-files" }
 created = "2026-08-25"
 origin = "codified"
 status = { kind = "active" }

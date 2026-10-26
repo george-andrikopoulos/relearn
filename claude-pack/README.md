@@ -7,7 +7,8 @@ install it on claude.ai, without cloning this repository or building anything.
 ```
 claude-pack/
 └── skills/
-    ├── global/SKILL.md                          36 rules — every project, every language
+    ├── global/SKILL.md                          31 rules — every project, every language
+    ├── domain-project-files/SKILL.md             5 rules — the standing project documents
     ├── domain-disclosure/SKILL.md                5 rules — what may leave for a public audience
     ├── domain-rust/SKILL.md                     19 rules — the Rust type-driven discipline
     ├── domain-low-latency/SKILL.md              15 rules — latency-sensitive systems work
@@ -102,8 +103,8 @@ the body. Do not reformat, reflow, re-order, summarise, rewrite in your own word
 two layers into one file, or split one across several. Create no other files.
 
 STEP 4 — Report each destination path and its line count, and confirm that no existing
-file was modified or replaced. Expected line counts: global 451, domain-rust 205,
-project-relearn 16, project-stochos-lab 16, project-design-architecture-tool 95.
+file was modified or replaced. Expected line counts: global 638, domain-rust 230,
+project-relearn 16, project-stochos-lab 22, project-design-architecture-tool 95.
 ```
 
 The expected line counts are in the prompt because they are the one check the person
@@ -140,7 +141,8 @@ relearn build  --targets claude --out claude-pack
 relearn verify --targets claude --out claude-pack   # exit 0 when in sync
 ```
 
-CI runs that `verify` on every push, on Linux and Windows. It has to be a separate step:
+The repository's local gate (`scripts/check.sh`, run by the pre-push hook) runs that
+`verify` on every push. It has to be a separate step:
 the pack lives outside every relearn-owned path, so a bare `relearn verify` cannot see it,
 and without the step a rule change would rebuild the root artefacts and leave this copy
 silently stale. This README is hand-authored and sits outside that check — which is why

@@ -2,7 +2,7 @@
 tag = "R:definition-of-done-every-change"
 title = "The definition of done runs on every change, and skips are declared"
 error_class = "A change called complete when the code works, leaving the enforcing test, the regression pass, the contract, the charter and the open-work list to a later pass that never comes -- so the standing documents drift one defensible omission at a time"
-home = { kind = "global" }
+home = { kind = "domain", name = "project-files" }
 created = "2026-08-25"
 origin = "codified"
 status = { kind = "partial", by = "hook:tdd-gate", uncovered = "checks 2 to 5 entirely -- the regression pass, the contract, the charter and the open-work list -- plus check 1 in every language but Rust, and check 1 wherever the enforcing artefact is a TYPE rather than a test file, which under a types-first discipline is the common case", date = "2026-09-19" }

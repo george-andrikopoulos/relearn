@@ -2,7 +2,7 @@
 tag = "R:decisions-log-records-rejected-alternatives"
 title = "The decisions log records the why and what was rejected, append-only"
 error_class = "Architecture recorded as structure without provenance, so a decision cannot be distinguished from an accident and the alternatives already considered and rejected are re-proposed, re-argued, and sometimes adopted"
-home = { kind = "global" }
+home = { kind = "domain", name = "project-files" }
 created = "2026-08-25"
 origin = "codified"
 status = { kind = "active" }

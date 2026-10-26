@@ -2,7 +2,7 @@
 tag = "R:features-ledger-names-its-artefact"
 title = "Every feature-ledger entry names the artefact that enforces it, or declares itself exposed"
 error_class = "A feature recorded in the behaviour contract with no enforcing type, property or test named, so a documented wish is indistinguishable from a documented guarantee and the ledger certifies coverage it does not have"
-home = { kind = "global" }
+home = { kind = "domain", name = "project-files" }
 created = "2026-08-25"
 origin = "codified"
 status = { kind = "active" }

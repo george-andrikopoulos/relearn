@@ -1,7 +1,7 @@
 ---
 description: The project charter is written to the recreation standard (A project charter that describes what the code is rather than what would be needed to rebuild it, so the decisions and their reasons live only in the head of whoever made them and are re-litigated or silently reversed by the next reader)
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 
 # The project charter is written to the recreation standard [R:claude-md-recreates-the-project]
@@ -14,4 +14,4 @@ Check it explicitly on every change that touches design, as a question rather th
 
 The charter is the project layer and nothing else. Domain rules are referenced from it, never copied into it (R:five-files-no-more), and a claim it makes about an enforcing control is subject to R:guarantee-needs-a-reader like any other.
 
-<!-- relearn:generated v0.1.0 sha256=0d810797320ecd5dbe8c6b8b305ae04965f4e0fbbcb17a68402740404a2fbfe8 rules=R:claude-md-recreates-the-project -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=24589d9d338722479c07b3eb3ab78c6d9a79fed270fe4e39e5876db516563fdf rules=R:claude-md-recreates-the-project -- DO NOT EDIT; regenerate with `relearn build` -->

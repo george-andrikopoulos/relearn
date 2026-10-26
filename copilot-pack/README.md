@@ -17,7 +17,8 @@ neutral rule library in [`rules/`](../rules). It carries every rule in the libra
 
 | Layer | Rules | What they cover |
 |---|---:|---|
-| `global` | 36 | The repository discipline and its controls, plus language-agnostic verification, provenance and cost reasoning — see below |
+| `global` | 31 | The controls that keep the repository discipline honest, plus language-agnostic verification, provenance and cost reasoning — see below |
+| `domain-project-files` | 5 | The repository discipline's standing documents: the five-file set, the charter, the decisions log, the regression ledger and the definition of done — see below |
 | `domain-disclosure` | 5 | What may leave for a public audience: employer identity, tool attribution, repository visibility, quoting an incident, and reporting a hit without reprinting it |
 | `domain-rust` | 19 | The complete Rust type-driven design discipline — see below |
 | `domain-low-latency` | 15 | Mechanism and measurement discipline for latency-sensitive work: contended paths, publication windows, memory ordering, and the instruments that report confidently wrong numbers |
@@ -198,13 +199,13 @@ the body, and any edit makes the next regeneration a conflict and is silently re
 Add front-matter (applyTo:) only if the agreed path is a path-scoped *.instructions.md
 file, and only that one key.
 
-STEP 4 — Report the final path, the line count (expected: 746), and confirm that no
+STEP 4 — Report the final path, the line count (expected: 2464), and confirm that no
 other file was created or modified.
 ```
 
 The expected line count belongs in the prompt because it is the one check the person
-pasting it can make without reading the file: 746 for this pack. A single-home build is
-shorter — 446 for `global` alone, 200 for `domain-rust` alone — so correct the number if
+pasting it can make without reading the file: 2464 for this pack. A single-home build is
+shorter — 633 for `global` alone, 225 for `domain-rust` alone — so correct the number if
 you narrowed the set (see *Seven rules are about other repositories*, below).
 
 ## Confirming it loaded
@@ -269,6 +270,7 @@ cargo run -- build  --targets copilot --out copilot-pack   # rewrite it
 cargo run -- verify --targets copilot --out copilot-pack   # prove it is in sync
 ```
 
-CI runs the `verify` line, so a rule change that is not rebuilt into this pack fails the
-build rather than shipping a stale instruction file. This README is hand-authored and
+The repository's local gate (`scripts/check.sh`, run on every push) runs the `verify`
+line, so a rule change that is not rebuilt into this pack fails the push rather than
+shipping a stale instruction file. This README is hand-authored and
 sits outside that check — see the note under the table at the top.

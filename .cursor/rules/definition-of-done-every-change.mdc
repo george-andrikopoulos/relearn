@@ -1,7 +1,7 @@
 ---
 description: The definition of done runs on every change, and skips are declared (A change called complete when the code works, leaving the enforcing test, the regression pass, the contract, the charter and the open-work list to a later pass that never comes -- so the standing documents drift one defensible omission at a time)
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 
 # The definition of done runs on every change, and skips are declared [R:definition-of-done-every-change]
@@ -22,4 +22,4 @@ When a request conflicts with the discipline -- *just patch it quickly* -- do th
 
 Checks 1 and 2 do not apply to every change, and saying so is part of doing them. A documentation-only change has no enforcing artefact to ship. Declaring a check inapplicable is honest; quietly omitting it and reporting five greens is the failure this rule names.
 
-<!-- relearn:generated v0.1.0 sha256=48ef6aba30fcf47c9fbc0388ba2c42723711eb3a74eefd7ada3612dfa0490270 rules=R:definition-of-done-every-change -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=a9646aefa154879e5d6384e36c1195df245e627914c8efd46f1ed17ee077f586 rules=R:definition-of-done-every-change -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -2,7 +2,7 @@
 tag = "R:five-files-no-more"
 title = "A project carries five standing documents, and resists a sixth"
 error_class = "Standing project documents accumulating one reasonable addition at a time, so attention is spread across a set nobody re-reads, and the files that are load-bearing decay behind the ones that are merely present"
-home = { kind = "global" }
+home = { kind = "domain", name = "project-files" }
 created = "2026-08-25"
 origin = "codified"
 status = { kind = "active" }

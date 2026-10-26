@@ -1,7 +1,7 @@
 ---
 description: The decisions log records the why and what was rejected, append-only (Architecture recorded as structure without provenance, so a decision cannot be distinguished from an accident and the alternatives already considered and rejected are re-proposed, re-argued, and sometimes adopted)
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 
 # The decisions log records the why and what was rejected, append-only [R:decisions-log-records-rejected-alternatives]
@@ -14,4 +14,4 @@ Anonymous structure accumulates as sediment. Given a module boundary with no rec
 
 Record the decision that surprised you most, not the one that was easiest to write down. This is the same discipline R:claude-md-recreates-the-project applies to the charter: what a future reader cannot reconstruct is exactly what must be written.
 
-<!-- relearn:generated v0.1.0 sha256=4ab91c319a36ce951094ddea9463c928780a67d4feb65fd3c52d72bab1bcf7f6 rules=R:decisions-log-records-rejected-alternatives -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=7de775541791ba1c77f54d90b8587d2fd932bad680099462e598630992296814 rules=R:decisions-log-records-rejected-alternatives -- DO NOT EDIT; regenerate with `relearn build` -->

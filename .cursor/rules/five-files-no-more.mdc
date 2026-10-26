@@ -1,7 +1,7 @@
 ---
 description: A project carries five standing documents, and resists a sixth (Standing project documents accumulating one reasonable addition at a time, so attention is spread across a set nobody re-reads, and the files that are load-bearing decay behind the ones that are merely present)
 globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 
 # A project carries five standing documents, and resists a sixth [R:five-files-no-more]
@@ -20,4 +20,4 @@ The two failure classes the set exists to kill are staleness and unenforced guar
 
 Do not duplicate domain rules into the project layer. Reference them. A rule stated in two places forks and rots, and the copy is always the one someone reads.
 
-<!-- relearn:generated v0.1.0 sha256=3254234a068c60044f911117c21116c9d2263d9a979edb615878da8932248f46 rules=R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=138f3680f3fc7cb6ab60d8de30a99568055c21de27f51ee8512d1fd531d986ff rules=R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->
