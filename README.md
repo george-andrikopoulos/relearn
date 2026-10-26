@@ -12,6 +12,77 @@ When an expert corrects an AI assistant, the correction usually dies with the se
 
 Behind most corrections is a decision the assistant made for itself. It extracted the helper because it judged the duplication to matter; it renamed the field because it judged the old name misleading. Those are **invented requirements** — requirements the model gave itself, on no evidence in the repository — and their visible residue is **skedasis** (from σκεδάννυμι, to scatter): the fraction of a change nobody requested. A ratio, not a size; two hundred lines is not skedasis if the task needed two hundred. Writing the correction down is how an invented requirement gets retired once instead of re-invented every session.
 
+## Where relearn sits in the agent harness
+
+In an agentic flow the model is the stochastic part. Everything around it is the **harness**: the instructions it loads, the tools it may call, and the hooks and gates that check its work. **Harness engineering** is the work of making that surrounding layer deterministic enough that the outcome is reliable even though the model is not. `relearn` owns one piece of the harness, the instruction layer, and the path that carries a human correction back into it.
+
+```mermaid
+flowchart LR
+    subgraph session["Agent session, any assistant"]
+        direction TB
+        task["Task"] --> model["Model<br/>(stochastic)"]
+        model -->|tool calls| tools["Tools"]
+        tools -->|results| model
+        model --> output["Change or answer"]
+    end
+
+    subgraph harness["Harness: what the model runs inside"]
+        direction TB
+        layers["Instruction layers<br/>Claude skills · Cursor rules · Copilot<br/>AGENTS.md · Claude project layer"]
+        controls["Deterministic controls<br/>types · property tests · gates · hooks"]
+    end
+
+    layers -->|loaded at session start| model
+    output --> controls
+    controls -->|pass or block| review["Expert review"]
+    review -->|"an error gets through"| correction["Correction"]
+    correction --> rules[("rules/*.md<br/>one file per rule<br/>provenance required")]
+    rules -->|relearn build| layers
+    rules -.->|"relearn verify<br/>emitted == source"| layers
+```
+
+Two properties make this engineering rather than prompt editing:
+
+- **The rule is the source and every instruction file is a build target.** A correction written once reaches every assistant the team uses, so changing vendor does not lose what the team has learned.
+- **The instruction layer is checked like code.** Every emitted file carries a generated-by header and a content hash. `build` refuses to overwrite a file it did not write, and `verify` fails when an emitted file has been hand-edited or has drifted from its rule. What the model reads is exactly what the corpus says.
+
+## The error loop
+
+The loop is what keeps a correction from dying with the session, and what tells you whether a rule is working once it exists.
+
+```mermaid
+flowchart TD
+    A["1 · Incident<br/>an error reaches review"] --> B["2 · Generalise<br/>from the instance to the error class"]
+    B --> C{"3 · Search first<br/>does a rule already cover this class?"}
+    C -->|"no"| D["4 · Write the rule<br/>tag · error class · incident · home · date"]
+    C -->|"yes, so that rule failed"| R["Record a recurrence<br/>on the existing rule, dated"]
+    D --> E["5 · Push it down the hierarchy of controls<br/>type › property test › gate or hook › prose"]
+    E --> F["6 · Compile and verify<br/>relearn build · relearn verify"]
+    F --> G["7 · Every later session loads it"]
+    G -->|"the class returns"| A
+    R --> L["relearn lint<br/>unheld recurrence"]
+    L -->|"strengthen the control,<br/>do not reword the prose"| E
+```
+
+Each step is held by something the tool enforces rather than something it asks for:
+
+- **Persist or perish.** A correction that is not in a rule file is lost. A rule without a date, an incident and an error class does not parse, and a rule that fails to parse stops the build instead of being skipped.
+- **One home per rule.** A rule has exactly one owner (`global`, a domain, an org or a project), and two homes for one rule cannot be represented. A copy is how a rule forks and rots.
+- **Push the rule to the strongest control that can hold it.** Prose is the weakest control, because a model can read it and still do the wrong thing. A rule's `status` records how far it has been pushed:
+
+  | Status | What holds the error class | In the emitted layer |
+  |---|---|---|
+  | `active` | prose alone | emitted |
+  | `partial` | a named control holds part of it; `uncovered` names the rest | emitted, annotated "partly enforced by", naming the control and the gap |
+  | `graduated` | a named control holds all of it | emitted, annotated "also enforced by" |
+  | `attic` | retired | not emitted; kept so `lint` can flag references to it |
+
+  A partial rule that will not name its gap is unconstructible. Without that, the honest status would be the one nobody could write.
+- **Recurrence is the measure.** When an error class a rule already covers happens again, the rule failed, and it gets a dated `[[recurrence]]` entry instead of a second rule. `relearn lint` reports any recurrence on a rule that prose alone holds as an **unheld recurrence**. The remedy it names is a stronger control, not firmer wording. Recurred rules are also ranked first in the emitted skill description, so the most-failed rules are the most visible.
+- **Inert is the counter-metric.** A rule that was codified rather than mined and has never fired is evidence of nothing, so `relearn lint` prints the inert count beside the recurrence count. Without it, the recurrence count is a number you could author your way past.
+
+The loop is a discipline for keeping the outcome reliable, not a measured result. What has actually been measured, including a refuted prediction, is under [Status](#status) below. Deciding to strengthen, keep, graduate or retire a rule is a periodic review the operator runs. `relearn lint` and `relearn list --format tsv` supply its inputs: the per-rule status, controls and recurrences.
+
 ## Status
 
 Early. **Phase A (portability) is complete**; **Phase B (the linter + `relearn verify`) is functionally complete** — its one remaining item (cold-surface) is blocked on Phase-C runtime data. **Phase D (public release): released** under Apache-2.0, with a worked example in place. **Sharing a corpus between installs shipped 2026-09-13** — `contribute`, `pull`, `adopt`, `report`, `aggregate`, and the poke inside `lint` — and is described below; it is **entirely optional**, and a single engineer needs none of it (`tests/solo_mode.rs` is what keeps that true). Companion papers: *Tuning the Stochastic Machine* ([arXiv:2608.19125](https://arxiv.org/abs/2608.19125)) — the operating discipline this implements — *Grouping the Stochastic Machine* ([arXiv:2608.19140](https://arxiv.org/abs/2608.19140)), which references this repository, and *Aiming the Stochastic Machine: A Repository Discipline for First-Time-Right, and What Survived Measuring It* ([doi:10.5281/zenodo.22083202](https://doi.org/10.5281/zenodo.22083202)), which specifies the four-file repository discipline this repo is built on and uses this repository as its worked case. Paper 3 is a Zenodo preprint, not an arXiv one: arXiv moderation declined it on 2026-08-24 and will consider an appeal only after publication in a conventional journal with a resolving DOI to the published version. Its study materials — pre-registration, blinded pack, both codings, `kappa.py`, results — are deposited separately at [doi:10.5281/zenodo.22082967](https://doi.org/10.5281/zenodo.22082967), so the evidence can be checked without reading the paper first. See `TODO.md`.
@@ -24,7 +95,7 @@ Paper 3 pre-registered its metrics and its falsification conditions before readi
 
 For an end-to-end walk-through — one real incident becoming one rule and compiling out to all five instruction layers, with actual `relearn build` output — see [`docs/worked-example.md`](docs/worked-example.md).
 
-The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a Claude project layer — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/), ported from George's engineering discipline and spanning a global layer, language and discipline domains — `rust`, `java`, `low-latency`, `disclosure`, `agent-tooling`, `project-files` — and three project homes, with active, partial and graduated statuses. `relearn build` compiles it end to end, `relearn lint` reports advisory findings without ever touching a rule, and `relearn verify` checks the emitted tree has not drifted from it — the emitted tree is committed and CI runs `verify` bare on every push, so the command that grades the repository is the default one.
+The pipeline `rules/*.md → parse → validate → emit → write` works today for all five targets — Claude skills, Cursor rules, GitHub Copilot instructions, `AGENTS.md`, and a Claude project layer — and every v0.1 guarantee in `FEATURES.md` names a real enforcing artifact (types, property tests, and a compile-fail pin). A real rule set lives in [`rules/`](rules/), ported from George's engineering discipline and spanning a global layer, language and discipline domains — `rust`, `java`, `low-latency`, `disclosure`, `agent-tooling`, `project-files` — and three project homes, with active, partial and graduated statuses. `relearn build` compiles it end to end, `relearn lint` reports advisory findings without ever touching a rule, and `relearn verify` checks the emitted tree has not drifted from it — the emitted tree is committed and the local gate (`scripts/check.sh`, run by the pre-push hook) runs `verify` bare on every push, so the command that grades the repository is the default one.
 
 *(The corpus size is deliberately not written here. `relearn check` prints it — `ok: N rule(s) validated` — and a count in prose is a claim nothing checks, which is how this README came to say "fourteen" for two days after the fifteenth rule landed. `[R:doc-currency]`)*
 
