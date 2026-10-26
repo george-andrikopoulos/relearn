@@ -1,6 +1,6 @@
 ---
 name: domain-disclosure
-description: "Engineering discipline for working in disclosure. Covers: employer identity not in public artefacts; names travel with the quote; no tool attribution in public artefacts; repository private by default; report the hit not the match"
+description: "Engineering discipline for working in disclosure. Covers: report the hit not the match; employer identity not in public artefacts; names travel with the quote; no tool attribution in public artefacts; repository private by default"
 ---
 
 # domain: disclosure rules
@@ -82,7 +82,9 @@ Failure-mode check, for any tool that can sign its own work: *what would I see i
 
 ## Report the hit, never the match [R:report-the-hit-not-the-match]
 
-> Also enforced by hook:banned-name-in-output.
+> Partly enforced by hook:banned-name-in-output; any secret that is not on a banned-terms digest list -- a bearer token, an API key, a password, anything generated rather than named, which no list can hold in advance; and, for what the hook does cover, the first printing, because it runs after the tool and can only stop the leak being repeated is held by this instruction alone.
+
+> Has recurred 1 time(s) since it was written; most recently 2026-10-26.
 
 When what you are searching for is a thing whose whole problem is that it exists, your
 search output is another copy of it. Report **location, count and length**; never the
@@ -121,4 +123,4 @@ A new repository is created **private**. Going public is a decision somebody tak
 
 Failure-mode check, at creation: *did I choose this visibility, or accept it?*
 
-<!-- relearn:generated v0.1.0 sha256=0dc11a2a12b58d744b6fd5f2fcd00656e1840dfd9e5802be5898dce852257201 rules=R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=ffb88c555f04a56482f4214f9f1142c9020d96f4b11488dd5b4a6b26637e516f rules=R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->

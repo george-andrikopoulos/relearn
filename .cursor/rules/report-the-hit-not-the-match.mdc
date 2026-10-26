@@ -6,7 +6,9 @@ alwaysApply: false
 
 # Report the hit, never the match [R:report-the-hit-not-the-match]
 
-> Also enforced by hook:banned-name-in-output.
+> Partly enforced by hook:banned-name-in-output; any secret that is not on a banned-terms digest list -- a bearer token, an API key, a password, anything generated rather than named, which no list can hold in advance; and, for what the hook does cover, the first printing, because it runs after the tool and can only stop the leak being repeated is held by this instruction alone.
+
+> Has recurred 1 time(s) since it was written; most recently 2026-10-26.
 
 When what you are searching for is a thing whose whole problem is that it exists, your
 search output is another copy of it. Report **location, count and length**; never the
@@ -31,4 +33,4 @@ shape, opposite failure, different fixes: strip comments there, never emit the m
 here. `[R:names-travel-with-the-quote]` is the third face of the same identifier -- not
 printing it, but writing it down somewhere with a wider audience.
 
-<!-- relearn:generated v0.1.0 sha256=39753cd91b6ad3fc73df73efa53f500509b179832b760983b6d859c11612f19e rules=R:report-the-hit-not-the-match -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=7c8598ead24a2465809ec368161284751844879f6a622c58d394a4fc8cb5b094 rules=R:report-the-hit-not-the-match -- DO NOT EDIT; regenerate with `relearn build` -->

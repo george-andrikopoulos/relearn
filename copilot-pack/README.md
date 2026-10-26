@@ -9,7 +9,7 @@ as custom instructions. Download this folder, copy one file into your repository
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        96 rules, 2460 lines — the instruction file
+    └── copilot-instructions.md        96 rules, 2464 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the

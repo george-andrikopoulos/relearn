@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Check an inherited claim about the world before repeating it [R:check-the-claim-you-inherit]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-10-26.
+
 Before repeating a document's factual claim about live state, query the state.
 
 A document can tell you two different kinds of thing, and they do not deserve the same
@@ -40,4 +42,4 @@ If both, the document is a hypothesis and your report needs the observation, not
 quotation. If you cannot observe it, repeat it with its provenance attached -- "TODO.md
 records X, unverified" -- rather than asserting it flat.
 
-<!-- relearn:generated v0.1.0 sha256=797143f8e62c38c28e1f6d893203f16e1154efe1da7c2f7cb89b9a061cbc2084 rules=R:check-the-claim-you-inherit -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=b8734731ef88e5cfe6433391735fe2bb03cb3f2b4f038c178cf439a78127f3d7 rules=R:check-the-claim-you-inherit -- DO NOT EDIT; regenerate with `relearn build` -->
