@@ -82,7 +82,7 @@ Failure-mode check, for any tool that can sign its own work: *what would I see i
 
 ## Report the hit, never the match [R:report-the-hit-not-the-match]
 
-> Partly enforced by hook:banned-name-in-output; any secret that is not on a banned-terms digest list -- a bearer token, an API key, a password, anything generated rather than named, which no list can hold in advance; and, for what the hook does cover, the first printing, because it runs after the tool and can only stop the leak being repeated is held by this instruction alone.
+> Partly enforced by hook:banned-name-in-output; a secret that is neither on a banned-terms digest list nor in a file named on the machine's secret-files list -- a generated value the operator never listed, or one that appears JSON-escaped; output of a tool outside the hook's matcher, such as Read; and, for everything the hook does cover, the first printing, because it runs after the tool and can only stop the leak being repeated is held by this instruction alone.
 
 > Has recurred 1 time(s) since it was written; most recently 2026-10-26.
 
@@ -123,4 +123,4 @@ A new repository is created **private**. Going public is a decision somebody tak
 
 Failure-mode check, at creation: *did I choose this visibility, or accept it?*
 
-<!-- relearn:generated v0.1.0 sha256=ffb88c555f04a56482f4214f9f1142c9020d96f4b11488dd5b4a6b26637e516f rules=R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=82483409b62eeb8d1d2b3caf4cadb0c85cef541ee372f9029beee5c648c78d0c rules=R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->
