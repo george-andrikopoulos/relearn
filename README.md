@@ -17,28 +17,29 @@ Behind most corrections is a decision the assistant made for itself. It extracte
 In an agentic flow the model is the stochastic part. Everything around it is the **harness**: the instructions it loads, the tools it may call, and the hooks and gates that check its work. **Harness engineering** is the work of making that surrounding layer deterministic enough that the outcome is reliable even though the model is not. `relearn` owns one piece of the harness, the instruction layer, and the path that carries a human correction back into it.
 
 ```mermaid
-flowchart LR
-    subgraph session["Agent session, any assistant"]
-        direction TB
-        task["Task"] --> model["Model<br/>(stochastic)"]
-        model -->|tool calls| tools["Tools"]
-        tools -->|results| model
-        model --> output["Change or answer"]
-    end
+flowchart TD
+    rules[("rules/*.md<br/>one file per rule, provenance required")]
+    layers["HARNESS · instruction layers<br/>Claude skills · Cursor rules · Copilot · AGENTS.md · Claude project layer"]
+    model(["Model, any assistant<br/>stochastic"])
+    tools["Tools"]
+    controls["HARNESS · deterministic controls<br/>types · property tests · gates · hooks"]
+    review["Expert review"]
+    correction["Correction"]
 
-    subgraph harness["Harness: what the model runs inside"]
-        direction TB
-        layers["Instruction layers<br/>Claude skills · Cursor rules · Copilot<br/>AGENTS.md · Claude project layer"]
-        controls["Deterministic controls<br/>types · property tests · gates · hooks"]
-    end
+    rules -->|"relearn build<br/>relearn verify: emitted == source"| layers
+    layers -->|"loaded at session start"| model
+    model <-->|"tool calls and results"| tools
+    model -->|"change or answer"| controls
+    controls -->|"what the controls let through"| review
+    review -->|"an error gets through"| correction
+    correction -->|"relearn new: the error loop, below"| rules
 
-    layers -->|loaded at session start| model
-    output --> controls
-    controls -->|pass or block| review["Expert review"]
-    review -->|"an error gets through"| correction["Correction"]
-    correction --> rules[("rules/*.md<br/>one file per rule<br/>provenance required")]
-    rules -->|relearn build| layers
-    rules -.->|"relearn verify<br/>emitted == source"| layers
+    classDef harness fill:#fff4d6,stroke:#b8860b,color:#222
+    classDef source fill:#e6f0ff,stroke:#3366cc,color:#222
+    classDef stochastic fill:#fde8e8,stroke:#c0392b,color:#222
+    class layers,controls harness
+    class rules source
+    class model stochastic
 ```
 
 Two properties make this engineering rather than prompt editing:
