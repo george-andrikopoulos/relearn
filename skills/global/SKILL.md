@@ -1,9 +1,43 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; check the claim you inherit; doc currency; no silent spend; prefer by construction; repair the lying artefact; signal needs a consequence; verify through production path; detector excludes own definitions; anchor outside the checked partys reach; delegate a fan out; diff against the known good state; evidence must discriminate; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; money is not a float; case collision"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; check the claim you inherit; doc currency; no silent spend; prefer by construction; repair the lying artefact; signal needs a consequence; verify through production path; detector excludes own definitions; an ambiguous write target is a question; anchor outside the checked partys reach; delegate a fan out; diff against the known good state; evidence must discriminate; make illegal states unrepresentable; measure cost per task; measure the claim not a subset; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; money is not a float; case collision"
 ---
 
 # global rules
+
+## When the request does not fix what a write touches, ask before writing [R:an-ambiguous-write-target-is-a-question]
+
+> Written down from Task Success Is Not Enough: Side-effect-Aware Evaluation of Tool-Using Language Model Agents (SABench), NeurIPS 2026 poster, https://neurips.cc/virtual/2026/poster/138911 (arXiv:2610.34167, listed in cs.AI 2026-10-27) -- abstract read 2026-10-27.
+
+Before any action that changes state outside the working copy -- sending, posting, inviting,
+editing a shared record, deleting, closing -- name the exact targets it will touch and check
+that the request names each one. If it does not, ask. Do not resolve the ambiguity by choosing
+the most plausible reading and proceeding.
+
+Three shapes, all the same error:
+
+- **The wrong object.** Two calendars, two threads, two tickets match the description; one is
+  picked.
+- **The widened scope.** "Reply to Sam" becomes a reply-all; "fix the date on this event"
+  becomes an edit to the whole recurring series.
+- **The unintended recipient.** A forward, an invite or a mention reaches someone the request
+  never named.
+
+Reaching the goal does not clear it. The run that sent the right message *and* updated a second
+record looks complete to every check that grades completion, which is why this class survives
+review: the evidence of success is also the cover for the side effect.
+
+The cost is asymmetric, so the threshold is too. A question costs one turn; a write to the wrong
+object is often irreversible and lands on someone who did not ask for anything. Where the action
+is read-only, or confined to files the session owns and version control can restore, picking a
+reading and saying so is fine. Where it reaches other people or shared state, it is not.
+
+Failure-mode check, before the call: **which objects will this write touch, and where in the
+request is each one named?** If the honest answer for any of them is "it was the likely one",
+that is the question to ask.
+
+Neighbour, deliberately separate: `[R:no-silent-spend]` is deciding for the user what a task is
+worth; this is deciding for them what a task is *about*.
 
 ## Keep a check's trust anchor out of reach of the party it checks [R:anchor-outside-the-checked-partys-reach]
 
@@ -635,4 +669,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=a3716ab011b43b37924c1b8910ccf3c27a7a6185d201deea93aaa49036cbbdc0 rules=R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=eded2ad05ca55c63723b6ed26c39e9e2cd4b38dc718a0bca0d74f64af2425632 rules=R:an-ambiguous-write-target-is-a-question,R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
