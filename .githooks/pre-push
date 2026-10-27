@@ -8,7 +8,8 @@
 # exists (see Gate 2); the third is the interim control for
 # `[R:money-is-not-a-float]` and is here because the push is the event that
 # happens anyway; the fourth is the gate hosted CI used to run (see Gate 4).
-# ALL must pass; the first to fail refuses the push.
+# ALL must pass; the first to fail refuses the push. After them comes a
+# reminder that refuses nothing (see the end of this file).
 #
 # This repository is public and quotes private working sessions verbatim: a
 # rule's `incident` field, and TODO.md's narration of the same material. The
@@ -28,6 +29,11 @@
 # Refuses to pass if the script is missing, on the same reasoning.
 
 set -uo pipefail
+
+# The refs being pushed, as git hands them to a pre-push hook. Read first,
+# before any gate runs, so nothing below can consume them; only the reminder
+# after the gates uses them.
+PUSHED=$(cat)
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="$ROOT/scripts/no-banned-names.sh"
@@ -171,5 +177,17 @@ if [ "$status" -ne 0 ]; then
     echo "[pre-push] stages are named on its FAIL line above." >&2
     exit 1
 fi
+
+# --- After the gates: the claude.ai account copies are now behind -----------
+#
+# Not a gate. Nothing refreshes the account copies of the skills: a cloud
+# scheduled task cannot save an account skill, so they are synced by hand in
+# Cowork and lag until someone does. A push that changes claude-pack/ is where
+# that lag starts, so it prints one line saying so. It runs only once every
+# gate has passed -- a refused push changed nothing -- and its status is not
+# read: a reminder cannot refuse a push. Its self-test is a stage of
+# scripts/check.sh (Gate 4), so a reminder that stopped firing fails there.
+
+printf '%s\n' "$PUSHED" | bash "$ROOT/scripts/pack-sync-reminder.sh" >&2
 
 exit 0

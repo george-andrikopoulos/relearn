@@ -48,9 +48,10 @@ stage verify-claude-pack cargo run --quiet -- verify --targets claude --out clau
 stage lint cargo run --quiet -- lint --deny error
 stage money-self-test bash scripts/no-float-money.sh --self-test
 stage money-scan bash scripts/no-float-money.sh
+stage pack-sync-self-test bash scripts/pack-sync-reminder.sh --self-test
 
 if [ "${#failed[@]}" -eq 0 ]; then
-    echo "PASS: rustfmt, clippy, test, verify x3, lint, money-scan"
+    echo "PASS: rustfmt, clippy, test, verify x3, lint, money-scan, pack-sync"
     exit 0
 fi
 echo "FAIL: ${failed[*]}"

@@ -1311,6 +1311,24 @@ like the hook's other gates: a clone that has not run `git config core.hooksPath
 has no gate at all. **What it does not do:** grade the other OS. CI ran Ubuntu and Windows;
 a push grades the platform it is made from. Carried in `TODO.md`.
 
+### A push that changes `claude-pack/` says the account copies are behind (added 2026-10-27)
+
+**What.** Once every pre-push gate has passed, `.githooks/pre-push` hands the refs being pushed
+to `scripts/pack-sync-reminder.sh`. If any commit being pushed touches `claude-pack/`, it prints
+one line telling George to run the claude.ai skill sync in Cowork. Nothing refreshes the account
+copies automatically: a cloud scheduled task cannot save an account skill, so the copies are
+synced by hand and lag until someone does. The reminder marks where that lag starts.
+
+**What it is not.** It is not a gate. It exits 0, its status is not read, and it cannot refuse a
+push. It refreshes nothing, and it cannot see whether the sync was then run.
+
+**Enforced by:** `scripts/pack-sync-reminder.sh --self-test`, a stage of `scripts/check.sh` (and
+so of pre-push Gate 4). It builds a throwaway repository and requires the line for a push that
+includes a `claude-pack/` commit and for a new branch carrying one. It requires silence for a
+push of a non-pack commit, a branch delete and empty input. The fixture writes the literal
+path, not the script's own variable. A copy with the variable broken fails two cases, which was
+probed on 2026-10-27. **Configuration-dependent** like the hook's gates.
+
 ## Deliberately out of scope for v0.1
 
 - **Recurrence / outcome instrumentation** — phase C; lives in the stochos-lab ledger, not here.
