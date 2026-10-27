@@ -513,14 +513,68 @@ pub fn verify_all(out_dir: &Path, files: &[OutputFile]) -> Result<Vec<VerifyRepo
     Ok(reports)
 }
 
-/// relearn-owned directories, walked recursively for its own generated files.
-/// These hold the variable per-home / per-rule targets where a removed rule can
-/// strand an orphan (`skills/<slug>/SKILL.md`, `.cursor/rules/<tag>.mdc`,
-/// `.claude/rules/<slug>.md`). Only files carrying the marker are ever
-/// considered, so a hand-authored file here is left alone; and only these
-/// subtrees are walked, so unrelated content elsewhere under the output root is
-/// never inspected.
-const OWNED_DIRS: &[&str] = &["skills", ".cursor/rules", ".claude/rules"];
+/// The shape of the paths relearn's emitters write beneath an owned directory.
+/// Ownership is of a *shape*, not of a subtree: a directory relearn writes into
+/// may also hold things relearn never wrote, and a file at a depth no emitter
+/// produces cannot be one of its orphans however it got there.
+#[derive(Debug, Clone, Copy)]
+enum Layout {
+    /// `<root>/<file>` — one file per rule or per home.
+    Flat,
+    /// `<root>/<slug>/<file>` — one directory per home, as a skill is.
+    PerSlug,
+}
+
+impl Layout {
+    /// Does a file at `below_root` (relative to the owned directory) have the
+    /// shape this layout's emitters write?
+    fn admits(self, below_root: &Path) -> bool {
+        let depth = below_root.components().count();
+        match self {
+            Layout::Flat => depth == 1,
+            Layout::PerSlug => depth == 2,
+        }
+    }
+}
+
+/// A relearn-owned directory and the layout its emitters write there.
+struct OwnedDir {
+    root: &'static str,
+    layout: Layout,
+}
+
+/// relearn-owned directories, searched for its own generated files at the depth
+/// their emitters write. These hold the variable per-home / per-rule targets
+/// where a removed rule can strand an orphan (`skills/<slug>/SKILL.md`,
+/// `.cursor/rules/<tag>.mdc`, `.claude/rules/<slug>.md`). Only files carrying
+/// the marker are ever considered, so a hand-authored file here is left alone;
+/// only these subtrees are searched, so unrelated content elsewhere under the
+/// output root is never inspected; and only the emitted depth is considered, so
+/// a deeper tree inside an owned directory is not relearn's either.
+///
+/// The depth is what keeps `~/.claude/skills/synced/<bucket>/<slug>/SKILL.md`
+/// out of the scan: Claude Code's skill sync downloads skills uploaded to an
+/// account, and a relearn skill uploaded to claude.ai comes back down still
+/// carrying the marker. Walking `skills/` recursively reported those copies as
+/// orphans "whose rule was removed" — false, and unfixable by deleting them,
+/// since the next sync round restores them. Matching the shape rather than
+/// excluding `synced/` by name means the next harness directory is excluded too.
+/// `every_file_emitted_into_an_owned_dir_is_visible_to_the_orphan_scan` holds
+/// the other side: no emitter may write deeper than its layout admits.
+const OWNED_DIRS: &[OwnedDir] = &[
+    OwnedDir {
+        root: "skills",
+        layout: Layout::PerSlug,
+    },
+    OwnedDir {
+        root: ".cursor/rules",
+        layout: Layout::Flat,
+    },
+    OwnedDir {
+        root: ".claude/rules",
+        layout: Layout::Flat,
+    },
+];
 
 /// relearn-owned fixed single-file targets. Each has exactly one path, so an
 /// orphan arises only when the file is no longer emitted at all yet a marked
@@ -542,8 +596,14 @@ fn scan_orphans(
     expected: &BTreeSet<&str>,
 ) -> Result<Vec<RelativePath>, VerifyError> {
     let mut found: Vec<PathBuf> = Vec::new();
-    for dir in OWNED_DIRS {
-        collect_files(&out_dir.join(dir), &mut found)?;
+    for owned in OWNED_DIRS {
+        let root = out_dir.join(owned.root);
+        let mut under: Vec<PathBuf> = Vec::new();
+        collect_files(&root, &mut under)?;
+        found.extend(under.into_iter().filter(|full| {
+            full.strip_prefix(&root)
+                .is_ok_and(|below| owned.layout.admits(below))
+        }));
     }
     for f in OWNED_FILES {
         let p = out_dir.join(f);

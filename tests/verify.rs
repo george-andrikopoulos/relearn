@@ -172,3 +172,67 @@ fn an_unmarked_file_in_an_owned_dir_is_not_an_orphan() {
         "an unmarked hand-authored file is not relearn's to flag"
     );
 }
+
+/// The regression pin for 2026-10-27. Claude Code's skill sync downloads the
+/// skills uploaded to an account into `skills/synced/<bucket>/<slug>/`, and a
+/// relearn skill uploaded to claude.ai comes back down still carrying the
+/// marker. A recursive walk of `skills/` reported every such copy as an orphan
+/// "whose rule was removed" — false, and unfixable by deleting the copy, since
+/// the next sync round restores it. Only the depth an emitter writes is relearn's.
+#[test]
+fn a_marked_skill_below_the_emitted_depth_is_not_an_orphan() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let f = emit::claude::emit(&library("The body."));
+    fsio::write_all(dir.path(), &f).expect("write");
+
+    let emitted = dir.path().join(f[0].path().as_str());
+    let synced = dir
+        .path()
+        .join("skills/synced/bucket")
+        .join(f[0].path().as_str().trim_start_matches("skills/"));
+    fs::create_dir_all(synced.parent().expect("has parent")).expect("mkdir");
+    fs::copy(&emitted, &synced).expect("seed a synced copy carrying the marker");
+
+    let reports = fsio::verify_all(dir.path(), &f).expect("verify reads succeed");
+    assert!(
+        reports.iter().all(|r| *r.status() == VerifyStatus::Ok),
+        "a marked copy under skills/synced/ is not relearn's to flag: {reports:?}"
+    );
+}
+
+/// The other half of the same fix: narrowing the scan to the emitted depth must
+/// not hide anything an emitter actually writes. Every file the real corpus
+/// emits into an owned directory, verified against an empty expectation, must
+/// come back as an orphan — so an emitter that starts writing deeper than the
+/// scan looks fails here instead of stranding orphans nobody reports.
+#[test]
+fn every_file_emitted_into_an_owned_dir_is_visible_to_the_orphan_scan() {
+    let corpus = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("rules");
+    let lib = fsio::load_rules(&corpus)
+        .expect("the corpus loads")
+        .validate()
+        .expect("the corpus validates");
+    let mut f = emit::claude::emit(&lib);
+    f.extend(emit::cursor::emit(&lib));
+    f.extend(emit::claude_rules::emit(&lib));
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    fsio::write_all(dir.path(), &f).expect("write");
+    let reports = fsio::verify_all(dir.path(), &[]).expect("verify reads succeed");
+
+    let owned = ["skills/", ".cursor/rules/", ".claude/rules/"];
+    let emitted: Vec<&str> = f
+        .iter()
+        .map(|o| o.path().as_str())
+        .filter(|p| owned.iter().any(|root| p.starts_with(root)))
+        .collect();
+    assert!(!emitted.is_empty(), "the corpus emits into the owned dirs");
+    for path in emitted {
+        assert!(
+            reports
+                .iter()
+                .any(|r| *r.status() == VerifyStatus::Orphan && r.path().as_str() == path),
+            "{path} is emitted but the orphan scan cannot see it"
+        );
+    }
+}

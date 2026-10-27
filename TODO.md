@@ -27,6 +27,12 @@ them. `[R:doc-currency]`
 - [x] CI: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` on push + PR
 
 
+## `[R:an-ambiguous-write-target-is-a-question]`, and verify misreading the skill sync (2026-10-27)
+
+- [x] **`[R:an-ambiguous-write-target-is-a-question]` written, `global` home.** Codified from the SABench abstract. Global is now 32 rules; the pack READMEs' counts moved with it (copilot 96 → 97, `global` 31 → 32).
+- [x] **`verify` reported claude.ai copies of relearn skills as orphans.** Claude Code's skill sync downloads skills uploaded to an account into `~/.claude/skills/synced/<bucket>/<slug>/SKILL.md`; they keep the marker, and the recursive walk of `skills/` called four of them orphans "whose rule was removed". That blocked every push through the downstream check, and deleting them would not have helped — the next sync round restores them. The scan now considers only the depth the emitters write (`fsio::Layout`).
+- [!] **The claude.ai copies of the skills are a third emission that nothing verifies.** The synced `domain-*` copies are the ones uploaded on 2026-10-27; a later change to those homes reaches `~/.claude/skills/` and `claude-pack/` but not the account until someone re-uploads. The copies are on disk under `skills/synced/`, so they could be compared with `claude-pack/`; nothing does, and the remedy (re-uploading) is an account action this tree cannot take.
+
 ## Codified from programmatic tool calling (2026-10-25)
 
 - [x] **`[R:a-model-turn-is-for-judgment]` written, in a new `domain=agent-tooling` home.** Codified from the Claude API's programmatic tool calling page, with every cited figure checked against the page. Of three candidate classes, one survived. `allowed_callers` treated as access control is `[R:anchor-outside-the-checked-partys-reach]`; the `source` note the brief offered for it cannot be built, because that rule is `mined`. An undescribed output format is held by a type in the consuming project. The independent fan-out is `[R:delegate-a-fan-out]`. The decisions log carries the home and the rejected alternatives.
