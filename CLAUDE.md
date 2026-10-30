@@ -122,6 +122,17 @@ It is the reference implementation of the error loop described in *Tuning the St
   corpus both ways: an unplaced control and a stale entry both fail. It is not in bare `verify`,
   because the push gate must not depend on what is cloned beside this repository; its in-tree half
   is a `cargo test`.
+- **A detector is proved where it is defined, and installed by a person.** A rule's `[[detector]]`
+  tables are its mechanical control, and the rule is their only source: `relearn build --targets
+  hooks` compiles each into a hook script, and nothing else reads them
+  (`no_emitter_but_hooks_reads_a_detector`), so no instruction layer ever quotes a pattern. Its
+  fixtures run **while the rule parses** — at least one hit and one clean, and one that disagrees
+  stops the build — and a pattern outside the dialect `regex` and `grep -E` read alike does not
+  parse, because the same pattern runs in Rust at `check` and in `grep` in the hook. `check` then
+  runs every detector over every rule file and every emitted file and fails on any hit
+  (`[R:detector-excludes-own-definitions]`). A detector never changes its rule's status:
+  graduation stays the operator's call, and `lint` only says a candidate exists. The `hooks`
+  target is explicit only, and nothing writes under `~/.claude`.
 - Tags are unique across the library; a duplicate tag is a parse error.
 - **One engineer with nothing else present can use it.** No account, no configuration file, no
   network, no ambient state: the input is the path given on the command line and the output is the
@@ -165,12 +176,16 @@ relearn new --tag R:x --title "..." --error-class "..." --home domain=low-latenc
             --on 2026-09-18 --incident-file inc.md --body-file body.md [--dry-run]
 
 relearn build --targets claude,cursor,copilot,agents   # compile rules to all targets
-relearn check                                          # validate library, no output written
+relearn check                                          # validate library, run every detector's
+#   fixtures and the self-exclusion sweep; no output written
+relearn build --targets hooks --out hooks-pack         # detectors -> hook scripts (explicit only)
+bash hooks-pack/hooks/test-detectors.sh                # every fixture through the generated scripts
 relearn list --home global                             # inspect
 relearn list --format tsv                              # the corpus as data:
 #   tag, home, created, origin, status, controls, recurrences, last_recurrence
 #   under a #-header. No free prose: `incident` is a private quotation.
 relearn lint --upstream <drive>                        # findings, then the federation's pokes
+#   --map <controls.toml> (the default) places named hooks; absent, every unplaced one is reported
 
 # Resolve every control a partial/graduated rule names against controls.toml.
 # Read-only. 0 all wired / 1 missing, unwired, unmapped or stale / 2 disarmed.
@@ -244,6 +259,7 @@ Before writing an incident, ask: **which repository's detector covers the file I
 
 - `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and `scripts/check.sh` runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
 - `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; `scripts/check.sh` verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
+- `hooks-pack/` — the `hooks` target's emission: one bash + `jq` Claude Code `PreToolUse` script per detector, a `test-detectors.sh` runner and a `settings-snippet.md`, with a hand-authored README whose script table `tests/pack_counts.rs` reads back. Rebuild with `relearn build --targets hooks --out hooks-pack`; `scripts/check.sh` verifies it and runs the runner. It installs into `~/.claude/hooks/relearn/` by hand, beside any hand-written hook and never over one.
 - `docs/session-start-poke.md` — the `SessionStart` hook snippet for the poke, **deliberately not installed**: anything under `~/.claude` edits the layer loaded into every session on the machine, and no gate in this repository could see it.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.
 - `FEATURES.md` — the regression ledger; every feature names the artifact that enforces it.

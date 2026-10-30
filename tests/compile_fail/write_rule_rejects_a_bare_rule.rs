@@ -31,6 +31,7 @@ fn main() {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     );
 
     // Even a *local* rule cannot take this shortcut: the witness is the only

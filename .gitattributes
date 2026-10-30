@@ -16,6 +16,7 @@ AGENTS.md                       text eol=lf
 .github/copilot-instructions.md text eol=lf
 copilot-pack/**                 text eol=lf
 claude-pack/**                  text eol=lf
+hooks-pack/**                   text eol=lf
 
 # The rule library is the source, and `tests/corpus.rs` asserts every file
 # survives a parse/serialize round trip **byte-identically** — the check that

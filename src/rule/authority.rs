@@ -542,6 +542,10 @@ impl PulledRule {
             // Not carried: a published incident is what upstream wrote *to
             // publish with*, and this install has nothing to publish.
             None,
+            // Carried whole. A detector is the rule's mechanical half, not
+            // local evidence: dropping it would cache the prose and lose the
+            // control, and a cache must compile like the rule it copies.
+            upstream.detectors().to_vec(), // allow:clone: same
         )))
     }
 

@@ -62,6 +62,7 @@ fn rule(
         Vec::new(),
         authority,
         None,
+        Vec::new(),
     )
 }
 

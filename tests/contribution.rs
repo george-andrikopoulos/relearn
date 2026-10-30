@@ -50,6 +50,7 @@ fn rule_with(
         Vec::new(),
         authority,
         published.map(|p| PublishedIncident::parse(p).expect("non-empty published incident")),
+        Vec::new(),
     )
 }
 
@@ -325,6 +326,7 @@ fn citing(body: &str) -> Rule {
         Vec::new(),
         Authority::local(),
         Some(PublishedIncident::parse(PUBLISHED).expect("non-empty")),
+        Vec::new(),
     )
 }
 
@@ -343,6 +345,7 @@ fn homed(tag: &str, home: H) -> Rule {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     )
 }
 

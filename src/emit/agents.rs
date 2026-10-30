@@ -103,6 +103,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 

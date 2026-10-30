@@ -99,6 +99,10 @@ impl HookRegistry {
     /// would be reading the machine rather than the file.
     #[must_use]
     pub fn registers(&self, file_name: &str) -> bool {
-        self.commands.iter().any(|c| names(c, file_name))
+        // A Windows command line may spell the path with backslashes; the token
+        // is always forward-slash, as every path in the map is.
+        self.commands
+            .iter()
+            .any(|c| names(&c.replace('\\', "/"), file_name))
     }
 }

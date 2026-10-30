@@ -4,8 +4,8 @@
 //! with its arguments in the wrong order — a swap is a compile error.
 
 use super::{
-    Authority, Body, Date, ErrorClass, Federation, Home, Incident, Origin, PublishedIncident,
-    RecurrenceRole, RuleTag, ScopeTag, Status, Title,
+    Authority, Body, Date, Detector, ErrorClass, Federation, Home, Incident, Origin,
+    PublishedIncident, RecurrenceRole, RuleTag, ScopeTag, Status, Title,
 };
 
 /// One later occurrence of the error class a rule already covers — evidence
@@ -60,6 +60,7 @@ pub struct Rule {
     applies_to: Vec<ScopeTag>,
     authority: Authority,
     published_incident: Option<PublishedIncident>,
+    detectors: Vec<Detector>,
 }
 
 impl Rule {
@@ -106,6 +107,7 @@ impl Rule {
         applies_to: Vec<ScopeTag>,
         authority: Authority,
         published_incident: Option<PublishedIncident>,
+        detectors: Vec<Detector>,
     ) -> Self {
         Rule {
             tag,
@@ -121,6 +123,7 @@ impl Rule {
             applies_to,
             authority,
             published_incident,
+            detectors,
         }
     }
 
@@ -216,6 +219,14 @@ impl Rule {
     #[must_use]
     pub fn published_incident(&self) -> Option<&PublishedIncident> {
         self.published_incident.as_ref()
+    }
+
+    /// The detectors that compile to this rule's hooks, in file order. Empty for
+    /// almost every rule: a detector is how a rule carries its own mechanical
+    /// control, and most rules are held by prose or by a control elsewhere.
+    #[must_use]
+    pub fn detectors(&self) -> &[Detector] {
+        &self.detectors
     }
 
     /// Whether this install is the rule's home, holds a cache of one whose home
@@ -360,6 +371,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 
@@ -388,6 +400,7 @@ mod tests {
                 .collect(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 

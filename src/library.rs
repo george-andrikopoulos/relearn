@@ -7,7 +7,7 @@
 //! **Must NOT:** perform I/O. The library is a pure in-memory value; reading
 //! rules from disk and writing emitted files belong to `fsio`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::marker::PhantomData;
 
 use crate::rule::{Rule, RuleTag};
@@ -35,6 +35,15 @@ pub enum ValidationError {
     /// silently dropped — it stops validation.
     #[error("duplicate rule tag {0}")]
     DuplicateTag(RuleTag),
+    /// Two rules carry a detector of the same name. The name is the hook's
+    /// file name and what `hook:<name>` resolves to, so two of them would
+    /// compile to one file and one of the two controls would silently vanish.
+    #[error("detector `{name}` is defined by both {first} and {second}")]
+    DuplicateDetector {
+        name: String,
+        first: RuleTag,
+        second: RuleTag,
+    },
 }
 
 impl Library<Unvalidated> {
@@ -69,6 +78,18 @@ impl Library<Unvalidated> {
         for rule in &self.rules {
             if !seen.insert(rule.tag().as_str()) {
                 return Err(ValidationError::DuplicateTag(rule.tag().clone())); // allow:clone: own the offending tag for the diagnostic on the failure path
+            }
+        }
+        let mut detectors: BTreeMap<&str, &RuleTag> = BTreeMap::new();
+        for rule in &self.rules {
+            for detector in rule.detectors() {
+                if let Some(first) = detectors.insert(detector.name().as_str(), rule.tag()) {
+                    return Err(ValidationError::DuplicateDetector {
+                        name: detector.name().as_str().to_owned(),
+                        first: first.clone(), // allow:clone: owned by the diagnostic on the failure path
+                        second: rule.tag().clone(), // allow:clone: same
+                    });
+                }
             }
         }
         Ok(Library {
@@ -163,6 +184,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 

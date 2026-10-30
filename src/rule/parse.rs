@@ -12,11 +12,13 @@
 
 use serde::Deserialize;
 
+use super::detector::RawDetector;
+
 use super::{
-    Approval, Approver, Authority, Body, ControlError, ControlRef, Date, DateError, EmptyText,
-    ErrorClass, Home, Incident, Origin, OriginError, PublishedIncident, Recurrence, Rule, RuleTag,
-    RuleTagError, ScopeTag, ScopeTagError, SourceArtefact, SourceId, Status, StatusError, Title,
-    Version,
+    Approval, Approver, Authority, Body, ControlError, ControlRef, Date, DateError, DetectorError,
+    EmptyText, ErrorClass, Home, Incident, Origin, OriginError, PublishedIncident, Recurrence,
+    Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceArtefact, SourceId, Status,
+    StatusError, Title, Version,
 };
 
 /// Why a rule document failed to parse.
@@ -95,6 +97,12 @@ pub enum ParseError {
     #[error("field `applies_to`: scope `{0}` is listed twice")]
     DuplicateScope(String),
     /// A tagged table was missing a field its kind requires.
+    #[error("detector `{name}`: {source}")]
+    Detector {
+        /// The `name` as written, which may be the thing that was refused.
+        name: String,
+        source: DetectorError,
+    },
     #[error("`{context}` requires field `{field}`")]
     MissingField {
         /// The table and kind, e.g. `home domain`.
@@ -171,6 +179,14 @@ struct RawRule {
     /// is what may not travel.
     #[serde(default)]
     published_incident: Option<String>,
+    /// The rule's mechanical controls, as `[[detector]]` tables.
+    ///
+    /// `default` and empty for nearly every rule, so no existing file needed
+    /// editing. Each table is parsed **and its fixtures run** before the rule
+    /// exists: a detector that disagrees with its own fixtures stops the build
+    /// like any other malformed field.
+    #[serde(default)]
+    detector: Vec<RawDetector>,
 }
 
 /// The `authority` table: `kind`, plus the provenance the kind requires.
@@ -301,6 +317,16 @@ impl RawRule {
             .published_incident
             .map(PublishedIncident::parse)
             .transpose()?;
+        // Collected with `?`: one refused detector stops the build, named.
+        let detectors = self
+            .detector
+            .into_iter()
+            .map(|raw| {
+                let name = raw.raw_name().to_owned();
+                raw.into_detector()
+                    .map_err(|source| ParseError::Detector { name, source })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Rule::new(
             tag,
             title,
@@ -315,6 +341,7 @@ impl RawRule {
             applies_to,
             authority,
             published_incident,
+            detectors,
         ))
     }
 }

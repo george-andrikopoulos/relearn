@@ -185,6 +185,7 @@ fn arb_rule(tag_body: String) -> impl Strategy<Value = Rule> {
                     Vec::new(),
                     authority,
                     None,
+                    Vec::new(),
                 )
             },
         )
@@ -218,6 +219,7 @@ fn arb_library_mixed() -> impl Strategy<Value = Library<Validated>> {
                     Vec::new(),
                     Authority::local(),
                     None,
+                    Vec::new(),
                 ));
             }
             Library::from_rules(rules)
@@ -262,6 +264,7 @@ fn arb_library_recurring() -> impl Strategy<Value = Library<Validated>> {
                 Vec::new(),
                 Authority::local(),
                 None,
+                Vec::new(),
             ));
         }
         Library::from_rules(rules)
@@ -322,6 +325,7 @@ fn without_scopes(lib: &Library<Validated>) -> Library<Validated> {
                     Vec::new(),
                     r.authority().clone(),           // allow:clone: same
                     r.published_incident().cloned(), // allow:clone: same
+                    Vec::new(),
                 )
             })
             .collect(),
@@ -367,6 +371,7 @@ fn without_sources(lib: &Library<Validated>) -> Library<Validated> {
                     r.applies_to().to_vec(),
                     r.authority().clone(),           // allow:clone: same
                     r.published_incident().cloned(), // allow:clone: same
+                    Vec::new(),
                 )
             })
             .collect(),
@@ -399,6 +404,7 @@ fn arb_library_sourced() -> impl Strategy<Value = Library<Validated>> {
                     Vec::new(),
                     Authority::local(),
                     None,
+                    Vec::new(),
                 ));
             }
             Library::from_rules(rules)
@@ -439,6 +445,7 @@ fn arb_library() -> impl Strategy<Value = Library<Validated>> {
                 Vec::new(),
                 Authority::local(),
                 None,
+                Vec::new(),
             ));
         }
         Library::from_rules(rules)
@@ -494,6 +501,7 @@ fn arb_library_scoped() -> impl Strategy<Value = Library<Validated>> {
                     applies_to,
                     Authority::local(),
                     None,
+                    Vec::new(),
                 ));
             }
             Library::from_rules(rules)
@@ -542,6 +550,7 @@ proptest! {
             scopes.clone(),
             Authority::local(),
             None,
+            Vec::new(),
         );
         let doc = to_document(&rule);
         prop_assert_eq!(doc.contains("applies_to"), !scopes.is_empty());
@@ -738,6 +747,7 @@ proptest! {
             rule.applies_to().to_vec(),
             Authority::local(),
             None,
+            Vec::new(),
         );
         let without = Library::from_rules(vec![localised]).validate().expect("one tag validates");
 

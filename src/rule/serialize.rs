@@ -12,7 +12,9 @@
 //! as a TOML basic string so quotes, backslashes, and control characters
 //! survive the round trip.
 
-use super::{Approval, Authority, Home, Rule, ScopeTag, Status};
+use super::{
+    Approval, Authority, Detector, Engine, FixtureInput, Glob, Home, Rule, ScopeTag, Status,
+};
 
 /// Serialize a rule to its neutral document form (`+++` front-matter, then the
 /// markdown body). [`super::parse_document`] parses the result back to an equal
@@ -78,6 +80,12 @@ pub fn to_document(rule: &Rule) -> String {
         out.push_str(&kv("date", &recurrence.date().to_string()));
         out.push_str(&kv("incident", recurrence.incident().as_str()));
     }
+    // After the recurrences, for the same reason they come last: an array of
+    // tables captures every key that follows it. A rule with no detector
+    // renders exactly as before the field existed.
+    for detector in rule.detectors() {
+        out.push_str(&detector_tables(detector));
+    }
     out.push_str("+++\n\n");
     out.push_str(rule.body().as_str());
     out.push('\n');
@@ -87,6 +95,74 @@ pub fn to_document(rule: &Rule) -> String {
 /// One `key = "value"` front-matter line, the value a TOML basic string.
 fn kv(key: &str, value: &str) -> String {
     format!("{key} = {}\n", toml_basic_string(value))
+}
+
+/// One `key = 'value'` line for text a person reads as code — a regex, a line
+/// of Rust — where a basic string's doubled backslashes would make the rule
+/// file harder to check than the hook it compiles to. Falls back to a basic
+/// string when a literal one cannot hold the value.
+fn kv_code(key: &str, value: &str) -> String {
+    let literal = !value.contains('\'') && !value.chars().any(char::is_control);
+    if literal {
+        format!("{key} = '{value}'\n")
+    } else {
+        kv(key, value)
+    }
+}
+
+/// `key = ["a", "b"]`.
+fn kv_list<'a>(key: &str, values: impl Iterator<Item = &'a str>) -> String {
+    let list: Vec<String> = values.map(toml_basic_string).collect();
+    format!("{key} = [{}]\n", list.join(", "))
+}
+
+/// A `[[detector]]` table and its `[[detector.fixture]]` tables, in the order
+/// the parser reads them.
+fn detector_tables(d: &Detector) -> String {
+    let mut out = String::from("\n[[detector]]\n");
+    out.push_str(&kv("name", d.name().as_str()));
+    out.push_str(&kv("engine", d.engine().as_str()));
+    match d.engine() {
+        Engine::LineRegex {
+            pattern,
+            comment,
+            allow,
+        } => {
+            out.push_str(&kv_code("pattern", pattern.as_str()));
+            if let Some(comment) = comment {
+                out.push_str(&kv("comment", comment.as_str()));
+            }
+            if let Some(allow) = allow {
+                out.push_str(&kv("allow", allow.as_str()));
+            }
+        }
+        Engine::SiblingCase => {}
+    }
+    out.push_str(&kv_list(
+        "files",
+        d.scope().files().iter().map(Glob::as_str),
+    ));
+    if !d.scope().exclude().is_empty() {
+        out.push_str(&kv_list(
+            "exclude",
+            d.scope().exclude().iter().map(Glob::as_str),
+        ));
+    }
+    out.push_str(&kv_list("events", d.events().iter().map(|e| e.as_str())));
+    out.push_str(&kv("action", d.action().as_str()));
+    out.push_str(&kv("message", d.message()));
+    for fixture in d.fixtures() {
+        out.push_str("\n[[detector.fixture]]\n");
+        out.push_str(&kv("path", fixture.path().as_str()));
+        match fixture.input() {
+            FixtureInput::Text(text) => out.push_str(&kv_code("input", text)),
+            FixtureInput::Siblings(names) => {
+                out.push_str(&kv_list("siblings", names.iter().map(String::as_str)));
+            }
+        }
+        out.push_str(&kv("expect", fixture.expect().as_str()));
+    }
+    out
 }
 
 /// The `home = { ... }` line, an inline table keyed by the home's kind.
@@ -243,6 +319,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 
@@ -268,6 +345,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 
@@ -379,6 +457,7 @@ mod tests {
                 .collect(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 
@@ -449,6 +528,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 
@@ -507,6 +587,7 @@ mod tests {
             Vec::new(),
             authority,
             None,
+            Vec::new(),
         )
     }
 

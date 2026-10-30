@@ -327,6 +327,9 @@ pub fn resolve<'a>(
     }
     let unclaimed = map
         .entries()
+        // A generated entry exists because a detector does; only a hand-written
+        // one can go stale.
+        .filter(|(_, location)| location.artefact().is_authored())
         .map(|(id, _)| id)
         .filter(|id| !claimed.contains(*id))
         .collect();
@@ -357,6 +360,20 @@ fn verdict(
             Some(Found::File(_)) => match settings {
                 None => Verdict::Uncheckable(Uncheckable::SettingsNotSupplied),
                 Some(registry) if registry.registers(file.file_name()) => {
+                    Verdict::ResolvedAndWired(Wired::Registered)
+                }
+                Some(_) => Verdict::ResolvedNotWired(NotWired::NotRegistered),
+            },
+            Some(Found::Absent | Found::Tree(_)) => Verdict::Missing,
+        },
+        // Wired only at the path the pack installs to, so a hand-written
+        // original of the same name, still registered mid-migration, is not
+        // mistaken for the generated script it is waiting to be replaced by.
+        Artefact::GeneratedHook { file, installed } => match look(file) {
+            None => not_supplied(root),
+            Some(Found::File(_)) => match settings {
+                None => Verdict::Uncheckable(Uncheckable::SettingsNotSupplied),
+                Some(registry) if registry.registers(installed) => {
                     Verdict::ResolvedAndWired(Wired::Registered)
                 }
                 Some(_) => Verdict::ResolvedNotWired(NotWired::NotRegistered),

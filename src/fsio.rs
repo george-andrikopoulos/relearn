@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::emit::{OutputFile, RelativePath};
+use crate::emit::{HeaderStyle, OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
 
 mod controls;
@@ -30,6 +30,10 @@ pub use controls::{ControlReadError, read_control_map, read_settings, snapshot};
 /// current target (all markdown-family) and, placed after the body, never
 /// disturbs the leading YAML front-matter of a skill or `.mdc`.
 const GENERATED_MARKER: &str = "<!-- relearn:generated";
+
+/// What a shell script puts in front of the marker so the header line is a
+/// comment. The marker itself is unchanged, so every reader of it still works.
+const SHELL_COMMENT: &str = "# ";
 
 /// Why loading a rules directory failed. Every variant names the file (or
 /// directory) at fault, so a diagnostic points the operator straight at it.
@@ -72,26 +76,8 @@ pub enum LoadError {
 /// The result is `Library<Unvalidated>`; the caller runs `validate` to check
 /// cross-file invariants (tag uniqueness) and reach `Library<Validated>`.
 pub fn load_rules(dir: &Path) -> Result<Library<Unvalidated>, LoadError> {
-    let read = fs::read_dir(dir).map_err(|source| LoadError::ReadDir {
-        path: dir.to_path_buf(),
-        source,
-    })?;
-
-    let mut paths: Vec<PathBuf> = Vec::new();
-    for entry in read {
-        let entry = entry.map_err(|source| LoadError::ReadDir {
-            path: dir.to_path_buf(),
-            source,
-        })?;
-        let path = entry.path();
-        if path.extension().is_some_and(|ext| ext == "md") {
-            paths.push(path);
-        }
-    }
-    paths.sort();
-
     let mut library = Library::new();
-    for path in paths {
+    for path in rule_paths(dir)? {
         // `path` is moved into the error on either failure path and dropped on
         // success — so it is never cloned.
         let content = match fs::read_to_string(&path) {
@@ -105,6 +91,47 @@ pub fn load_rules(dir: &Path) -> Result<Library<Unvalidated>, LoadError> {
         library.push(rule);
     }
     Ok(library)
+}
+
+/// Every rule file's name and raw text, in the order [`load_rules`] reads them.
+///
+/// For the detector self-exclusion sweep in `check`, which asks whether a
+/// detector would fire on a rule file **as it is on disk** — the file holds the
+/// pattern and the inputs that must hit it, which is the whole hazard.
+pub fn read_rule_sources(dir: &Path) -> Result<Vec<(String, String)>, LoadError> {
+    let mut sources = Vec::new();
+    for path in rule_paths(dir)? {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        match fs::read_to_string(&path) {
+            Ok(content) => sources.push((name, content)),
+            Err(source) => return Err(LoadError::Io { path, source }),
+        }
+    }
+    Ok(sources)
+}
+
+/// The `*.md` files directly in `dir`, sorted.
+fn rule_paths(dir: &Path) -> Result<Vec<PathBuf>, LoadError> {
+    let read = fs::read_dir(dir).map_err(|source| LoadError::ReadDir {
+        path: dir.to_path_buf(),
+        source,
+    })?;
+    let mut paths: Vec<PathBuf> = Vec::new();
+    for entry in read {
+        let entry = entry.map_err(|source| LoadError::ReadDir {
+            path: dir.to_path_buf(),
+            source,
+        })?;
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "md") {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    Ok(paths)
 }
 
 /// Why writing emitted files failed. Every variant names the file at fault.
@@ -577,6 +604,12 @@ const OWNED_DIRS: &[OwnedDir] = &[
         root: ".claude/rules",
         layout: Layout::Flat,
     },
+    // `emit::hooks`: one script per detector, so a detector removed from a rule
+    // strands its script here unless the scan sees it.
+    OwnedDir {
+        root: "hooks",
+        layout: Layout::Flat,
+    },
 ];
 
 /// relearn-owned fixed single-file targets. Each has exactly one path, so an
@@ -704,9 +737,15 @@ fn classify(bytes: &[u8], expected: &OutputFile) -> VerifyStatus {
 /// hand-edited.
 fn parse_generated(content: &str) -> Option<(&str, &str)> {
     let marker_pos = content.rfind(GENERATED_MARKER)?;
-    // The renderer writes `{body}\n{header}\n`, so the marker is always preceded
-    // by the separator newline; the body is everything before that newline.
-    let separator = marker_pos.checked_sub(1)?;
+    // The renderer writes `{body}\n{header}\n`, or `{body}\n# {header}\n` for a
+    // script, so the marker is preceded by the separator newline and, in a
+    // script, the comment prefix; the body is everything before that newline.
+    let line_start = if content[..marker_pos].ends_with(SHELL_COMMENT) {
+        marker_pos - SHELL_COMMENT.len()
+    } else {
+        marker_pos
+    };
+    let separator = line_start.checked_sub(1)?;
     if content.as_bytes().get(separator) != Some(&b'\n') {
         return None;
     }
@@ -737,7 +776,11 @@ fn render_with_header(file: &OutputFile) -> String {
         "{GENERATED_MARKER} v{version} sha256={hash} rules={rules} -- DO NOT EDIT; regenerate with `relearn build` -->",
         version = env!("CARGO_PKG_VERSION"),
     );
-    format!("{body}\n{header}\n", body = file.contents())
+    let prefix = match file.header() {
+        HeaderStyle::Markup => "",
+        HeaderStyle::Shell => SHELL_COMMENT,
+    };
+    format!("{body}\n{prefix}{header}\n", body = file.contents())
 }
 
 /// Hex-encode the SHA-256 of `bytes`.

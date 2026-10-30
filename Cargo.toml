@@ -31,6 +31,10 @@ sha2 = "0.10"
 # `relearn controls --settings`: read the `hooks` table of a Claude Code
 # settings file as JSON, not as text (ARCHITECTURE decisions log, 2026-10-30).
 serde_json = "1"
+# Detectors: `relearn check` evaluates every detector pattern against its
+# fixtures, in the ERE subset `grep -E` reads the same way. Unicode tables off:
+# patterns are ASCII and matched as bytes (ARCHITECTURE decisions log, 2026-10-30).
+regex = { version = "1", default-features = false, features = ["std", "perf"] }
 
 [dev-dependencies]
 # Property tests carry behavioural laws (rust-typedd hierarchy, tier 2).

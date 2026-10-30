@@ -24,6 +24,7 @@ pub mod claude_rules;
 pub mod copilot;
 pub mod copilot_paths;
 pub mod cursor;
+pub mod hooks;
 
 use crate::library::{Library, Validated};
 use crate::rule::{Emittability, Home, Rule, RuleTag, ScopeTag, Status};
@@ -69,6 +70,22 @@ pub struct OutputFile {
     path: RelativePath,
     contents: String,
     sources: Vec<RuleTag>,
+    header: HeaderStyle,
+}
+
+/// How the generated-by header is written into a file, which depends on what
+/// the file's own syntax will treat as a comment.
+///
+/// The marker text is the same in both, so `fsio`'s clobber guard, orphan scan
+/// and `verify` recognise a script exactly as they recognise a markdown file;
+/// only the line around it differs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeaderStyle {
+    /// The marker line on its own: it is already an HTML comment, which every
+    /// markdown target ignores.
+    Markup,
+    /// The marker line behind `# `, so a shell reads it as a comment.
+    Shell,
 }
 
 impl OutputFile {
@@ -80,6 +97,18 @@ impl OutputFile {
             path,
             contents,
             sources,
+            header: HeaderStyle::Markup,
+        }
+    }
+
+    /// An output file that is a shell script: same marker, behind `# `.
+    #[must_use]
+    pub(crate) fn script(path: RelativePath, contents: String, sources: Vec<RuleTag>) -> Self {
+        OutputFile {
+            path,
+            contents,
+            sources,
+            header: HeaderStyle::Shell,
         }
     }
 
@@ -100,6 +129,12 @@ impl OutputFile {
     #[must_use]
     pub fn sources(&self) -> &[RuleTag] {
         &self.sources
+    }
+
+    /// How the header is written into this file.
+    #[must_use]
+    pub fn header(&self) -> HeaderStyle {
+        self.header
     }
 }
 
@@ -456,6 +491,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 
@@ -481,6 +517,7 @@ mod tests {
             Vec::new(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 
@@ -634,6 +671,7 @@ mod tests {
                 .collect(),
             Authority::local(),
             None,
+            Vec::new(),
         )
     }
 

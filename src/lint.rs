@@ -22,7 +22,8 @@ use std::fmt;
 
 use crate::emit::HomeSlug;
 use crate::library::{Library, Validated};
-use crate::rule::{Date, Home, ProseCoverage, Rule, RuleTag, ScopeTag, Status};
+use crate::resolve::ControlMap;
+use crate::rule::{ControlKind, Date, Home, ProseCoverage, Rule, RuleTag, ScopeTag, Status};
 
 /// How much a finding matters. Ordered so `Error > Warning > Info`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -136,6 +137,32 @@ pub enum Finding {
         /// The date of the most recent one.
         latest: Date,
     },
+    /// A rule held by prose carries a detector its status does not name.
+    ///
+    /// The fixtures already pass — `check` would have refused the rule
+    /// otherwise — so the detector demonstrably works. Whether it covers the
+    /// **whole** error class is the judgement graduation records, and it stays
+    /// the operator's: `graduated` if it does, `partial` naming what it does not.
+    /// `Info`, because nothing is wrong yet; a control exists that the status
+    /// has not caught up with.
+    GraduationCandidate {
+        /// The rule held by prose.
+        tag: RuleTag,
+        /// The `hook:<name>` controls its detectors compile to and its status
+        /// does not name.
+        hooks: Vec<String>,
+    },
+    /// A rule names `hook:<name>` and nothing places it: no detector in the
+    /// corpus defines it and the control map has no entry for it.
+    ///
+    /// `Warning`, not `Error`: an install mid-migration is writing that hook,
+    /// and failing `lint` for it would block the work that fixes it.
+    UnplacedHook {
+        /// The rule naming the hook.
+        tag: RuleTag,
+        /// The hook's name, without `hook:`.
+        hook: String,
+    },
 }
 
 impl Finding {
@@ -154,8 +181,9 @@ impl Finding {
             Finding::OverlappingScope { .. }
             | Finding::ScopeNearDuplicate { .. }
             | Finding::DanglingReference { .. }
-            | Finding::UnheldRecurrence { .. } => Severity::Warning,
-            Finding::RetiredReference { .. } => Severity::Info,
+            | Finding::UnheldRecurrence { .. }
+            | Finding::UnplacedHook { .. } => Severity::Warning,
+            Finding::RetiredReference { .. } | Finding::GraduationCandidate { .. } => Severity::Info,
         }
     }
 }
@@ -231,6 +259,17 @@ impl fmt::Display for Finding {
                     tag.as_str()
                 )
             }
+            Finding::GraduationCandidate { tag, hooks } => write!(
+                f,
+                "graduation candidate: {} is held by prose and carries {} whose fixtures pass, which its status does not name. If it covers the whole error class, record `status = {{ kind = \"graduated\", to = \"...\" }}`; if it covers part, record `partial` and name what it does not",
+                tag.as_str(),
+                hooks.join(" + ")
+            ),
+            Finding::UnplacedHook { tag, hook } => write!(
+                f,
+                "unplaced hook: {} names hook:{hook}, which no detector in this corpus defines and the control map does not place. Add a `[[detector]]` to the rule, or a `[[control]]` entry saying where the hook lives",
+                tag.as_str()
+            ),
         }
     }
 }
@@ -253,6 +292,7 @@ pub fn lint(library: &Library<Validated>) -> Vec<Finding> {
     findings.extend(reference_checks(library));
     findings.extend(unheld_recurrences(library));
     findings.extend(recurrence_after_graduation(library));
+    findings.extend(graduation_candidates(library));
     // Most-severe first; a stable sort keeps each check's own deterministic
     // order within a severity.
     findings.sort_by_key(|finding| std::cmp::Reverse(finding.severity()));
@@ -445,6 +485,87 @@ fn unheld_recurrences(library: &Library<Validated>) -> Vec<Finding> {
             })
         })
         .collect()
+}
+
+/// Rules held by prose that carry a detector their status does not name.
+///
+/// Read through [`Status::prose_coverage`], so `Partial` is included: a partial
+/// rule with a new detector that its `by` does not list has a control it is not
+/// recording, which is the same news. A detector already named is not news.
+fn graduation_candidates(library: &Library<Validated>) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    for rule in library.rules() {
+        match rule.status().prose_coverage() {
+            ProseCoverage::Holds => {}
+            ProseCoverage::None => continue,
+        }
+        let named = named_hooks(rule);
+        let hooks: Vec<String> = rule
+            .detectors()
+            .iter()
+            .map(|d| d.name().as_str())
+            .filter(|name| !named.contains(name))
+            .map(|name| format!("hook:{name}"))
+            .collect();
+        if !hooks.is_empty() {
+            findings.push(Finding::GraduationCandidate {
+                tag: rule.tag().clone(), // allow:clone: the finding owns its tag, outliving the &Library borrow
+                hooks,
+            });
+        }
+    }
+    findings
+}
+
+/// The `hook:` controls a rule's status names, by name.
+fn named_hooks(rule: &Rule) -> Vec<&str> {
+    let Some(controls) = rule.status().named_controls() else {
+        return Vec::new();
+    };
+    controls
+        .as_slice()
+        .iter()
+        .filter_map(|control| match control.kind() {
+            ControlKind::Hook => Some(control.name()),
+            ControlKind::Type
+            | ControlKind::PropertyTest
+            | ControlKind::UnitTest
+            | ControlKind::Gate => None,
+        })
+        .collect()
+}
+
+/// Rules naming a `hook:` that nothing places: no detector in the corpus
+/// defines it and `map` has no entry for it.
+///
+/// Separate from [`lint`] because it reads the control map, which `lint` must
+/// not load: the CLI reads the map and passes it in, so this stays pure. `None`
+/// means no map was found, and then every hook no detector defines is unplaced —
+/// louder, never quieter, which is the safe direction for a missing input.
+#[must_use]
+pub fn unplaced_hooks(library: &Library<Validated>, map: Option<&ControlMap>) -> Vec<Finding> {
+    let defined: Vec<&str> = library
+        .rules()
+        .iter()
+        .flat_map(Rule::detectors)
+        .map(|d| d.name().as_str())
+        .collect();
+    let mut findings = Vec::new();
+    for rule in library.rules() {
+        for hook in named_hooks(rule) {
+            let placed = map.is_some_and(|m| {
+                m.entries()
+                    .any(|(id, _)| id.kind() == ControlKind::Hook && id.name() == hook)
+            });
+            if !defined.contains(&hook) && !placed {
+                findings.push(Finding::UnplacedHook {
+                    tag: rule.tag().clone(), // allow:clone: the finding owns its tag, outliving the &Library borrow
+                    hook: hook.to_owned(),
+                });
+            }
+        }
+    }
+    findings
 }
 
 /// Graduated rules whose error class recurred **after** the graduation date.

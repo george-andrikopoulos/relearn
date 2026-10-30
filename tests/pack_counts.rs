@@ -275,3 +275,51 @@ fn every_file_in_a_pack_is_counted_by_its_readme() {
         }
     }
 }
+
+/// `hooks-pack/README.md` lists its scripts in a table — `| \`<name>.sh\` |
+/// \`[R:tag]\` | …` — and that table is checked both ways, as the counts above
+/// are: every row names a script in the pack and the rule it was generated
+/// for, and every detector script in the pack has a row. The runner is named
+/// in the README's prose rather than the table, because it is not a detector.
+#[test]
+fn the_hooks_pack_readme_lists_every_detector_script_and_its_rule() {
+    let dir = root().join("hooks-pack");
+    let readme = fs::read_to_string(dir.join("README.md")).expect("a readable README");
+    let rows: Vec<(String, String)> = readme
+        .lines()
+        .filter_map(|line| {
+            let cells: Vec<&str> = line.split('|').map(str::trim).collect();
+            let script = cells.get(1)?.strip_prefix('`')?.strip_suffix(".sh`")?;
+            let tag = cells.get(2)?.strip_prefix("`[")?.strip_suffix("]`")?;
+            Some((format!("{script}.sh"), tag.to_owned()))
+        })
+        .collect();
+
+    let mut scripts: Vec<String> = fs::read_dir(dir.join("hooks"))
+        .expect("the pack's hooks directory")
+        .map(|entry| {
+            entry
+                .expect("a readable entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .filter(|name| name.ends_with(".sh") && name != "test-detectors.sh")
+        .collect();
+    scripts.sort();
+    let mut listed: Vec<String> = rows.iter().map(|(script, _)| script.clone()).collect(); // allow:clone: the sorted list is compared, the rows are read again below
+    listed.sort();
+    assert!(!scripts.is_empty(), "the pack holds no detector script");
+    assert_eq!(
+        listed, scripts,
+        "hooks-pack/README.md's table and the scripts in hooks-pack/hooks/ disagree"
+    );
+
+    for (script, tag) in rows {
+        let text = fs::read_to_string(dir.join("hooks").join(&script)).expect("a listed script");
+        assert!(
+            text.lines().any(|line| line == format!("tag='{tag}'")),
+            "hooks-pack/README.md says {script} holds [{tag}], and the script was generated for another rule"
+        );
+    }
+}

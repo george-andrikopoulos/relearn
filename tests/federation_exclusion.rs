@@ -44,6 +44,7 @@ fn rule(tag: &str, home: Home, origin: Origin) -> Rule {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     )
 }
 

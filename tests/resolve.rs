@@ -461,8 +461,12 @@ fn real_inputs() -> (
         .expect("the corpus loads")
         .validate()
         .expect("the corpus validates");
-    let map =
-        fsio::read_control_map(&repo_root().join("controls.toml")).expect("controls.toml parses");
+    // The map as `relearn controls` builds it: the committed entries, plus one
+    // per corpus detector, resolving to the pack this repository commits.
+    let map = fsio::read_control_map(&repo_root().join("controls.toml"))
+        .expect("controls.toml parses")
+        .with_detectors(&library)
+        .expect("no controls.toml entry duplicates a corpus detector");
     (library, map)
 }
 
@@ -492,10 +496,22 @@ fn every_control_this_repository_holds_resolves_and_is_wired() {
             row.tag(),
             row.control()
         );
-        let here = map
-            .locate(&resolve::ControlId::of(row.control()))
-            .is_some_and(|loc| loc.root() == map.here());
-        if here {
+        let location = map.locate(&resolve::ControlId::of(row.control()));
+        let here = location.is_some_and(|loc| loc.root() == map.here());
+        // A generated hook lives here too, but whether it is wired is a fact
+        // about the settings file, which this half never reads: it must exist
+        // (anything else would be MISSING) and is uncheckable past that.
+        let generated = location.is_some_and(|loc| !loc.artefact().is_authored());
+        if generated {
+            assert_eq!(
+                label,
+                "UNCHECKABLE",
+                "{} {}: {}",
+                row.tag(),
+                row.control(),
+                row.verdict()
+            );
+        } else if here {
             held_here += 1;
             assert_eq!(
                 label,

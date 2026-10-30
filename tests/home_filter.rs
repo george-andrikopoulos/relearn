@@ -29,6 +29,7 @@ fn rule(tag: &str, home: Home) -> Rule {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     )
 }
 

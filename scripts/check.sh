@@ -45,13 +45,18 @@ stage test cargo test
 stage verify cargo run --quiet -- verify
 stage verify-copilot-pack cargo run --quiet -- verify --targets copilot --out copilot-pack
 stage verify-claude-pack cargo run --quiet -- verify --targets claude --out claude-pack
+stage verify-hooks-pack cargo run --quiet -- verify --targets hooks --out hooks-pack
+# The production path for detectors: every fixture through the generated
+# scripts, because the hook is `grep -E` and `relearn check` is not. Exits 2,
+# a failed stage, when `jq` is missing: no fixture ran, which is not a pass.
+stage hooks-pack-fixtures bash hooks-pack/hooks/test-detectors.sh
 stage lint cargo run --quiet -- lint --deny error
 stage money-self-test bash scripts/no-float-money.sh --self-test
 stage money-scan bash scripts/no-float-money.sh
 stage pack-sync-self-test bash scripts/pack-sync-reminder.sh --self-test
 
 if [ "${#failed[@]}" -eq 0 ]; then
-    echo "PASS: rustfmt, clippy, test, verify x3, lint, money-scan, pack-sync"
+    echo "PASS: rustfmt, clippy, test, verify x4, hook fixtures, lint, money-scan, pack-sync"
     exit 0
 fi
 echo "FAIL: ${failed[*]}"

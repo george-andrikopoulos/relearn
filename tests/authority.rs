@@ -48,6 +48,7 @@ fn rule(tag: &str, authority: Authority) -> Rule {
         Vec::new(),
         authority,
         None,
+        Vec::new(),
     )
 }
 

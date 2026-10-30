@@ -60,6 +60,7 @@ fn rule(
             .collect(),
         authority,
         None,
+        Vec::new(),
     )
 }
 
@@ -80,6 +81,7 @@ fn retired(tag: &str, reason: &str) -> Rule {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     )
 }
 
@@ -256,6 +258,7 @@ fn a_mandate_that_recurred_raises_no_reactive_poke() {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     );
     let upstream = library(vec![rule(
         "R:theirs",
@@ -485,6 +488,7 @@ fn an_upstream_graduation_is_not_a_retirement() {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     );
     assert!(
         with(

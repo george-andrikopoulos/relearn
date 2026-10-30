@@ -8,6 +8,29 @@ origin = "mined"
 status = { kind = "graduated", to = "hook:no-case-collision", date = "2026-07-21" }
 incident = "Ferridis, 2026-07-20: the code architecture and its decisions log were written to ARCHITECTURE.md while a public design document architecture.md already existed. On ext4 these are two files; on NTFS they are one, and the repository syncs between both, so case-insensitive semantics are the binding constraint. Resolved by merging the code architecture into the existing file as a section rather than keeping a colliding name. Graduated the same day to hooks/no-case-collision.sh, which blocks the collision deterministically at Write time. Ported into this library 2026-08-25 with its graduated status intact, so the annotation names the control that now holds it."
 published_incident = "Two files were created whose names differed only in case: a design document written in lower case, and a code-architecture document written in upper. On a case-sensitive filesystem these are two files; on a case-insensitive one they are a single file that silently takes whichever content was written last. The repository synchronised between both kinds, so the case-insensitive semantics were the binding constraint and one document was quietly overwriting the other. Resolved by merging the two rather than keeping a colliding name, and the class was later closed by a write-time check that refuses a name differing only in case from an existing one."
+
+[[detector]]
+name = "no-case-collision"
+engine = "sibling-case"
+files = ["**"]
+events = ["claude-code-pre-tool-use"]
+action = "block"
+message = "On a case-insensitive filesystem the two names are one file, so this write would replace the existing one. Write into the existing file, or choose a name that differs by more than case."
+
+[[detector.fixture]]
+path = "docs/README.md"
+siblings = ["readme.md"]
+expect = "hit"
+
+[[detector.fixture]]
+path = "docs/NOTES.md"
+siblings = ["readme.md"]
+expect = "clean"
+
+[[detector.fixture]]
+path = "docs/readme.md"
+siblings = ["readme.md"]
+expect = "clean"
 +++
 
 Before creating any file, check for an existing sibling whose name differs only by case or by Unicode normalisation. Where a repository is synced between a case-sensitive filesystem and a case-insensitive one, the case-insensitive semantics are the binding constraint: two such names are one file, and the loser is whichever was written second.

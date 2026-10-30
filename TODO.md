@@ -27,9 +27,18 @@ them. `[R:doc-currency]`
 - [x] CI: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` on push + PR
 
 
-## Detectors — a rule's mechanical control as a build target (proposed 2026-10-30)
+## Detectors — a rule's mechanical control as a build target (2026-10-30)
 
-- [!] **Phase A design is in the decisions log, marked PROPOSED, and waits on George's go-ahead.** Nothing is built and the rule format is unchanged until he answers the open questions it raises: own versus resolve, whether `no-case-collision` gets a `sibling-case` engine or stays hand-written, the `regex` dependency, the `hooks-pack/` location and install directory, `warn` in the pilot, and confirming the stochos-lab path for the differential run.
+- [x] **Phase A design accepted by George** (own, `sibling-case`, `regex`, `hooks-pack/` installing to `~/.claude/hooks/relearn/`, `warn` in the pilot, stochos-lab at `~/.claude`, no objection on MultiEdit). The decisions-log row is marked accepted, with the as-built differences.
+- [x] **Built:** `[[detector]]` in the rule format with fixtures run at parse, the `hooks` target, `hooks-pack/`, `check`'s self-exclusion sweep, the two `lint` findings, detectors resolved by `relearn controls`, and two `check.sh` stages. The pilot moved four detectors into `no-unwrap-in-production`, `no-anyhow-in-libraries` and `case-collision`, and their four `controls.toml` entries were deleted in the same change.
+- [x] **Differential against stochos-lab, read-only:** its pilot assertions passed 15 of 15 against originals and generated scripts alike, and 2,592 payloads produced no differing exit code.
+- [!] **George: cut the four pilot hooks over on this machine.** Until then the full `relearn controls` run exits 1 with four `RESOLVED_NOT_WIRED`, deliberately. Per hook, in the order `hooks-pack/README.md` gives: copy `hooks-pack/hooks/<name>.sh` into `~/.claude/hooks/relearn/`; replace (not add beside) its registration in `settings.json` and in stochos-lab's `settings.hooks.json`; rerun `relearn controls` until the hook reads `RESOLVED_AND_WIRED`; then delete the hand-written original from stochos-lab in its own commit and drop its assertions or repoint them at the generated path.
+- [!] **George: reinstall the relearn binary once this merges** (`cargo install --path .`). The installed binary predates `[[detector]]` and refuses the three pilot rule files, so stochos-lab's SessionStart recurrence report already prints "could not read the rule library" against this working tree.
+- [ ] **Migrate the three other detector-shaped hooks:** `no-clone-without-comment`, `no-pub-fields`, `no-block-on-in-async`. Each needs its rule to gain a `[[detector]]` mirroring the original's scope, its `controls.toml` entry deleted, and the same differential before cut-over.
+- [ ] **Confirm MultiEdit.** The scripts read `tool_input.edits[].new_string` when present; whether the tool still exists, and in that shape, was not confirmed in the current hooks reference.
+- [ ] **`git-pre-commit` is named and not built.** It parses as an event and is refused as not built, so a rule cannot claim it today.
+- [ ] **The generated scripts have only run on Windows under Git Bash.** Run `bash hooks-pack/hooks/test-detectors.sh` on Linux before relying on the pack there (`[R:xplat-fixtures]`).
+- [ ] **`warn` has no committed fixture on the production path.** Every corpus detector is `block`, so `test-detectors.sh` never runs a warn script. The first `warn` detector in the corpus closes this.
 
 ## Control resolution — `relearn controls` (2026-10-30)
 

@@ -437,6 +437,11 @@ enum Command {
         /// entirely.
         #[arg(long)]
         poke_cap: Option<usize>,
+        /// The control map, read to report a rule that names a `hook:` nothing
+        /// places. Absent, every hook no detector defines is reported: louder,
+        /// never quieter.
+        #[arg(long, default_value = "controls.toml")]
+        map: PathBuf,
     },
     /// Verify that the generated files under `--out` match what `build` would
     /// write from the current rules. Reads only, writes nothing; exits non-zero
@@ -520,6 +525,13 @@ enum Target {
     Agents,
     /// A project-layer `CLAUDE.md` (project-home rules only).
     ClaudeRules,
+    /// Claude Code hook scripts compiled from rules' `[[detector]]` tables
+    /// (`hooks/<name>.sh`), a fixture runner and a settings snippet.
+    ///
+    /// **Explicit only**, never in the default list: the pack is copied by a
+    /// person and installed by hand, and a shell emitter's first defect must
+    /// not block an unrelated push.
+    Hooks,
 }
 
 /// The lowest [`lint::Severity`] that makes `relearn lint` exit non-zero.
@@ -610,6 +622,12 @@ pub enum CliError {
     /// The library failed cross-rule validation.
     #[error(transparent)]
     Validate(#[from] ValidationError),
+    /// A detector fires on a file relearn itself reads or writes: its scope is
+    /// wide enough to read its own definitions. Each one is printed first.
+    #[error(
+        "{count} detector self-match(es): a detector would fire on a rule file or an emitted file; narrow its `files` or add an `exclude`"
+    )]
+    DetectorSelfMatch { count: usize },
     /// Writing the emitted files failed.
     #[error(transparent)]
     Write(#[from] WriteError),
@@ -1081,7 +1099,8 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             upstream,
             poke,
             poke_cap,
-        } => lint_rules(&rules, deny, upstream.as_deref(), &poke, poke_cap),
+            map,
+        } => lint_rules(&rules, deny, upstream.as_deref(), &poke, poke_cap, &map),
         Command::Verify {
             rules,
             out,
@@ -1133,7 +1152,16 @@ fn controls(
     settings: Option<&Path>,
 ) -> Result<ExitCode, CliError> {
     let validated = fsio::load_rules(rules)?.validate()?;
-    let map = fsio::read_control_map(map_path)?;
+    // Merged before the snapshot, so the pack's scripts are read like any
+    // other placed control.
+    let map = fsio::read_control_map(map_path)?
+        .with_detectors(&validated)
+        .map_err(|source| {
+            CliError::ControlRead(fsio::ControlReadError::Map {
+                path: map_path.to_path_buf(),
+                source,
+            })
+        })?;
     let roots = parse_roots(&map, root_specs)?;
     let here = match map_path.parent() {
         Some(dir) if !dir.as_os_str().is_empty() => dir,
@@ -1197,7 +1225,38 @@ fn controls(
 /// `check`: load and validate; write nothing.
 fn check(rules: &Path) -> Result<(), CliError> {
     let validated = fsio::load_rules(rules)?.validate()?;
-    println!("ok: {} rule(s) validated", validated.len());
+    // Every detector's fixtures already ran while parsing. What parsing cannot
+    // see is the corpus around them: run each detector as a write of every rule
+    // file and of every file any target emits, where each would land.
+    let sources = fsio::read_rule_sources(rules)?;
+    let every_target: Vec<Target> = Target::value_variants().to_vec();
+    let emitted = emit_selected(&validated, &every_target);
+    let mut files: Vec<(String, &str)> = sources
+        .iter()
+        .map(|(name, text)| (format!("rules/{name}"), text.as_str()))
+        .collect();
+    files.extend(
+        emitted
+            .iter()
+            .map(|f| (f.path().as_str().to_owned(), f.contents())),
+    );
+    let matches = emit::hooks::self_matches(&validated, &files);
+    for m in &matches {
+        println!(
+            "self-match: detector `{}` fires on {}",
+            m.detector(),
+            m.file()
+        );
+    }
+    if !matches.is_empty() {
+        return Err(CliError::DetectorSelfMatch {
+            count: matches.len(),
+        });
+    }
+    println!(
+        "ok: {} rule(s) validated; every detector's fixtures pass, and none fires on a rule file or an emitted file",
+        validated.len()
+    );
     Ok(())
 }
 
@@ -1216,6 +1275,7 @@ fn emit_selected(validated: &Library<Validated>, targets: &[Target]) -> Vec<Outp
             Target::CopilotPaths => files.extend(emit::copilot_paths::emit(validated)),
             Target::Agents => files.extend(emit::agents::emit(validated)),
             Target::ClaudeRules => files.extend(emit::claude_rules::emit(validated)),
+            Target::Hooks => files.extend(emit::hooks::emit(validated)),
         }
     }
     files
@@ -1496,6 +1556,7 @@ fn new_rule(args: NewRule<'_>) -> Result<(), CliError> {
         applies_to,
         Authority::local(),
         None,
+        Vec::new(),
     );
 
     let document = to_document(&rule);
@@ -2212,6 +2273,7 @@ fn lint_rules(
     upstream: Option<&Path>,
     triggers: &[String],
     cap: Option<usize>,
+    map_path: &Path,
 ) -> Result<ExitCode, CliError> {
     // Both argument checks happen **before** any work, so a mistyped flag
     // fails on the flag rather than after a full lint has printed — the same
@@ -2236,7 +2298,14 @@ fn lint_rules(
     let cap = cap.map_or(BroadcastCap::DEFAULT, BroadcastCap::new);
 
     let validated = fsio::load_rules(rules)?.validate()?;
-    let findings = lint::lint(&validated);
+    let map = if map_path.is_file() {
+        Some(fsio::read_control_map(map_path)?)
+    } else {
+        None
+    };
+    let mut findings = lint::lint(&validated);
+    findings.extend(lint::unplaced_hooks(&validated, map.as_ref()));
+    findings.sort_by_key(|finding| std::cmp::Reverse(finding.severity()));
     let t = lint::tally(&validated);
     let summary = format!(
         // The mandated count is printed **only when there is one**, and that is

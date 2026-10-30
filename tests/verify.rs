@@ -27,6 +27,7 @@ fn rule(tag: &str, body: &str) -> Rule {
         Vec::new(),
         Authority::local(),
         None,
+        Vec::new(),
     )
 }
 

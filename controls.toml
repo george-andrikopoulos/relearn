@@ -63,29 +63,14 @@ root = "stochos-lab"
 path = "hooks/multiline-pattern-eol.sh"
 
 [[control]]
-control = "hook:no-anyhow-in-lib"
-root = "stochos-lab"
-path = "hooks/no-anyhow-in-lib.sh"
-
-[[control]]
 control = "hook:no-block-on-in-async"
 root = "stochos-lab"
 path = "hooks/no-block-on-in-async.sh"
 
 [[control]]
-control = "hook:no-case-collision"
-root = "stochos-lab"
-path = "hooks/no-case-collision.sh"
-
-[[control]]
 control = "hook:no-clone-without-comment"
 root = "stochos-lab"
 path = "hooks/no-clone-without-comment.sh"
-
-[[control]]
-control = "hook:no-expect-empty-msg"
-root = "stochos-lab"
-path = "hooks/no-expect-empty-msg.sh"
 
 [[control]]
 control = "hook:no-pub-fields"
@@ -96,11 +81,6 @@ path = "hooks/no-pub-fields.sh"
 control = "hook:no-self-matching-pkill"
 root = "stochos-lab"
 path = "hooks/no-self-matching-pkill.sh"
-
-[[control]]
-control = "hook:no-unwrap-in-src"
-root = "stochos-lab"
-path = "hooks/no-unwrap-in-src.sh"
 
 [[control]]
 control = "hook:tdd-gate"

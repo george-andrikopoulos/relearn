@@ -120,7 +120,16 @@ relearn new --rules ./rules --tag R:some-rule --title "The practice, imperative"
 relearn new --rules ./rules --tag R:some-rule ... --dry-run
 
 # Validate the rule library; write nothing. Non-zero exit on any failure.
+# Every detector's fixtures run while its rule parses, and then every detector
+# is run over every rule file and every emitted file: one that fires on either
+# would block the edit that maintains it.
 relearn check --rules ./rules
+
+# Compile the rules' detectors into Claude Code hook scripts. Explicit only,
+# never a default target; the pack is copied into ~/.claude/hooks/relearn/ by
+# hand (hooks-pack/README.md), because relearn installs nothing.
+relearn build --rules ./rules --targets hooks --out hooks-pack
+bash hooks-pack/hooks/test-detectors.sh   # every fixture through the scripts themselves
 
 # List rules as `tag  [home-slug]  title`, optionally filtered by home.
 relearn list --rules ./rules
@@ -280,6 +289,51 @@ builds. The alternative, a nested `rust/low-latency`, writes the shared
 principle twice and it drifts from the first commit. Omit `applies_to` and the
 rule serves every audience, which is what every rule written before the field
 existed does.
+
+A rule precise enough to check mechanically may carry a **detector**: the check itself,
+with fixtures that prove it. A detector without at least one `hit` and one `clean` fixture
+does not parse, and nor does one whose fixtures disagree with its pattern:
+
+```
++++
+tag         = "R:no-dbg-in-src"
+title       = "No dbg! in committed source"
+error_class = "Debug output left in shipped code"
+home        = { kind = "domain", name = "rust" }
+created     = "2026-10-30"
+origin      = "codified"
+status      = { kind = "active" }
+incident    = "Standing practice: dbg! writes to stderr in release builds too."
+
+[[detector]]
+name = "no-dbg-in-src"
+engine = "line-regex"
+pattern = 'dbg!\('
+comment = "//"
+files = ["src/**/*.rs"]
+events = ["claude-code-pre-tool-use"]
+action = "block"
+message = "Remove the dbg! before writing; use a test or a log line."
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'let x = dbg!(y);'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = '// dbg!(y) is banned here'
+expect = "clean"
++++
+
+Remove `dbg!` before committing.
+```
+
+The pattern is read by Rust at `check` and by `grep -E` in the hook, so a construct the two
+would read differently (`\d`, `(?i)`, a lazy quantifier, anything non-ASCII) is refused. A
+detector never changes its rule's status. `lint` reports a rule like this one as a
+*graduation candidate*, and deciding whether the detector covers the whole error class
+stays with you.
 
 Every emitted file carries a generated-by header and a content hash; `build` refuses to overwrite any file it did not write (and aborts the whole run rather than leave a half-generated tree), so a target directory can safely hold both generated and hand-authored files. `relearn verify` is the read-only complement: it recomputes each generated file's body hash and re-emits from the current rules, reporting any file that was hand-edited or has drifted from its source — a drop-in CI check that the committed instruction files are in sync.
 

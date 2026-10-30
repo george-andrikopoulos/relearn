@@ -25,6 +25,7 @@ mod authority;
 mod control;
 mod date;
 mod def;
+mod detector;
 mod home;
 mod origin;
 mod parse;
@@ -41,6 +42,11 @@ pub use authority::{
 pub use control::{Control, ControlError, ControlKind, Controls};
 pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};
+pub use detector::{
+    Action, Detection, Detector, DetectorError, DetectorName, Engine, Event, Fixture, FixtureInput,
+    FixturePath, Glob, GlobProblem, PathScope, Pattern, PatternProblem, SELF_EXCLUDES, Subject,
+    Token,
+};
 pub use home::{DomainName, Federation, Home, OrgName, ProjectPath};
 pub use origin::{
     Approval, Approver, ControlRef, Origin, OriginError, RecurrenceRole, SourceArtefact,

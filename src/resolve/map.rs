@@ -17,6 +17,8 @@ use std::fmt;
 
 use serde::Deserialize;
 
+use crate::emit::hooks::{HOOKS_DIR, INSTALL_DIR, PACK_DIR};
+use crate::library::{Library, Validated};
 use crate::rule::{Control, ControlError, ControlKind, Controls};
 
 /// Why a mapping file could not be read.
@@ -61,6 +63,13 @@ pub enum MapError {
     /// Two entries for one control — two answers to "where does it live?".
     #[error("control `{0}` is mapped twice")]
     Duplicate(String),
+
+    /// A hook a rule's `[[detector]]` defines, also placed by hand. The
+    /// detector is the hook's one home: delete the map entry.
+    #[error(
+        "control `{0}` is generated from a rule's detector and also placed in the map; delete the map entry"
+    )]
+    DetectorAlsoMapped(String),
 
     /// The fields given do not describe an artefact of this kind.
     #[error("control `{control}`: {why}")]
@@ -262,6 +271,12 @@ impl ControlId {
     pub fn kind(&self) -> ControlKind {
         self.kind
     }
+
+    /// The control's name, without its kind prefix.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl fmt::Display for ControlId {
@@ -275,6 +290,11 @@ impl fmt::Display for ControlId {
 /// describe one of them cannot be held.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Artefact {
+    /// A hook compiled from a rule's `[[detector]]` by `emit::hooks`: the
+    /// script in this repository's pack, wired when the settings register it
+    /// at the path the pack's README installs it to. Never written in the map;
+    /// [`ControlMap::with_detectors`] adds it.
+    GeneratedHook { file: RelPath, installed: String },
     /// A hook script. Exists: the file. Wired: a settings file registers it.
     HookScript {
         /// The script.
@@ -322,6 +342,7 @@ impl Artefact {
     pub fn primary(&self) -> &RelPath {
         match self {
             Artefact::HookScript { file }
+            | Artefact::GeneratedHook { file, .. }
             | Artefact::TestFile { file }
             | Artefact::GateScript { file, .. }
             | Artefact::GateFunction { file, .. } => file,
@@ -333,12 +354,28 @@ impl Artefact {
     #[must_use]
     pub fn reads(&self) -> Vec<&RelPath> {
         match self {
-            Artefact::HookScript { file } | Artefact::TestFile { file } => vec![file],
+            Artefact::HookScript { file }
+            | Artefact::GeneratedHook { file, .. }
+            | Artefact::TestFile { file } => vec![file],
             Artefact::TestFunction { within, .. } => vec![within],
             Artefact::GateScript { file, invoked_by }
             | Artefact::GateFunction {
                 file, invoked_by, ..
             } => vec![file, invoked_by],
+        }
+    }
+
+    /// Whether a person wrote this entry in `controls.toml`. Only an authored
+    /// entry can be stale: a generated one exists because a detector does.
+    #[must_use]
+    pub fn is_authored(&self) -> bool {
+        match self {
+            Artefact::GeneratedHook { .. } => false,
+            Artefact::HookScript { .. }
+            | Artefact::TestFunction { .. }
+            | Artefact::TestFile { .. }
+            | Artefact::GateScript { .. }
+            | Artefact::GateFunction { .. } => true,
         }
     }
 
@@ -494,5 +531,39 @@ impl ControlMap {
             .values()
             .flat_map(|loc| loc.artefact.reads().into_iter().map(|p| (&loc.root, p)))
             .collect()
+    }
+
+    /// This map plus one entry per `[[detector]]` in the corpus, each locating
+    /// `hook:<name>` at the generated script in this repository's pack.
+    ///
+    /// A detector is the hook's one home (`[R:one-home-per-rule]`), so a map
+    /// entry for the same control is refused rather than preferred: two
+    /// answers to "where does it live?" is the defect, whichever is right.
+    ///
+    /// # Errors
+    /// [`MapError::DetectorAlsoMapped`] naming the first such control.
+    pub fn with_detectors(mut self, library: &Library<Validated>) -> Result<Self, MapError> {
+        for rule in library.rules() {
+            for detector in rule.detectors() {
+                let name = detector.name().as_str();
+                let control = format!("hook:{name}");
+                let id = ControlId::parse(&control)?;
+                if self.entries.contains_key(&id) {
+                    return Err(MapError::DetectorAlsoMapped(control));
+                }
+                let file = RelPath::parse(format!("{PACK_DIR}/{HOOKS_DIR}/{name}.sh"))?;
+                self.entries.insert(
+                    id,
+                    Location {
+                        root: self.here.clone(), // allow:clone: every generated entry lives in this repository, and the map keeps owning its own name
+                        artefact: Artefact::GeneratedHook {
+                            file,
+                            installed: format!("{INSTALL_DIR}/{name}.sh"),
+                        },
+                    },
+                );
+            }
+        }
+        Ok(self)
     }
 }
