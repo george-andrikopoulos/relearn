@@ -18,6 +18,7 @@ Where a hand-written hook with the same name is registered today, replace its en
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-anyhow-in-lib.sh" },
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-constructed-target-path.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-count-in-heading.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-embedded-local-llm.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-expect-empty-msg.sh" },
@@ -36,4 +37,4 @@ Where a hand-written hook with the same name is registered today, replace its en
 }
 ```
 
-<!-- relearn:generated v0.1.0 sha256=6c0d9318b659be0813f9980e657b69dc198f24bfebd9daa050c3f461e2c95881 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=8df2cc0e7454b99509e1e098191e4ea0e697d785de5bfe43ee7a5404191cbf73 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

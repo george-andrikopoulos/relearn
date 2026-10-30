@@ -18,6 +18,7 @@ hooks-pack/
 |---|---|---|---|---|
 | `no-anyhow-in-lib.sh` | `[R:no-anyhow-in-libraries]` | block | Write, Edit, MultiEdit | yes |
 | `no-case-collision.sh` | `[R:case-collision]` | block | Write | yes |
+| `no-constructed-target-path.sh` | `[R:xplat-fixtures]` | block | Write, Edit, MultiEdit | draft |
 | `no-count-in-heading.sh` | `[R:revision-integrity]` | warn | Write, Edit, MultiEdit | draft |
 | `no-embedded-local-llm.sh` | `[R:no-weak-model-for-judgment]` | warn | Write, Edit, MultiEdit | draft |
 | `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |

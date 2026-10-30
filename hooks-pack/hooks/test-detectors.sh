@@ -58,6 +58,12 @@ run 'no-anyhow-in-lib.sh' clean block 'src/lib.rs' 'use anyhow_ext::Thing;'
 run 'no-case-collision.sh' hit block 'docs/README.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/NOTES.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/readme.md' '' 'readme.md'
+# no-constructed-target-path
+run 'no-constructed-target-path.sh' hit block 'tests/cli.rs' 'let bin = Path::new("target/debug/relearn");'
+run 'no-constructed-target-path.sh' hit block 'tests/cli.rs' 'let bin = PathBuf::from("..\\target\\release\\relearn.exe");'
+run 'no-constructed-target-path.sh' clean block 'tests/cli.rs' 'let bin = env!("CARGO_BIN_EXE_relearn");'
+run 'no-constructed-target-path.sh' clean block 'tests/cli.rs' 'let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));'
+run 'no-constructed-target-path.sh' clean block 'src/paths.rs' 'let bin = Path::new("target/debug/relearn");'
 # no-count-in-heading
 run 'no-count-in-heading.sh' hit warn 'docs/design.md' '## The three guarantees'
 run 'no-count-in-heading.sh' hit warn 'README.md' '### 12 commands'
@@ -148,4 +154,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=8cc772b7da5b307a54375481c4304a60fad2854b3f702318b244ebfedff370d4 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=8e075b4d989ddd0127011edd8c0ac378285ba328717ee0efc38086f9d765bf82 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
