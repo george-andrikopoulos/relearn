@@ -23,6 +23,7 @@ hooks-pack/
 | `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
 | `no-public-repo-create.sh` | `[R:repository-private-by-default]` | block | Write, Edit, MultiEdit | draft |
 | `no-serializable-domain-type.sh` | `[R:serializable-is-a-second-constructor]` | block | Write, Edit, MultiEdit | draft |
+| `no-string-error.sh` | `[R:errors-name-what-failed]` | block | Write, Edit, MultiEdit | draft |
 | `no-string-identity-compare.sh` | `[R:identity-is-not-equality-for-boxes]` | block | Write, Edit, MultiEdit | draft |
 | `no-tool-attribution.sh` | `[R:no-tool-attribution-in-public-artefacts]` | block | Write, Edit, MultiEdit | draft |
 | `no-unwrap-in-src.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |

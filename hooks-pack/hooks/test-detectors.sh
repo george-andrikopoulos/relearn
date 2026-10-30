@@ -94,6 +94,15 @@ run 'no-serializable-domain-type.sh' hit block 'src/main/java/Event.java' 'publi
 run 'no-serializable-domain-type.sh' clean block 'src/main/java/Order.java' 'public final class Order implements Comparable<Order> {'
 run 'no-serializable-domain-type.sh' clean block 'src/main/java/Codec.java' 'import java.io.Serializable;'
 run 'no-serializable-domain-type.sh' clean block 'src/main/java/Order.java' 'public final class Order implements Serializable { // allow:serializable: legacy cache format, readObject validates'
+# no-string-error
+run 'no-string-error.sh' hit block 'src/config.rs' 'pub fn load(path: &Path) -> Result<Config, String> {'
+run 'no-string-error.sh' hit block 'src/config.rs' 'pub type Res<T> = Result<T, Box<dyn std::error::Error>>;'
+run 'no-string-error.sh' hit block 'src/error.rs' '    Other(String),'
+run 'no-string-error.sh' hit block 'src/config.rs' '    let text = fs::read_to_string(path).map_err(|e| e.to_string())?;'
+run 'no-string-error.sh' clean block 'src/config.rs' 'pub fn load(path: &Path) -> Result<Config, LoadError> {'
+run 'no-string-error.sh' clean block 'src/config.rs' 'pub fn names(&self) -> Result<HashMap<u32, String>, LoadError> {'
+run 'no-string-error.sh' clean block 'src/config.rs' 'pub fn name(&self) -> Result<String, LoadError> {'
+run 'no-string-error.sh' clean block 'src/main.rs' 'fn main() -> Result<(), String> {'
 # no-string-identity-compare
 run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'if (side == "BUY") {'
 run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'boolean sell = "SELL" != side;'
@@ -125,4 +134,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=14e51c434e4534f7b7c492b068ec2d3ee6f65179507ee830914acd23b31f9611 rules=R:case-collision,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=47043c9688be6a6fbd4baa03d9fed7637860a30c39448a4b35013f6623088647 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
