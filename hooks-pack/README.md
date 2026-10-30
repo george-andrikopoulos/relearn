@@ -21,6 +21,7 @@ hooks-pack/
 | `no-count-in-heading.sh` | `[R:revision-integrity]` | warn | Write, Edit, MultiEdit | draft |
 | `no-embedded-local-llm.sh` | `[R:no-weak-model-for-judgment]` | warn | Write, Edit, MultiEdit | draft |
 | `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
+| `no-free-validator.sh` | `[R:parse-dont-validate]` | block | Write, Edit, MultiEdit | draft |
 | `no-let-underscore-local.sh` | `[R:no-let-underscore-on-a-local]` | block | Write, Edit, MultiEdit | draft |
 | `no-public-repo-create.sh` | `[R:repository-private-by-default]` | block | Write, Edit, MultiEdit | draft |
 | `no-serializable-domain-type.sh` | `[R:serializable-is-a-second-constructor]` | block | Write, Edit, MultiEdit | draft |

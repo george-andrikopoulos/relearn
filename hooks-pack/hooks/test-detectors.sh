@@ -80,6 +80,13 @@ run 'no-expect-empty-msg.sh' hit block 'src/lib.rs' 'let x = f().expect("ok");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect("config parsed at startup");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect(""); // allow:expect-msg'
 run 'no-expect-empty-msg.sh' clean block 'src/lib_test.rs' 'let x = f().expect("");'
+# no-free-validator
+run 'no-free-validator.sh' hit block 'src/host.rs' 'pub fn validate_host(s: &str) -> bool {'
+run 'no-free-validator.sh' hit block 'src/host.rs' 'fn is_valid_port(p: u32) -> bool {'
+run 'no-free-validator.sh' hit block 'src/host.rs' 'pub fn validate(s: &str) -> Result<(), HostError> {'
+run 'no-free-validator.sh' clean block 'src/host.rs' 'pub fn parse(s: &str) -> Result<Host, HostError> {'
+run 'no-free-validator.sh' clean block 'src/host.rs' 'pub fn validated(s: &str) -> Result<Host, HostError> {'
+run 'no-free-validator.sh' clean block 'tests/host.rs' 'fn is_valid_port(p: u32) -> bool {'
 # no-let-underscore-local
 run 'no-let-underscore-local.sh' hit block 'src/cli.rs' '    let _ = mode;'
 run 'no-let-underscore-local.sh' hit block 'src/cli.rs' 'if let Err(e) = op() { let _ = e; continue; }'
@@ -141,4 +148,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=8ff4af4f508e7e07a389328d176d791abf96da8d38348a1d9c4ede576b95fa08 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=8cc772b7da5b307a54375481c4304a60fad2854b3f702318b244ebfedff370d4 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
