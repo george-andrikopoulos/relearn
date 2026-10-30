@@ -186,6 +186,8 @@ What "wired" means, per kind: a **hook** script is named by a command under the 
 
 **Probed (2026-10-30).** Making every hook read as registered failed `a_hook_present_but_unregistered_is_not_wired_even_when_other_settings_name_it`. Making `UNCHECKABLE` count as a pass failed four tests, the property test among them. Both restored byte-for-byte.
 
+**Observed through the binary on the real roots (2026-10-30).** With no roots: exit 2, only the controls placed here wired. With stochos-lab and the live settings file: exit 2, every hook registered. With Design-Architecture-Tool (at `62dbf7b`) added: **exit 0, every control wired.** Two of those verdicts rest on the shallow checks named under *Scope* below, so they were confirmed by hand that day: the `font_tests` module is declared under `#[cfg(test)]`, and `verify.sh`, which calls `emoji_ban`, is run by that repository's `.githooks/pre-push`. That is evidence about that day and that machine, nothing later.
+
 **Scope, stated because it is narrower than it looks (`[R:measure-the-claim-not-a-subset]`).** The source readers are line readers: `//` and whole-line `#` comments are stripped, `/* */` block comments are not. A Rust test file is not checked for being reachable through a `mod` declaration, so a file nothing compiles still reads as wired. A gate's wiring is one link deep — the invoker references the gate; whether anything runs the invoker is not followed. A hook's registration is by script file name, so two hook directories holding scripts of one name are not told apart. `type:` controls have no resolver and read `UNCHECKABLE`. A mandated rule's `approval.control` is not resolved. All carried in `TODO.md`.
 
 ### `copilot-pack/` — a downloadable drop-in for another repository
