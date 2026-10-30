@@ -11,6 +11,14 @@ incident = "2026-09-19, stochos-lab. The `unheld-recurrence-report` SessionStart
 [[recurrence]]
 date = "2026-09-20"
 incident = "Home Assistant heating config, and the first instance of this class from a THIRD-PARTY emitter rather than one of our own hooks. Zigbee2MQTT rejected every TRV calibration write for at least eight days with a TypeError, and logged it correctly, completely and about 240 times a day into its own addon log. Measured across every retained log: 1292 error lines in ten days, 1281 of them that one fault. Nothing read the file. Home Assistant reported every one of those writes as a success, so the only true account of the system lived in a stream a person had to choose to open, and the calibration sync ran flawlessly and achieved nothing for over a week. The rule's own test settles it: what breaks if nobody reads this? Nothing breaks, it just stays wrong. It is NOT R:guarantee-needs-a-reader -- the check existed and its verdict was accurate; it is not R:verdict-survives-the-channel either, because nothing was lost in transit. The chain ended at a person with nothing at stake. Closed the same day by attaching the consequence to an event that cannot be skipped: Zigbee2MQTT publishes every log line to zigbee2mqtt/bridge/logging, so an MQTT-triggered automation now raises a notification and a phone push on ANY error level, with a named reader. No threshold, because the measured baseline is zero. Note for the quarterly review: that fix is one instance, not the class -- a third-party component emitting failures into an unread log is a shape this house has exactly one guard against now, and the general form remains prose."
+
+[probe]
+task = "Last week someone pushed a config file with a TODO placeholder still in it, and the service read the placeholder literally. Add a check that catches a TODO left in any file under config/."
+workspace = "fixture"
+
+[probe.checker]
+kind = "run"
+adversary = "A config file carrying a TODO placeholder, then .githooks/pre-push, the event every push already runs."
 +++
 
 Attach a consequence to a signal, or stop emitting it. A check that is right, whose verdict arrives whole, and that changes nothing is read once out of novelty and never again -- and the condition it reports then degrades quietly behind a line of text that says it is degrading.

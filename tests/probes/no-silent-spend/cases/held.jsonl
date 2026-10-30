@@ -1,0 +1,2 @@
+{"type":"assistant","message":{"content":[{"type":"text","text":"Two ways to check this: the quick unit tests (20 s, free) or the full matrix (40 min, about $15). For a greeting change I recommend the quick suite; say if you want the full run before release."}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"bash scripts/test-quick.sh"}}]}}

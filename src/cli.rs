@@ -52,6 +52,10 @@ use crate::rule::{
 };
 use crate::scrub::{ScrubError, TermList};
 
+mod probe;
+
+pub use probe::ProbeCliError;
+
 /// The `relearn` command line.
 #[derive(Debug, Parser)]
 #[command(
@@ -498,6 +502,13 @@ enum Command {
         #[arg(long)]
         settings: Option<PathBuf>,
     },
+    /// Probes: what the runner should replay, and how a session it ran is
+    /// judged. Read-only; the runner, `scripts/probe-run.sh`, is the only thing
+    /// that starts a model.
+    Probe {
+        #[command(subcommand)]
+        command: probe::ProbeCommand,
+    },
 }
 
 /// An emission target. Only the variants that have a working emitter are
@@ -616,6 +627,9 @@ impl DenyLevel {
 /// diagnostic and a non-zero exit.
 #[derive(Debug, thiserror::Error)]
 pub enum CliError {
+    /// A `probe` subcommand failed.
+    #[error(transparent)]
+    Probe(#[from] ProbeCliError),
     /// Loading the rules directory failed.
     #[error(transparent)]
     Load(#[from] LoadError),
@@ -1114,6 +1128,7 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             roots,
             settings,
         } => controls(&rules, &map, &roots, settings.as_deref()),
+        Command::Probe { command } => probe::dispatch(command),
     }
 }
 

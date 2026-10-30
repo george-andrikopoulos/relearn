@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Tells an operator where the service writes its log, read from the config it uses.
+cd "$(dirname "$0")/.." || exit 2
+echo "Logs: $(sed -n 's/^log_dir=//p' config/app.conf)/current.log"

@@ -13,7 +13,8 @@
 //! survive the round trip.
 
 use super::{
-    Approval, Authority, Detector, Engine, FixtureInput, Glob, Home, Rule, ScopeTag, Status,
+    Approval, Authority, Checker, Detector, DiffClause, Engine, EventPattern, FixtureInput, Glob,
+    Home, Probe, Rule, ScopeTag, Status,
 };
 
 /// Serialize a rule to its neutral document form (`+++` front-matter, then the
@@ -86,6 +87,11 @@ pub fn to_document(rule: &Rule) -> String {
     for detector in rule.detectors() {
         out.push_str(&detector_tables(detector));
     }
+    // After the detectors, last of all: a `diff` checker's clauses are an
+    // array of tables. A rule with no probe renders exactly as before.
+    if let Some(probe) = rule.probe() {
+        out.push_str(&probe_tables(probe));
+    }
     out.push_str("+++\n\n");
     out.push_str(rule.body().as_str());
     out.push('\n');
@@ -114,6 +120,53 @@ fn kv_code(key: &str, value: &str) -> String {
 fn kv_list<'a>(key: &str, values: impl Iterator<Item = &'a str>) -> String {
     let list: Vec<String> = values.map(toml_basic_string).collect();
     format!("{key} = [{}]\n", list.join(", "))
+}
+
+/// The `[probe]` table and its checker, last: the checker's `require` clauses
+/// are an array of tables, which captures every key that follows it.
+fn probe_tables(p: &Probe) -> String {
+    let mut out = String::from("\n[probe]\n");
+    out.push_str(&kv("task", p.task().as_str()));
+    out.push_str(&kv("workspace", p.workspace().as_str()));
+    out.push_str("\n[probe.checker]\n");
+    out.push_str(&kv("kind", p.checker().kind()));
+    match p.checker() {
+        Checker::Trace(t) => {
+            out.push_str(&event_line("expect", t.expect()));
+            out.push_str(&kv("window", t.window().as_str()));
+            out.push_str(&event_line("anchor", t.anchor()));
+        }
+        Checker::Diff(d) => {
+            out.push_str(&kv_code("anchor", d.anchor().as_str()));
+            for clause in d.require() {
+                out.push_str("\n[[probe.checker.require]]\n");
+                match clause {
+                    DiffClause::Changed(p) => out.push_str(&kv_code("changed", p.as_str())),
+                    DiffClause::Contains { file, pattern } => {
+                        out.push_str(&kv("file", file.as_str()));
+                        out.push_str(&kv_code("contains", pattern.as_str()));
+                    }
+                    DiffClause::Lacks { file, pattern } => {
+                        out.push_str(&kv("file", file.as_str()));
+                        out.push_str(&kv_code("lacks", pattern.as_str()));
+                    }
+                    DiffClause::Detector(name) => out.push_str(&kv("detector", name.as_str())),
+                }
+            }
+        }
+        Checker::Run(r) => out.push_str(&kv("adversary", r.adversary())),
+    }
+    out
+}
+
+/// `key = { event = "...", pattern = '...' }`.
+fn event_line(key: &str, e: &EventPattern) -> String {
+    let pattern = kv_code("pattern", e.pattern().as_str());
+    format!(
+        "{key} = {{ event = {}, {} }}\n",
+        toml_basic_string(e.kind().as_str()),
+        pattern.trim_end()
+    )
 }
 
 /// A `[[detector]]` table and its `[[detector.fixture]]` tables, in the order

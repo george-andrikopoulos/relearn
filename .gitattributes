@@ -31,3 +31,8 @@ rules/**                        text eol=lf
 # and fail OPEN. Pin the bytes at rest. `[R:pin-eol-for-executable-text]`
 scripts/**   text eol=lf
 .githooks/** text eol=lf
+
+# Probe fixtures are workspaces a session runs in, holding shell scripts a check
+# executes and transcripts a checker parses: the same bytes on every checkout.
+# `[R:pin-eol-for-executable-text]`
+tests/probes/** text eol=lf

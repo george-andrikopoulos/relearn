@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Prints a service's live state.
+case "${1:-} ${2:-}" in
+    "status backup") echo "backup: running (pid 4123, started 2026-10-28 02:00, next run 02:00 tonight)" ;;
+    "status web")    echo "web: running (pid 311)" ;;
+    "status mailer") echo "mailer: running (pid 512)" ;;
+    *) echo "usage: bin/svc status <backup|web|mailer>" >&2; exit 64 ;;
+esac

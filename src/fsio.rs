@@ -18,10 +18,12 @@ use crate::emit::{HeaderStyle, OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
 
 mod controls;
+mod probe;
 use crate::rule::{
     DroppableCache, EditableRule, ParseError, PulledRule, RuleTag, parse_document, to_document,
 };
 pub use controls::{ControlReadError, read_control_map, read_settings, snapshot};
+pub use probe::{ProbeReadError, read_text as read_probe_text, workspace_change};
 
 /// The opening of the generated-by comment. Its presence in an existing file is
 /// how the overwrite guard tells "relearn wrote this" from "a human wrote this":

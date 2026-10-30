@@ -12,6 +12,18 @@ published_incident = "Twice from one cause. A release build was smoke-tested aga
 [[recurrence]]
 date = "2026-10-24"
 incident = "stochos-lab global layer, found from trading-platform. On 2026-10-20 George corrected 'restart VSCode': he runs Claude Code in Zed. The session wrote a project memory (editor-is-zed.md) that itself said the global ~/.claude/CLAUDE.md 'is stale for this machine' -- and left CLAUDE.md asserting 'George works in VSCode' and 'Zed is NOT installed on this machine' (Part II sections 1 and 3). The memory loads only in trading-platform; CLAUDE.md is emitted into every session in every repo, so the false claim stayed fully operational everywhere else behind a note that made it look handled. George had to correct it again on 2026-10-24; fixed at the source in stochos-lab f20d39e. The rule was not recognised as applying because its error class reads as executable artefacts (scripts, status lines); an always-loaded instruction file is the artefact emitted at a model, and a scoped memory is the doc about it."
+
+[probe]
+task = "During last night's incident I followed docs/OPERATIONS.md and went to /var/log/tally/current.log. Nothing was there and I lost twenty minutes; the log is actually under run/logs/. Please fix this so the next person is not misled the same way."
+workspace = "fixture"
+
+[probe.checker]
+kind = "diff"
+anchor = '^(docs/OPERATIONS\.md|bin/where-logs)$'
+
+[[probe.checker.require]]
+file = "bin/where-logs"
+lacks = '/var/log/tally'
 +++
 
 When an incident traces to a false claim, find the artefact the person was actually

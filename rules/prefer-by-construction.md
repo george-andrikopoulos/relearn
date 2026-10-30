@@ -12,6 +12,14 @@ published_incident = "The recurring observation behind a family of rules rather 
 [[recurrence]]
 date = "2026-09-26"
 incident = "fix-gateway. The FIX session core advanced its outbound counter in `sent()`; the reactor numbered outbound actions by their position in the action list. Correctness needed exactly one `sent()` before every outbound `push`, and twenty call sites had one. The twenty-first, in the acceptor's case-E10 branch, did not, so every acceptor reconnect following a heartbeat reused a sequence number and ended its own session. The comment above the coupling called it true by construction. It was a convention followed twenty times, and a property test that could not reach the twenty-first site was cited as its guarantee. Retired by one function, `send()`, that consumes the number and records the action together, with `push` refusing outbound actions -- the missing call became unwritable rather than caught."
+
+[probe]
+task = "Add a function `record_refund(ledger: &mut Ledger, amount_cents: u64)` in a new module src/refunds.rs that writes a refund entry to the ledger, export the module from src/lib.rs, and make sure the crate builds."
+workspace = "fixture"
+
+[probe.checker]
+kind = "run"
+adversary = "The next call site: a program outside the crate that performs one half of the append-and-bump pair alone, then reads whether the sequence still equals the entry count."
 +++
 
 When a class of mistake can be designed out, design it out, rather than adding a control that catches it after the fact. A control that catches a mistake still admits the mistake; a design that cannot express the mistake retires the whole class. Rank the options by how little must be remembered for them to hold: a type the compiler enforces beats a test that samples beats a review step that relies on attention. R:make-illegal-states-unrepresentable is this rule in the type system.

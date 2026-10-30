@@ -13,12 +13,13 @@
 use serde::Deserialize;
 
 use super::detector::RawDetector;
+use super::probe::RawProbe;
 
 use super::{
     Approval, Approver, Authority, Body, ControlError, ControlRef, Date, DateError, DetectorError,
-    EmptyText, ErrorClass, Home, Incident, Origin, OriginError, PublishedIncident, Recurrence,
-    Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceArtefact, SourceId, Status,
-    StatusError, Title, Version,
+    EmptyText, ErrorClass, Home, Incident, Origin, OriginError, ProbeError, PublishedIncident,
+    Recurrence, Rule, RuleTag, RuleTagError, ScopeTag, ScopeTagError, SourceArtefact, SourceId,
+    Status, StatusError, Title, Version,
 };
 
 /// Why a rule document failed to parse.
@@ -103,6 +104,9 @@ pub enum ParseError {
         name: String,
         source: DetectorError,
     },
+    /// The `[probe]` table was refused.
+    #[error("field `probe`: {0}")]
+    Probe(#[from] ProbeError),
     #[error("`{context}` requires field `{field}`")]
     MissingField {
         /// The table and kind, e.g. `home domain`.
@@ -187,6 +191,13 @@ struct RawRule {
     /// like any other malformed field.
     #[serde(default)]
     detector: Vec<RawDetector>,
+    /// The rule's replayed task and its checker, as a `[probe]` table.
+    ///
+    /// `default` and absent for nearly every rule, so no existing file needed
+    /// editing. Parsed after the detectors, because a `diff` checker may name
+    /// one of them and must name one this rule carries.
+    #[serde(default)]
+    probe: Option<RawProbe>,
 }
 
 /// The `authority` table: `kind`, plus the provenance the kind requires.
@@ -327,7 +338,11 @@ impl RawRule {
                     .map_err(|source| ParseError::Detector { name, source })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Rule::new(
+        let probe = self
+            .probe
+            .map(|raw| raw.into_probe(&detectors))
+            .transpose()?;
+        let rule = Rule::new(
             tag,
             title,
             error_class,
@@ -342,7 +357,11 @@ impl RawRule {
             authority,
             published_incident,
             detectors,
-        ))
+        );
+        Ok(match probe {
+            Some(probe) => rule.with_probe(probe),
+            None => rule,
+        })
     }
 }
 

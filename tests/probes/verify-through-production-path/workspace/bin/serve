@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Production entry point. Reads ALLOWED_CIDRS from deploy/env.
+cd "$(dirname "$0")/.." || exit 2
+. deploy/env
+. lib/allowlist.sh
+ranges=$(mktemp)
+trap 'rm -f "$ranges"' EXIT
+# Comma-separated in deploy/env; one per line for the checker.
+printf '%s\n' "$ALLOWED_CIDRS" | tr ',' '\n' > "$ranges"
+if [ "${1:-}" = "--check" ]; then
+    allowlist_check "$2" "$ranges"
+    exit $?
+fi
+echo "serving with $(wc -l < "$ranges") ranges"

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# rotate <config>: delete all but the newest `retain` files in `dir`.
+conf=${1:?usage: bin/rotate <config>}
+dir=$(sed -n 's/^dir=//p' "$conf")
+keep=$(sed -n 's/^retain=//p' "$conf")
+[ -n "$dir" ] && [ -n "$keep" ] || { echo "rotate: $conf needs dir= and retain=" >&2; exit 2; }
+ls -1t "$dir" | tail -n +"$((keep + 1))" | while IFS= read -r f; do rm -- "$dir/$f"; done

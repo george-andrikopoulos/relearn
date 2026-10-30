@@ -133,6 +133,17 @@ It is the reference implementation of the error loop described in *Tuning the St
   (`[R:detector-excludes-own-definitions]`). A detector never changes its rule's status:
   graduation stays the operator's call, and `lint` only says a candidate exists. The `hooks`
   target is explicit only, and nothing writes under `~/.claude`.
+- **A probe measures a rule; it never reaches the layer it measures, and relearn never starts
+  it.** A rule's optional `[probe]` is a task, a workspace, and exactly one checker from a closed
+  set (`trace`, `diff`, `run`; a model-judged `rubric` is refused as not built). No emitter reads
+  it (`no_emitter_reads_a_probe`), because a task in the WITH arm's layer would hand the arm its
+  answer. Every checker carries a held and a violated case, and `probe-run.sh --self-test`, a
+  `check.sh` stage, fails unless each comes back as named: a checker that cannot say `violated`
+  measures nothing. A sample whose task was not done is `inconclusive`, and a session whose
+  `init` lists a user skill, plugin or MCP server is `contaminated`. Neither is ever counted as
+  held. relearn only lists, judges and tallies. The runner, `scripts/probe-run.sh`, is the one
+  thing in the repository that starts a model, so solo mode still holds. It spends nothing
+  without `--budget-usd`, and it writes transcripts only outside the repository.
 - Tags are unique across the library; a duplicate tag is a parse error.
 - **One engineer with nothing else present can use it.** No account, no configuration file, no
   network, no ambient state: the input is the path given on the command line and the output is the
@@ -153,7 +164,7 @@ cargo fmt --check
 
 # The local gate: every stage hosted CI used to run (fmt, clippy, test, the three
 # verifies, lint --deny error, the money scan), plus the pack-sync reminder's
-# self-test. Run by .githooks/pre-push on every push since hosted CI was switched
+# self-test, the hook-pack fixtures and the probe self-test. Run by .githooks/pre-push on every push since hosted CI was switched
 # off on 2026-10-26. Ends with one PASS/FAIL line.
 bash scripts/check.sh
 
@@ -192,6 +203,15 @@ relearn lint --upstream <drive>                        # findings, then the fede
 # Not part of bare `verify`: most controls live in other repositories.
 relearn controls --root stochos-lab=<path> --root design-architecture-tool=<path> \
                  --settings <claude settings.json>
+
+# Probes: replay a rule's error class with its home layer and without it.
+# The relearn half is read-only and pure; the script is the only model caller.
+relearn probe list                                     # tag, home, layer target, workspace, checker
+relearn probe judge --tag R:x --transcript <jsonl> [--fixture <dir> --workspace <dir> | --run-exit N]
+relearn probe tally --results <results.tsv>            # Wilson per arm, Newcombe on the difference
+bash scripts/probe-run.sh --self-test                  # every checker on its held + violated cases
+bash scripts/probe-run.sh --dry-run --model <m> [--samples N] [--tag R:x]   # sessions, tokens, $, hours
+bash scripts/probe-run.sh --model <m> --samples N --budget-usd X --out <dir outside repo and $HOME>
 
 # The federation flows. Every one of them prints first and writes only on
 # --confirm, none of them transmits anything, and <drive> is a directory both
@@ -260,6 +280,7 @@ Before writing an incident, ask: **which repository's detector covers the file I
 - `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and `scripts/check.sh` runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
 - `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; `scripts/check.sh` verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
 - `hooks-pack/` — the `hooks` target's emission: one bash + `jq` Claude Code `PreToolUse` script per detector, a `test-detectors.sh` runner and a `settings-snippet.md`, with a hand-authored README whose script table `tests/pack_counts.rs` reads back, including the `Install` cell that marks a detector on an `active` rule as a `draft` the install steps never copy. Rebuild with `relearn build --targets hooks --out hooks-pack`; `scripts/check.sh` verifies it and runs the runner. It installs into `~/.claude/hooks/relearn/` by hand, beside any hand-written hook and never over one.
+- `tests/probes/<tag-body>/` — one directory per rule carrying a `[probe]`: the synthetic `workspace/` a session starts in, `cases/held` and `cases/violated` (a transcript for `trace`, a final workspace for `diff` and `run`), and `check.sh` for a `run` checker. Fixtures are synthetic and pinned LF. `tests/probe_corpus.rs` holds the shape; `probe-run.sh --self-test` holds the verdicts.
 - `docs/control-triage.md` — a dated snapshot binning every `active` rule by the control that could hold it (MECHANICAL, TYPE, EVAL, JUDGMENT), with the detectors drafted from it. A snapshot states its own numbers; nothing else quotes them.
 - `docs/session-start-poke.md` — the `SessionStart` hook snippet for the poke, **deliberately not installed**: anything under `~/.claude` edits the layer loaded into every session on the machine, and no gate in this repository could see it.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.

@@ -54,9 +54,12 @@ stage lint cargo run --quiet -- lint --deny error
 stage money-self-test bash scripts/no-float-money.sh --self-test
 stage money-scan bash scripts/no-float-money.sh
 stage pack-sync-self-test bash scripts/pack-sync-reminder.sh --self-test
+# Every probe checker over its committed held and violated cases. No model call:
+# a checker that cannot say `violated` about a known-bad session measures nothing.
+stage probe-self-test bash scripts/probe-run.sh --self-test
 
 if [ "${#failed[@]}" -eq 0 ]; then
-    echo "PASS: rustfmt, clippy, test, verify x4, hook fixtures, lint, money-scan, pack-sync"
+    echo "PASS: rustfmt, clippy, test, verify x4, hook fixtures, lint, money-scan, pack-sync, probe self-test"
     exit 0
 fi
 echo "FAIL: ${failed[*]}"

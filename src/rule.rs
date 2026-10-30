@@ -29,6 +29,7 @@ mod detector;
 mod home;
 mod origin;
 mod parse;
+mod probe;
 mod scope;
 mod serialize;
 mod status;
@@ -52,6 +53,11 @@ pub use origin::{
     Approval, Approver, ControlRef, Origin, OriginError, RecurrenceRole, SourceArtefact,
 };
 pub use parse::{ParseError, parse_document};
+pub use probe::{
+    Checker, DiffChecker, DiffClause, EventKind, EventPattern, Probe, ProbeError, ProbePattern,
+    ProbeTask, RunChecker, SessionEvent, TraceChecker, Verdict, Window, Workspace, WorkspaceChange,
+    WorkspacePath,
+};
 pub use scope::{ScopeTag, ScopeTagError};
 pub use serialize::to_document;
 pub use status::{Emittability, ProseCoverage, Reason, Status, StatusError, Uncovered};

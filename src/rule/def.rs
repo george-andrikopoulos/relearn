@@ -4,7 +4,7 @@
 //! with its arguments in the wrong order — a swap is a compile error.
 
 use super::{
-    Authority, Body, Date, Detector, ErrorClass, Federation, Home, Incident, Origin,
+    Authority, Body, Date, Detector, ErrorClass, Federation, Home, Incident, Origin, Probe,
     PublishedIncident, RecurrenceRole, RuleTag, ScopeTag, Status, Title,
 };
 
@@ -61,6 +61,7 @@ pub struct Rule {
     authority: Authority,
     published_incident: Option<PublishedIncident>,
     detectors: Vec<Detector>,
+    probe: Option<Probe>,
 }
 
 impl Rule {
@@ -124,6 +125,7 @@ impl Rule {
             authority,
             published_incident,
             detectors,
+            probe: None,
         }
     }
 
@@ -227,6 +229,28 @@ impl Rule {
     #[must_use]
     pub fn detectors(&self) -> &[Detector] {
         &self.detectors
+    }
+
+    /// The rule's probe, if it carries one: the task that replays its error
+    /// class and the checker that judges a session. Read by `relearn probe`
+    /// and by nothing on the build path (`no_emitter_reads_a_probe`).
+    #[must_use]
+    pub fn probe(&self) -> Option<&Probe> {
+        self.probe.as_ref()
+    }
+
+    /// The same rule carrying `probe`.
+    ///
+    /// A transform rather than a fifteenth `new` argument, after
+    /// [`Rule::with_authority`]: a probe is neither provenance nor content, and
+    /// the round trip that would lose one is held byte-exactly over the
+    /// committed corpus by `tests/corpus.rs`.
+    #[must_use]
+    pub fn with_probe(self, probe: Probe) -> Self {
+        Rule {
+            probe: Some(probe),
+            ..self
+        }
     }
 
     /// Whether this install is the rule's home, holds a cache of one whose home

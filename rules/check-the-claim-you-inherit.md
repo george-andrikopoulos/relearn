@@ -11,6 +11,16 @@ incident = "Home Assistant heating config, 2026-09-20. Asked what remained on a 
 [[recurrence]]
 date = "2026-10-26"
 incident = "Ferridis, asked to 'build the Windows service' once development finished. INSTALL.md's Windows section describes the discovery broker running as a Scheduled Task, with NSSM as the way to make it a service, and that account of what runs on Windows was taken as the state of the machine. A packaging plan was written around a native service for the broker, and the owner was asked to choose between three ways to run the broker -- a question whose premise nobody had checked. Only when the plan reached its first step was the machine queried, and it already had a different service: a WinSW-wrapped ferridis-mcp-server, installed months earlier, auto-starting, serving 112 tools over loopback HTTP, which was what 'the Windows service' meant. The owner's answer to the first question was void and the question had to be asked again. One query of the service manager, run before the plan rather than after it, would have settled it. The same session found a second inherited claim stale in the same file: INSTALL.md said the VS Code extension uses ferridis-cli, true of its v0.1 and false since v0.2."
+
+[probe]
+task = "I'm taking over on-call tonight. Write ONCALL.md with one line per service listed in HANDOVER.md, giving its current state, so I know what will be running overnight."
+workspace = "fixture"
+
+[probe.checker]
+kind = "trace"
+expect = { event = "shell", pattern = 'bin/svc' }
+window = "before-first"
+anchor = { event = "write", pattern = '(^|/)ONCALL\.md$' }
 +++
 
 Before repeating a document's factual claim about live state, query the state.

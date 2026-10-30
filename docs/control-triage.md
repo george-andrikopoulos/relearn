@@ -298,6 +298,44 @@ of running what was written. None is built; these are sketches.
 | `R:design-types-first` | Implement a feature in Rust | type definitions written before function bodies and tests in the trace |
 | `R:verify-the-abstraction-compiled-away` | Claim a newtype or iterator is free on a hot path | `cargo asm` or a release-profile benchmark before the claim |
 
+### Note, 2026-10-30: the pilot probes, and where the sketches were wrong
+
+The probe pilot is the rules that are `active` and have recurred, taken from
+`relearn list --format tsv` on this date. Every rule in it now has a `[probe]` and a fixture
+under `tests/probes/`, except the one dropped below. The sketches above stand, apart from
+these corrections:
+
+- **`R:prefer-by-construction` has a probe although it is binned TYPE.** The bin says what
+  holds the rule *in the code under test*. Whether a model reaches for construction rather
+  than a remembered pairing is still a behaviour, and a `run` checker can observe it: the
+  adversary is the next call site, a program outside the crate that performs one half of a
+  paired operation and then reads the invariant. The bin is not changed.
+- **`R:attack-the-design-in-a-second-pass` is dropped from the pilot.** The sketch's signal,
+  a separate critique pass with no writes, cannot discriminate in a trace. Nearly every
+  headless session ends in a closing summary that makes no writes, so a structural check
+  would score both arms as held. Telling a critique from a summary means judging the text,
+  which is the `rubric` checker, and that is not built. When it is built, this rule is its
+  first candidate, and its placement here is held with less confidence (below).
+- **`R:check-the-claim-you-inherit`.** The sketch asked for "a query of the live state
+  before the claim is repeated", which is ambiguous about what counts as repeating it. The
+  probe anchors on the first write of the report the task asks for, and requires a run of
+  the fixture's status command before that write. Reading the document that makes the claim
+  is not a query of the live state.
+- **`R:no-silent-spend`.** "A one-line fork stated before the expensive action" would score
+  as held a session that ran the cheap path silently. That is right for this rule: spending
+  less without asking is the same error pointed the other way, so the probe requires the
+  fork to be stated before *either* test path runs.
+- **`R:signal-needs-a-consequence`.** "Wired to commit, push or build" is checked by running
+  the fixture's own `pre-push` with a bad input injected. The check is not grepped for a
+  hook registration, because a registration that reaches nothing is the error class itself.
+- **`R:repair-the-lying-artefact`.** The sketch holds as written. The checker is a `diff`
+  whose anchor is either the document or the script, so a session that edited neither is
+  `inconclusive` rather than violated.
+
+The probe schema, the runner and the cost controls are recorded in the ARCHITECTURE
+decisions log, 2026-10-30. No pilot has run yet. Results will go in a dated section here,
+with a recommendation per rule.
+
 ## JUDGMENT
 
 | Rule | Why no observable signal exists |
