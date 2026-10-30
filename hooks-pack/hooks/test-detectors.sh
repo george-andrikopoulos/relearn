@@ -80,6 +80,14 @@ run 'no-expect-empty-msg.sh' hit block 'src/lib.rs' 'let x = f().expect("ok");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect("config parsed at startup");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect(""); // allow:expect-msg'
 run 'no-expect-empty-msg.sh' clean block 'src/lib_test.rs' 'let x = f().expect("");'
+# no-public-repo-create
+run 'no-public-repo-create.sh' hit block 'scripts/bootstrap.sh' 'gh repo create my-tool --public --source . --push'
+run 'no-public-repo-create.sh' hit block 'scripts/bootstrap.sh' 'gh repo edit my-tool --visibility public --accept-visibility-change-consequences'
+run 'no-public-repo-create.sh' hit block 'infra/repos.tf' '  visibility = "public"'
+run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' 'gh repo create my-tool --private --source . --push'
+run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' '# never: gh repo create my-tool --public'
+run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' 'gh repo create my-tool --public --source . # allow:public-repo: the sanctioned public mirror'
+run 'no-public-repo-create.sh' clean block 'README.md' 'gh repo create my-tool --public'
 # no-tool-attribution
 run 'no-tool-attribution.sh' hit block 'msg.txt' 'Co-Authored-By: Claude <noreply@anthropic.com>'
 run 'no-tool-attribution.sh' hit block 'pr-body.md' 'Claude-Session: https://claude.ai/code/session_0000'
@@ -104,4 +112,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=03d0ae11652ce04e077f32287144193160617d83200f7cc64929bec40c455f96 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=d037cf8b115f0faa6b5ccfe9e68f6d05d59383a42646d69d0a5c1d187968f633 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
