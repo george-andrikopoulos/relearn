@@ -58,6 +58,15 @@ run 'no-anyhow-in-lib.sh' clean block 'src/lib.rs' 'use anyhow_ext::Thing;'
 run 'no-case-collision.sh' hit block 'docs/README.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/NOTES.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/readme.md' '' 'readme.md'
+# no-count-in-heading
+run 'no-count-in-heading.sh' hit warn 'docs/design.md' '## The three guarantees'
+run 'no-count-in-heading.sh' hit warn 'README.md' '### 12 commands'
+run 'no-count-in-heading.sh' clean warn 'docs/design.md' '## The guarantees'
+run 'no-count-in-heading.sh' clean warn 'docs/design.md' 'There are three guarantees, listed below.'
+run 'no-count-in-heading.sh' clean warn 'docs/design.md' '## Rule parsing (v0.1)'
+run 'no-count-in-heading.sh' clean warn 'docs/design.md' '## A gap between two writes is not a settled state'
+run 'no-count-in-heading.sh' clean warn 'docs/design.md' '## Two installs, one rule <!-- allow:counted-heading -->'
+run 'no-count-in-heading.sh' clean warn 'src/lib.rs' '## The three guarantees'
 # no-embedded-local-llm
 run 'no-embedded-local-llm.sh' hit warn 'Cargo.toml' 'ollama-rs = "0.2"'
 run 'no-embedded-local-llm.sh' hit warn 'src/summarise.rs' 'let client = Ollama::new("http://localhost", 11434);'
@@ -87,4 +96,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=bcfb2a551cbf4f49f6705222669a5db5dfe8a4ad09f9f88eeda9ce529f9baa42 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:no-weak-model-for-judgment -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=c44988fcfc1ef5bfa88e784feefcceb2949609c715cdd367f738a4f8b4225194 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->

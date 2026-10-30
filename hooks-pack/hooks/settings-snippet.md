@@ -18,6 +18,7 @@ Where a hand-written hook with the same name is registered today, replace its en
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-anyhow-in-lib.sh" },
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-count-in-heading.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-embedded-local-llm.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-expect-empty-msg.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-unwrap-in-src.sh" }
@@ -28,4 +29,4 @@ Where a hand-written hook with the same name is registered today, replace its en
 }
 ```
 
-<!-- relearn:generated v0.1.0 sha256=25743b0cc2e23b330b94ae5b9c2996b4d599321063cafb4b66e9cfe03f10bb2f rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:no-weak-model-for-judgment -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=5b60742768baf8c2a855d9b0b553e0cf343b4ff14b5fbaca74aead96d421b6b5 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
