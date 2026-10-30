@@ -14,16 +14,24 @@ hooks-pack/
     └── settings-snippet.md   the registration to merge into settings.json
 ```
 
-| Script | Rule | Action | Runs on |
-|---|---|---|---|
-| `no-anyhow-in-lib.sh` | `[R:no-anyhow-in-libraries]` | block | Write, Edit, MultiEdit |
-| `no-case-collision.sh` | `[R:case-collision]` | block | Write |
-| `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit |
-| `no-unwrap-in-src.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit |
+| Script | Rule | Action | Runs on | Install |
+|---|---|---|---|---|
+| `no-anyhow-in-lib.sh` | `[R:no-anyhow-in-libraries]` | block | Write, Edit, MultiEdit | yes |
+| `no-case-collision.sh` | `[R:case-collision]` | block | Write | yes |
+| `no-embedded-local-llm.sh` | `[R:no-weak-model-for-judgment]` | warn | Write, Edit, MultiEdit | draft |
+| `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
+| `no-unwrap-in-src.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
 
 That table is hand-written. `tests/pack_counts.rs` reads it back against the scripts and
 fails the build when a script is missing from it, a row names a script that does not
 exist, or a row's rule is not the one the script was generated for.
+
+**A `draft` row is not for installing yet.** Its rule is still `active`: the detector was
+drafted by the control triage (`docs/control-triage.md`) and its fixtures pass, but whether
+it covers the rule, and whether its false positives are acceptable on real work, is a
+graduation review that has not happened. The script is in the pack because the `hooks`
+target emits every detector; the row says so because the emission cannot. A row moves to
+`yes` in the same change that graduates or partly graduates its rule.
 
 ## Never edit a script
 
@@ -57,11 +65,12 @@ relearn installs nothing. These scripts change what every session on the machine
 allowed to write, and no gate in this repository can see that layer, so a person copies
 them.
 
-1. Copy every `hooks/*.sh` **except** `test-detectors.sh` into `~/.claude/hooks/relearn/`.
+1. Copy each `hooks/*.sh` whose row above reads `yes` into `~/.claude/hooks/relearn/`.
    That directory is the generated scripts' own. Nothing generated is ever written over a
-   hand-written hook.
+   hand-written hook. `test-detectors.sh` is not a hook and is never copied.
 2. Merge the JSON in `hooks/settings-snippet.md` into the `hooks` table of
-   `~/.claude/settings.json`.
+   `~/.claude/settings.json`, keeping only the entries for the scripts you copied. The
+   snippet registers every script in the pack, drafts included.
 
 ## Cutting over from a hand-written hook of the same name
 

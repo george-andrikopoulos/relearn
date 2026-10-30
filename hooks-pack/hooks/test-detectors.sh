@@ -58,6 +58,13 @@ run 'no-anyhow-in-lib.sh' clean block 'src/lib.rs' 'use anyhow_ext::Thing;'
 run 'no-case-collision.sh' hit block 'docs/README.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/NOTES.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/readme.md' '' 'readme.md'
+# no-embedded-local-llm
+run 'no-embedded-local-llm.sh' hit warn 'Cargo.toml' 'ollama-rs = "0.2"'
+run 'no-embedded-local-llm.sh' hit warn 'src/summarise.rs' 'let client = Ollama::new("http://localhost", 11434);'
+run 'no-embedded-local-llm.sh' hit warn 'src/summarise.py' 'resp = requests.post("http://localhost:11434/api/generate", json=body)'
+run 'no-embedded-local-llm.sh' clean warn 'Cargo.toml' 'reqwest = { version = "0.12", default-features = false }'
+run 'no-embedded-local-llm.sh' clean warn 'src/summarise.rs' 'let client = Ollama::new("http://localhost", 11434); // allow:local-model: tokeniser count only'
+run 'no-embedded-local-llm.sh' clean warn 'docs/models.md' 'We considered Ollama and refused it.'
 # no-expect-empty-msg
 run 'no-expect-empty-msg.sh' hit block 'src/lib.rs' 'let x = f().expect("");'
 run 'no-expect-empty-msg.sh' hit block 'src/lib.rs' 'let x = f().expect("ok");'
@@ -80,4 +87,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=eba4184907ef0e66299d7fede9abc4c90244496caa21529091894534377dc700 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=bcfb2a551cbf4f49f6705222669a5db5dfe8a4ad09f9f88eeda9ce529f9baa42 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:no-weak-model-for-judgment -- DO NOT EDIT; regenerate with `relearn build` -->

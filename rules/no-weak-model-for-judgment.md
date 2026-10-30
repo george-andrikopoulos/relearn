@@ -8,6 +8,46 @@ origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated: folded into ~/.claude/skills/rust-typedd/SKILL.md on 2026-07-22 from a standalone memory (the skill's own revision note records the fold and the removal of the atticked copy), then ported here 2026-08-22. Distinct from R:measure-cost-per-task, which it cites: that rule governs how to choose between capable models by measured cost, whereas this one is a capability floor that holds even when the cheaper option is genuinely cheaper per task."
 published_incident = "Codified rather than mined, and folded in from a standalone note. The practice: a task requiring judgement — reviewing a design, deciding whether two rules contradict, weighing an argument — is not the place to economise on capability, because the failure mode is a confident answer that is wrong in a way nobody checks. It is distinct from choosing a model by measured cost per completed task: that rule governs how to choose, this one governs where the choice must not be made on price at all."
+
+[[detector]]
+name = "no-embedded-local-llm"
+engine = "line-regex"
+pattern = '[Oo]llama|llama[-_.]cpp|(localhost|127\.0\.0\.1):11434'
+allow = "allow:local-model"
+files = ["**/*.rs", "**/*.py", "**/*.ts", "**/*.js", "**/*.go", "**/*.java", "**/Cargo.toml", "**/package.json", "**/pyproject.toml", "**/requirements*.txt", "**/go.mod"]
+events = ["claude-code-pre-tool-use"]
+action = "warn"
+message = "This wires a local model runtime into the tool. If the work it does needs judgment, route it to the capable model the tool already reaches instead of embedding a sub-tier one. A tightly scoped mechanical pass is the exception: mark the line with the override token and say why."
+
+[[detector.fixture]]
+path = "Cargo.toml"
+input = 'ollama-rs = "0.2"'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/summarise.rs"
+input = 'let client = Ollama::new("http://localhost", 11434);'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/summarise.py"
+input = 'resp = requests.post("http://localhost:11434/api/generate", json=body)'
+expect = "hit"
+
+[[detector.fixture]]
+path = "Cargo.toml"
+input = 'reqwest = { version = "0.12", default-features = false }'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/summarise.rs"
+input = 'let client = Ollama::new("http://localhost", 11434); // allow:local-model: tokeniser count only'
+expect = "clean"
+
+[[detector.fixture]]
+path = "docs/models.md"
+input = 'We considered Ollama and refused it.'
+expect = "clean"
 +++
 
 Work that needs judgment goes to a capable model. Do not embed a sub-tier local LLM (a 7B/13B behind Ollama, llama.cpp or similar) in a tool as a convenient, API-key-free fallback: a meaningfully dumber model degrades the tool it is wedged into, everywhere and silently, and the output looks like ordinary tool output rather than like a downgrade. When a tool needs intelligence, delegate to the capable model through the existing subscription -- the MCP server is the abstraction boundary and clients are peers. Note that the cost argument usually offered for the local model is the price-tier fallacy R:measure-cost-per-task names; but this rule is not an economic one and does not dissolve if the sums come out favourably. Mechanical, tool-restricted passes are a different matter and may be scoped tightly; the floor applies to work where the answer is a judgement.

@@ -18,6 +18,7 @@ Where a hand-written hook with the same name is registered today, replace its en
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-anyhow-in-lib.sh" },
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-embedded-local-llm.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-expect-empty-msg.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-unwrap-in-src.sh" }
         ]
@@ -27,4 +28,4 @@ Where a hand-written hook with the same name is registered today, replace its en
 }
 ```
 
-<!-- relearn:generated v0.1.0 sha256=ccac2022e637ec2e5638e4884f4f7a0700a2e1e938d1043e7eac8499ca7d46ab rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=25743b0cc2e23b330b94ae5b9c2996b4d599321063cafb4b66e9cfe03f10bb2f rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:no-weak-model-for-judgment -- DO NOT EDIT; regenerate with `relearn build` -->

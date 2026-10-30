@@ -1360,7 +1360,7 @@ probed on 2026-10-27. **Configuration-dependent** like the hook's gates.
 
 **Observed, not a gate (2026-10-30, Windows, Git Bash).** stochos-lab's own `scripts/test-hooks.sh` assertions for the four pilot hooks, run verbatim, gave 15 of 15 against the originals and 15 of 15 against the generated scripts. A differential over 2,592 payloads (18 paths × 16 texts × Write/Edit/MultiEdit × the three content hooks) found no exit code that differs. A synthetic `warn` detector, built and run through its generated runner and by hand, exited 0 with `additionalContext` on stdout.
 
-**Scope (`[R:measure-the-claim-not-a-subset]`).** The generated scripts have been run on Windows under Git Bash only. Nothing has run them on Linux or macOS, so the shell half is single-platform evidence (`[R:xplat-fixtures]`). Every corpus detector is `block`, so the committed runner never exercises `warn`; that path is held by a text assertion and one observed run. MultiEdit's payload shape is handled when present but not confirmed against the current hooks reference. Carried in TODO.md.
+**Scope (`[R:measure-the-claim-not-a-subset]`).** The generated scripts have been run on Windows under Git Bash only. Nothing has run them on Linux or macOS, so the shell half is single-platform evidence (`[R:xplat-fixtures]`). The committed runner has exercised `warn` since 2026-10-30, when the control triage drafted the first `warn` detector into the corpus (`no-embedded-local-llm`, on `[R:no-weak-model-for-judgment]`); before that the path was held by a text assertion and one observed run. MultiEdit's payload shape is handled when present but not confirmed against the current hooks reference. Carried in TODO.md.
 
 ## Deliberately out of scope for v0.1
 

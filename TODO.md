@@ -38,7 +38,7 @@ them. `[R:doc-currency]`
 - [ ] **Confirm MultiEdit.** The scripts read `tool_input.edits[].new_string` when present; whether the tool still exists, and in that shape, was not confirmed in the current hooks reference.
 - [ ] **`git-pre-commit` is named and not built.** It parses as an event and is refused as not built, so a rule cannot claim it today.
 - [ ] **The generated scripts have only run on Windows under Git Bash.** Run `bash hooks-pack/hooks/test-detectors.sh` on Linux before relying on the pack there (`[R:xplat-fixtures]`).
-- [ ] **`warn` has no committed fixture on the production path.** Every corpus detector is `block`, so `test-detectors.sh` never runs a warn script. The first `warn` detector in the corpus closes this.
+- [x] **`warn` has no committed fixture on the production path.** Closed 2026-10-30 by the first `warn` detector in the corpus, `no-embedded-local-llm` on `[R:no-weak-model-for-judgment]`, whose fixtures `test-detectors.sh` now pipes through the generated warn script.
 
 ## Control resolution — `relearn controls` (2026-10-30)
 
