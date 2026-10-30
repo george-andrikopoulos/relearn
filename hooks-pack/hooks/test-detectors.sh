@@ -80,6 +80,13 @@ run 'no-expect-empty-msg.sh' hit block 'src/lib.rs' 'let x = f().expect("ok");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect("config parsed at startup");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect(""); // allow:expect-msg'
 run 'no-expect-empty-msg.sh' clean block 'src/lib_test.rs' 'let x = f().expect("");'
+# no-let-underscore-local
+run 'no-let-underscore-local.sh' hit block 'src/cli.rs' '    let _ = mode;'
+run 'no-let-underscore-local.sh' hit block 'src/cli.rs' 'if let Err(e) = op() { let _ = e; continue; }'
+run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '    let _ = tx.send(msg);'
+run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '    let _guard = lock.acquire();'
+run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '    let _ = mode; // allow:let-underscore: reserved for the v2 flag, see TODO'
+run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '// let _ = mode; is the shape to avoid'
 # no-public-repo-create
 run 'no-public-repo-create.sh' hit block 'scripts/bootstrap.sh' 'gh repo create my-tool --public --source . --push'
 run 'no-public-repo-create.sh' hit block 'scripts/bootstrap.sh' 'gh repo edit my-tool --visibility public --accept-visibility-change-consequences'
@@ -134,4 +141,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=47043c9688be6a6fbd4baa03d9fed7637860a30c39448a4b35013f6623088647 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=8ff4af4f508e7e07a389328d176d791abf96da8d38348a1d9c4ede576b95fa08 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
