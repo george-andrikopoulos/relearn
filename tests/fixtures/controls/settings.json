@@ -1,0 +1,14 @@
+{
+  "permissions": { "allow": ["Bash(bash ~/fixture/hooks/unwired.sh)"] },
+  "statusLine": { "type": "command", "command": "bash ~/fixture/hooks/unwired.sh" },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "bash ~/fixture/hooks/wired.sh" }
+        ]
+      }
+    ]
+  }
+}

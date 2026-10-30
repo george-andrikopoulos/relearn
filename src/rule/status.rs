@@ -312,6 +312,19 @@ impl Status {
             Status::Active | Status::Partial { .. } | Status::Attic { .. } => None,
         }
     }
+
+    /// Every control this status names as holding some or all of the class --
+    /// what `relearn controls` resolves. Unlike [`Self::whole_class_claim`] it
+    /// does not distinguish part from whole: a control claimed to hold *part*
+    /// of a class must exist and run just as much as one claimed to hold all.
+    #[must_use]
+    pub fn named_controls(&self) -> Option<&Controls> {
+        match self {
+            Status::Graduated { to, .. } => Some(to),
+            Status::Partial { by, .. } => Some(by),
+            Status::Active | Status::Attic { .. } => None,
+        }
+    }
 }
 
 #[cfg(test)]

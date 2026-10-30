@@ -16,9 +16,12 @@ use sha2::{Digest, Sha256};
 
 use crate::emit::{OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
+
+mod controls;
 use crate::rule::{
     DroppableCache, EditableRule, ParseError, PulledRule, RuleTag, parse_document, to_document,
 };
+pub use controls::{ControlReadError, read_control_map, read_settings, snapshot};
 
 /// The opening of the generated-by comment. Its presence in an existing file is
 /// how the overwrite guard tells "relearn wrote this" from "a human wrote this":

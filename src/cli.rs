@@ -37,12 +37,13 @@ use clap::{Parser, Subcommand, ValueEnum};
 use crate::aggregate::{Aggregate, AggregateError};
 use crate::contribute::{self, Contribution, NotContributable, NotSuperseding, SupersedingVersion};
 use crate::emit::{self, HomeSlug, OutputFile};
-use crate::fsio::{self, LoadError, RuleWriteError, VerifyError, WriteError};
+use crate::fsio::{self, ControlReadError, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
 use crate::lint;
 use crate::poke::{self, BroadcastCap, Reach, Trigger, UnknownTrigger};
 use crate::pull::{Plan, Prune};
 use crate::report::{InstallId, InstallIdError, K_ANONYMITY_FLOOR, Month, MonthError, Report};
+use crate::resolve::{self, ControlMap, MapError, Outcome, RootName};
 use crate::rule::{
     AdoptError, Approval, Approver, Authority, Body, CachedIsNotEditable, ControlRef, Date,
     DateError, EditableRule, EmptyText, ErrorClass, Home, Incident, NotPullable, Origin,
@@ -464,6 +465,34 @@ enum Command {
         #[arg(long)]
         scope: Vec<String>,
     },
+    /// Resolve every control a `partial` or `graduated` rule names — does the
+    /// hook, test or gate exist, and does anything run it? Reads only.
+    ///
+    /// Exits 0 when every control is RESOLVED_AND_WIRED; 1 when any is
+    /// MISSING, RESOLVED_NOT_WIRED or UNMAPPED, or the map places a control no
+    /// rule names; **2 when nothing failed but something was UNCHECKABLE** — a
+    /// root or settings file was not supplied. A disarmed check is not a pass.
+    ///
+    /// Deliberately not part of bare `verify`: most controls live in other
+    /// repositories, and the push gate must not depend on what is cloned
+    /// beside this one.
+    Controls {
+        /// Directory of `*.md` rule files.
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
+        /// The committed map from each control to its root and path. Its own
+        /// directory is the root the map calls `here`.
+        #[arg(long, default_value = "controls.toml")]
+        map: PathBuf,
+        /// Where a root named in the map is on this machine: `<name>=<path>`.
+        /// Repeatable. A control under a root not given reads UNCHECKABLE.
+        #[arg(long = "root")]
+        roots: Vec<String>,
+        /// A Claude Code settings file, whose `hooks` table says whether each
+        /// hook script is registered. Without it a present hook is UNCHECKABLE.
+        #[arg(long)]
+        settings: Option<PathBuf>,
+    },
 }
 
 /// An emission target. Only the variants that have a working emitter are
@@ -881,6 +910,34 @@ pub enum CliError {
     /// derived source would print the same sentence twice.
     #[error("--poke: {0}")]
     PokeTrigger(UnknownTrigger),
+
+    /// A read for `controls` failed: the map, the settings, or a root.
+    #[error(transparent)]
+    ControlRead(#[from] ControlReadError),
+
+    /// `--root` without `<name>=<path>`.
+    #[error("--root `{0}`: expected `<name>=<path>`")]
+    RootSpec(String),
+
+    /// `--root` with a malformed name.
+    #[error("--root: {0}")]
+    RootName(MapError),
+
+    /// One root given twice, or the map's own `here` root given at all — two
+    /// answers to where one root is.
+    #[error("--root `{0}` is given twice, or is the map's own `here` root")]
+    DuplicateRoot(RootName),
+
+    /// A root no control in the map lives under. Refused rather than ignored:
+    /// a typo here would otherwise leave every control under the real name
+    /// UNCHECKABLE, with nothing pointing at the typo.
+    #[error("--root `{root}`: the map places no control there (it names: {mapped})")]
+    UnknownRoot {
+        /// The root as given.
+        root: RootName,
+        /// The roots the map does name.
+        mapped: String,
+    },
 }
 
 /// Render the declared-scope list for [`CliError::UnknownScope`].
@@ -1032,7 +1089,109 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             home,
             scope,
         } => verify(&rules, &out, &targets, home.as_deref(), &scope),
+        Command::Controls {
+            rules,
+            map,
+            roots,
+            settings,
+        } => controls(&rules, &map, &roots, settings.as_deref()),
     }
+}
+
+/// Parse `--root <name>=<path>` arguments against the map: each name well
+/// formed, given once, not the map's own `here`, and named by the map.
+fn parse_roots(map: &ControlMap, specs: &[String]) -> Result<Vec<(RootName, PathBuf)>, CliError> {
+    let mapped = map.roots();
+    let mut roots: Vec<(RootName, PathBuf)> = Vec::new();
+    for spec in specs {
+        let (name, path) = spec
+            .split_once('=')
+            .ok_or_else(|| CliError::RootSpec(spec.to_owned()))?;
+        let name = RootName::parse(name).map_err(CliError::RootName)?;
+        if &name == map.here() || roots.iter().any(|(seen, _)| seen == &name) {
+            return Err(CliError::DuplicateRoot(name));
+        }
+        if !mapped.contains(&name) {
+            let mapped = mapped
+                .iter()
+                .map(|r| r.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(CliError::UnknownRoot { root: name, mapped });
+        }
+        roots.push((name, PathBuf::from(path)));
+    }
+    Ok(roots)
+}
+
+/// `controls`: resolve every named control and print one verdict per control.
+/// Writes nothing. Exit 0 pass, 1 fail, 2 disarmed.
+fn controls(
+    rules: &Path,
+    map_path: &Path,
+    root_specs: &[String],
+    settings: Option<&Path>,
+) -> Result<ExitCode, CliError> {
+    let validated = fsio::load_rules(rules)?.validate()?;
+    let map = fsio::read_control_map(map_path)?;
+    let roots = parse_roots(&map, root_specs)?;
+    let here = match map_path.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => dir,
+        Some(_) | None => Path::new("."),
+    };
+    let snapshot = fsio::snapshot(&map, here, &roots)?;
+    let registry = settings.map(fsio::read_settings).transpose()?;
+    let resolution = resolve::resolve(&validated, &map, &snapshot, registry.as_ref());
+
+    for row in resolution.rows() {
+        let place = row
+            .location()
+            .map(|loc| format!("{}:{}", loc.root(), loc.artefact().primary()))
+            .unwrap_or_default();
+        println!(
+            "{:<18}  {}  {}:{}  [{}] {}",
+            row.verdict().label(),
+            row.tag(),
+            row.control().kind().prefix(),
+            row.control().name(),
+            place,
+            row.verdict()
+        );
+    }
+    for stale in resolution.unclaimed() {
+        println!("STALE_MAP_ENTRY     {stale}  — controls map places it and no rule names it");
+    }
+    let count = |label: &str| {
+        resolution
+            .rows()
+            .iter()
+            .filter(|r| r.verdict().label() == label)
+            .count()
+    };
+    let summary = format!(
+        "{} control(s): {} wired, {} not wired, {} missing, {} uncheckable, {} unmapped, {} stale map entries",
+        resolution.rows().len(),
+        count("RESOLVED_AND_WIRED"),
+        count("RESOLVED_NOT_WIRED"),
+        count("MISSING"),
+        count("UNCHECKABLE"),
+        count("UNMAPPED"),
+        resolution.unclaimed().len()
+    );
+    Ok(match resolution.outcome() {
+        Outcome::Pass => {
+            println!("PASS: {summary}");
+            ExitCode::SUCCESS
+        }
+        Outcome::Fail => {
+            println!("FAIL: {summary}");
+            ExitCode::FAILURE
+        }
+        Outcome::Disarmed => {
+            println!("DISARMED (exit 2, not a pass): {summary}");
+            ExitCode::from(2)
+        }
+    })
 }
 
 /// `check`: load and validate; write nothing.

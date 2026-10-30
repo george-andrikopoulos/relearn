@@ -223,6 +223,15 @@ relearn lint --rules ./rules --upstream ../aggregate --poke high-recurrence --po
 # Reads only; non-zero exit if any file is missing, hand-edited, or stale.
 # Use it in CI to keep the committed generated tree in sync with the rules.
 relearn verify --rules ./rules --out .
+
+# Resolve every control a partial or graduated rule names (a hook, a test, a
+# gate): does the artefact exist, and does anything run it? controls.toml says
+# which root each one lives under; you say where each root is on this machine.
+# Exit 0 when all are RESOLVED_AND_WIRED, 1 when any is MISSING, unwired or
+# unmapped, and 2 when nothing failed but something was UNCHECKABLE because its
+# root or the settings file was not supplied. Reads only.
+# (`$HOME`, not `~`: the shell does not expand a tilde after `name=`.)
+relearn controls --root stochos-lab="$HOME/.claude" --settings "$HOME/.claude/settings.json"
 ```
 
 A rule directory is `*.md` files with TOML front-matter and a markdown body:

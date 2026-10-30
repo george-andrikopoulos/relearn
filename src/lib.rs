@@ -32,5 +32,6 @@ pub mod lint;
 pub mod poke;
 pub mod pull;
 pub mod report;
+pub mod resolve;
 pub mod rule;
 pub mod scrub;

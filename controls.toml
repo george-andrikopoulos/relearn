@@ -1,0 +1,143 @@
+# controls.toml — where each control named in rules/*.md lives.
+#
+# A `partial` or `graduated` rule names its controls by kind and name
+# (`hook:no-anyhow-in-lib`). That text does not say which repository holds the
+# artefact, or where in it; this file does, one entry per control, so the rule
+# format stays exactly as it was (ARCHITECTURE.md decisions log, 2026-10-30).
+#
+#   relearn controls [--root <name>=<path>]... [--settings <settings.json>]
+#
+# `here` is the root this file sits in, located from the file's own path. Every
+# other root is supplied on the command line; one that is not reads UNCHECKABLE
+# and the run exits 2, never 0.
+#
+# Per entry: `control` is exactly one `kind:name`, without its coverage note.
+# `path` is relative to the root, `/`-separated, `.` for the root itself.
+#   hook      -> `path` is the script; wired when --settings registers it.
+#   test      -> `path` is a .rs file (wired: it holds a running #[test]), or,
+#                with `function`, a file or directory searched for `fn <name>`
+#                (wired: #[test] and no #[ignore]).
+#   gate      -> `path` is the script, `invoked_by` the file that runs it, and
+#                optionally `function`, a shell function inside the script.
+#   type      -> no resolver; leave unmapped, and it reads UNCHECKABLE.
+#
+# `relearn controls` fails when a rule names a control this file does not place
+# (UNMAPPED) and when this file places one no rule names (STALE_MAP_ENTRY).
+
+here = "relearn"
+
+# --- this repository -------------------------------------------------------
+
+[[control]]
+control = "test:tests/ledger.rs::every_enforced_by_row_names_an_artefact_or_declares_itself_exposed"
+root = "relearn"
+path = "tests/ledger.rs"
+function = "every_enforced_by_row_names_an_artefact_or_declares_itself_exposed"
+
+[[control]]
+control = "test:tests/pack_counts.rs"
+root = "relearn"
+path = "tests/pack_counts.rs"
+
+[[control]]
+control = "gate:scripts/no-float-money.sh"
+root = "relearn"
+path = "scripts/no-float-money.sh"
+invoked_by = "scripts/check.sh"
+
+# --- stochos-lab (~/.claude): hook scripts ----------------------------------
+
+[[control]]
+control = "hook:banned-name-in-output"
+root = "stochos-lab"
+path = "hooks/banned-name-in-output.sh"
+
+[[control]]
+control = "hook:gate-verdict-intact"
+root = "stochos-lab"
+path = "hooks/gate-verdict-intact.sh"
+
+[[control]]
+control = "hook:multiline-pattern-eol"
+root = "stochos-lab"
+path = "hooks/multiline-pattern-eol.sh"
+
+[[control]]
+control = "hook:no-anyhow-in-lib"
+root = "stochos-lab"
+path = "hooks/no-anyhow-in-lib.sh"
+
+[[control]]
+control = "hook:no-block-on-in-async"
+root = "stochos-lab"
+path = "hooks/no-block-on-in-async.sh"
+
+[[control]]
+control = "hook:no-case-collision"
+root = "stochos-lab"
+path = "hooks/no-case-collision.sh"
+
+[[control]]
+control = "hook:no-clone-without-comment"
+root = "stochos-lab"
+path = "hooks/no-clone-without-comment.sh"
+
+[[control]]
+control = "hook:no-expect-empty-msg"
+root = "stochos-lab"
+path = "hooks/no-expect-empty-msg.sh"
+
+[[control]]
+control = "hook:no-pub-fields"
+root = "stochos-lab"
+path = "hooks/no-pub-fields.sh"
+
+[[control]]
+control = "hook:no-self-matching-pkill"
+root = "stochos-lab"
+path = "hooks/no-self-matching-pkill.sh"
+
+[[control]]
+control = "hook:no-unwrap-in-src"
+root = "stochos-lab"
+path = "hooks/no-unwrap-in-src.sh"
+
+[[control]]
+control = "hook:tdd-gate"
+root = "stochos-lab"
+path = "hooks/tdd-gate.sh"
+
+# --- design-architecture-tool -----------------------------------------------
+#
+# The three tests named by function alone are searched for across the whole
+# root, because the rules do not say which file holds them.
+
+[[control]]
+control = "test:the_repository_derives_no_queue_role_from_a_spin_mode"
+root = "design-architecture-tool"
+path = "."
+function = "the_repository_derives_no_queue_role_from_a_spin_mode"
+
+[[control]]
+control = "test:spin_mode_does_not_change_a_single_queue_end_letter"
+root = "design-architecture-tool"
+path = "."
+function = "spin_mode_does_not_change_a_single_queue_end_letter"
+
+[[control]]
+control = "test:the_catalogue_has_not_grown_without_a_migration_to_carry_it"
+root = "design-architecture-tool"
+path = "."
+function = "the_catalogue_has_not_grown_without_a_migration_to_carry_it"
+
+[[control]]
+control = "test:client/src/app/font_tests.rs"
+root = "design-architecture-tool"
+path = "client/src/app/font_tests.rs"
+
+[[control]]
+control = "gate:verify.sh emoji_ban"
+root = "design-architecture-tool"
+path = "scripts/verify.sh"
+function = "emoji_ban"
+invoked_by = "scripts/verify.sh"

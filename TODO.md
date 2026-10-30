@@ -27,6 +27,17 @@ them. `[R:doc-currency]`
 - [x] CI: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` on push + PR
 
 
+## Control resolution — `relearn controls` (2026-10-30)
+
+- [x] **Every control a `partial` or `graduated` rule names is resolved and given one verdict.** `src/resolve.rs`, `controls.toml`, `relearn controls`; exit 0 / 1 / 2 with 2 for a disarmed run. The decisions log carries the map-not-syntax choice, the subcommand-not-`verify` choice, and the `serde_json` price; FEATURES.md carries the enforcing artefacts.
+- [x] **The in-tree half runs on every push** through `cargo test` (`tests/resolve.rs::every_control_this_repository_holds_resolves_and_is_wired`), needing nothing cloned.
+- [!] **The full run needs roots this repository cannot supply** — stochos-lab (`~/.claude`), Design-Architecture-Tool, and a Claude Code settings file — so it runs by hand, on a machine that has them, and nothing schedules it. A control in another repository can still go missing between runs. Candidate: a stochos-lab gate that runs it with that machine's roots.
+- [ ] **Block comments are not stripped** by the line readers in `src/resolve/scan.rs`, so `fn x` inside `/* */` reads as present.
+- [ ] **A test file is not checked for `mod` reachability.** `test:client/src/app/font_tests.rs` is wired only if something declares the module; the resolver reads a file holding `#[test]` as wired either way.
+- [ ] **A gate's wiring is one link deep.** `gate:scripts/no-float-money.sh` is referenced by `scripts/check.sh`; that `.githooks/pre-push` runs `check.sh` is not followed. Same for `verify.sh emoji_ban`, whose invoker is its own script.
+- [ ] **`type:` controls have no resolver** and read `UNCHECKABLE`. None exist in the corpus yet; the first one decides what "wired" means for a type (a type existing is not evidence anything uses it — `[R:wired-artifact]`).
+- [ ] **A mandated rule's `approval.control` is a control reference that is not resolved.** It is free text (`ControlRef`), not a parsed `Controls`, so it cannot be mapped today.
+
 ## `[R:an-ambiguous-write-target-is-a-question]`, and verify misreading the skill sync (2026-10-27)
 
 - [x] **`[R:an-ambiguous-write-target-is-a-question]` written, `global` home.** Codified from the SABench abstract. Global is now 32 rules; the pack READMEs' counts moved with it (copilot 96 → 97, `global` 31 → 32).

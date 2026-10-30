@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 5f08292a9920a95e6cda98354a3f9c46d32d99ac7ab41e86e60514f0a3c8be10 # shrinks to supply = [false, false, false, false, false, false, false, false], contents = [Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent, Absent], with_settings = false, registered = [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]

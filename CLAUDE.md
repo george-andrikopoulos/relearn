@@ -114,6 +114,14 @@ It is the reference implementation of the error loop described in *Tuning the St
   one. **A rule declaring no
   `applies_to` is emitted under every audience**, so adding a scope to one rule can never remove a
   different rule from an existing build — the first invariant above, one layer up.
+- **A named control is resolved, and an unchecked one is never a pass.** A rule says *which*
+  control holds it; `controls.toml` — one home, beside the rules rather than inside them, so the
+  rule format and everything emitted from it stay unchanged — says *where* it lives. `relearn
+  controls` gives each control one verdict from a closed set and exits 2, not 0, when a root or
+  settings file was not supplied (`Verdict::outcome` is exhaustive). The map is checked against the
+  corpus both ways: an unplaced control and a stale entry both fail. It is not in bare `verify`,
+  because the push gate must not depend on what is cloned beside this repository; its in-tree half
+  is a `cargo test`.
 - Tags are unique across the library; a duplicate tag is a parse error.
 - **One engineer with nothing else present can use it.** No account, no configuration file, no
   network, no ambient state: the input is the path given on the command line and the output is the
@@ -163,6 +171,12 @@ relearn list --format tsv                              # the corpus as data:
 #   tag, home, created, origin, status, controls, recurrences, last_recurrence
 #   under a #-header. No free prose: `incident` is a private quotation.
 relearn lint --upstream <drive>                        # findings, then the federation's pokes
+
+# Resolve every control a partial/graduated rule names against controls.toml.
+# Read-only. 0 all wired / 1 missing, unwired, unmapped or stale / 2 disarmed.
+# Not part of bare `verify`: most controls live in other repositories.
+relearn controls --root stochos-lab=<path> --root design-architecture-tool=<path> \
+                 --settings <claude settings.json>
 
 # The federation flows. Every one of them prints first and writes only on
 # --confirm, none of them transmits anything, and <drive> is a directory both

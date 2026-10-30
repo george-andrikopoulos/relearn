@@ -57,6 +57,8 @@ const DOMAIN_ENUMS: &[(&str, &str)] = &[
     ("Origin", "rule/origin.rs"),
     ("RecurrenceRole", "rule/origin.rs"),
     ("ControlKind", "rule/control.rs"),
+    ("Verdict", "resolve.rs"),
+    ("Outcome", "resolve.rs"),
 ];
 
 fn src_root() -> PathBuf {
