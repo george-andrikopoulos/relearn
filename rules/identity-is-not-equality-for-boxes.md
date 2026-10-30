@@ -7,6 +7,47 @@ created = "2026-09-19"
 origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: written 2026-09-19 with the rest of the Java set, and homed here because the error class cannot exist without Java's boxing and its integer cache -- the language is constitutive, which is the test that settles a home in this corpus. What it shares with the measurement rules in the latency domain is a property rather than a home: the defect is not rare in testing, it is *absent* from testing, because every fixture uses a small number and every small number is cached."
+
+[[detector]]
+name = "no-string-identity-compare"
+engine = "line-regex"
+pattern = '[=!]=[[:space:]]*"|"[[:space:]]*[=!]='
+comment = "//"
+allow = "allow:identity"
+files = ["**/*.java"]
+events = ["claude-code-pre-tool-use"]
+action = "block"
+message = "== against a string literal compares references. It is true for interned literals in a test and false for any string built, read or parsed at run time. Use equals, or Objects.equals where either side may be absent."
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'if (side == "BUY") {'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'boolean sell = "SELL" != side;'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'if ("BUY".equals(side)) {'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'String side = "BUY";'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'if (kind == Kind.LIMIT) {'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = '// never write side == "BUY"'
+expect = "clean"
 +++
 
 `==` on a reference asks whether these are the same object. On a boxed number or a string

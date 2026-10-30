@@ -88,6 +88,13 @@ run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' 'gh repo creat
 run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' '# never: gh repo create my-tool --public'
 run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' 'gh repo create my-tool --public --source . # allow:public-repo: the sanctioned public mirror'
 run 'no-public-repo-create.sh' clean block 'README.md' 'gh repo create my-tool --public'
+# no-string-identity-compare
+run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'if (side == "BUY") {'
+run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'boolean sell = "SELL" != side;'
+run 'no-string-identity-compare.sh' clean block 'src/main/java/Order.java' 'if ("BUY".equals(side)) {'
+run 'no-string-identity-compare.sh' clean block 'src/main/java/Order.java' 'String side = "BUY";'
+run 'no-string-identity-compare.sh' clean block 'src/main/java/Order.java' 'if (kind == Kind.LIMIT) {'
+run 'no-string-identity-compare.sh' clean block 'src/main/java/Order.java' '// never write side == "BUY"'
 # no-tool-attribution
 run 'no-tool-attribution.sh' hit block 'msg.txt' 'Co-Authored-By: Claude <noreply@anthropic.com>'
 run 'no-tool-attribution.sh' hit block 'pr-body.md' 'Claude-Session: https://claude.ai/code/session_0000'
@@ -112,4 +119,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=d037cf8b115f0faa6b5ccfe9e68f6d05d59383a42646d69d0a5c1d187968f633 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=16a0b980af07040ffc0ad49b3db607b24a220d07e97655ae56d8f46e9fe5831b rules=R:case-collision,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
