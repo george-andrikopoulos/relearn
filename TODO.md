@@ -27,6 +27,10 @@ them. `[R:doc-currency]`
 - [x] CI: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` on push + PR
 
 
+## Detectors — a rule's mechanical control as a build target (proposed 2026-10-30)
+
+- [!] **Phase A design is in the decisions log, marked PROPOSED, and waits on George's go-ahead.** Nothing is built and the rule format is unchanged until he answers the open questions it raises: own versus resolve, whether `no-case-collision` gets a `sibling-case` engine or stays hand-written, the `regex` dependency, the `hooks-pack/` location and install directory, `warn` in the pilot, and confirming the stochos-lab path for the differential run.
+
 ## Control resolution — `relearn controls` (2026-10-30)
 
 - [x] **Every control a `partial` or `graduated` rule names is resolved and given one verdict.** `src/resolve.rs`, `controls.toml`, `relearn controls`; exit 0 / 1 / 2 with 2 for a disarmed run. The decisions log carries the map-not-syntax choice, the subcommand-not-`verify` choice, and the `serde_json` price; FEATURES.md carries the enforcing artefacts.
