@@ -323,3 +323,69 @@ fn the_hooks_pack_readme_lists_every_detector_script_and_its_rule() {
         );
     }
 }
+
+/// The table's `Install` cell says whether a person following the README copies
+/// the script, and nothing but this test reads it. `yes` exactly when the rule's
+/// status names the hook, as `graduated` or `partial` does; `draft` otherwise,
+/// which is a detector whose rule is still `active`, awaiting the graduation
+/// review a passing fixture cannot stand in for. A draft marked `yes` would be
+/// installed on every machine that follows the steps, unreviewed.
+#[test]
+fn the_hooks_pack_readme_marks_a_detector_installable_only_once_its_rule_names_it() {
+    let readme =
+        fs::read_to_string(root().join("hooks-pack/README.md")).expect("a readable README");
+    let install: Vec<(String, String)> = readme
+        .lines()
+        .filter_map(|line| {
+            let cells: Vec<&str> = line.split('|').map(str::trim).collect();
+            let script = cells.get(1)?.strip_prefix('`')?.strip_suffix(".sh`")?;
+            Some((script.to_owned(), (*cells.get(5)?).to_owned()))
+        })
+        .collect();
+    assert!(
+        !install.is_empty(),
+        "hooks-pack/README.md has no Install column"
+    );
+
+    let library = relearn::fsio::load_rules(&root().join("rules"))
+        .expect("the corpus loads")
+        .validate()
+        .expect("the corpus validates");
+    for rule in library.rules() {
+        let named: Vec<&str> = rule
+            .status()
+            .named_controls()
+            .map(|controls| {
+                controls
+                    .as_slice()
+                    .iter()
+                    .filter(|c| c.kind() == relearn::rule::ControlKind::Hook)
+                    .map(|c| c.name())
+                    .collect()
+            })
+            .unwrap_or_default();
+        for detector in rule.detectors() {
+            let name = detector.name().as_str();
+            let expected = if named.contains(&name) {
+                "yes"
+            } else {
+                "draft"
+            };
+            let cell = install
+                .iter()
+                .find(|(script, _)| script == name)
+                .map(|(_, cell)| cell.as_str());
+            assert_eq!(
+                cell,
+                Some(expected),
+                "hooks-pack/README.md's Install cell for {name}.sh must read {expected}: [{}] {} it",
+                rule.tag().as_str(),
+                if expected == "yes" {
+                    "names"
+                } else {
+                    "does not name"
+                }
+            );
+        }
+    }
+}

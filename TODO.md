@@ -40,6 +40,23 @@ them. `[R:doc-currency]`
 - [ ] **The generated scripts have only run on Windows under Git Bash.** Run `bash hooks-pack/hooks/test-detectors.sh` on Linux before relying on the pack there (`[R:xplat-fixtures]`).
 - [x] **`warn` has no committed fixture on the production path.** Closed 2026-10-30 by the first `warn` detector in the corpus, `no-embedded-local-llm` on `[R:no-weak-model-for-judgment]`, whose fixtures `test-detectors.sh` now pipes through the generated warn script.
 
+## Control triage — every `active` rule binned (2026-10-30)
+
+- [x] **Triage written:** `docs/control-triage.md`, a dated snapshot binning every `active` rule as MECHANICAL, TYPE, EVAL or JUDGMENT with a reason, the population taken from `relearn list --format tsv`. No status changed.
+- [x] **Ten detectors drafted**, one commit each, fixtures passing in `relearn check` and through `hooks-pack/hooks/test-detectors.sh`. Each is marked `draft` in `hooks-pack/README.md`'s new `Install` column so the install steps never copy it, and `tests/pack_counts.rs` fails if a row says `yes` before its rule names the hook.
+- [ ] **George: graduation review of `no-embedded-local-llm`** on `[R:no-weak-model-for-judgment]` (warn). Uncovered if `partial`: routing judgment to a cheaper hosted tier, and local runtimes the pattern does not name.
+- [ ] **George: graduation review of `no-count-in-heading`** on `[R:revision-integrity]` (warn). Uncovered if `partial`: antecedents, cross-references, counts in body text, terms used before definition.
+- [ ] **George: graduation review of `no-tool-attribution`** on `[R:no-tool-attribution-in-public-artefacts]` (block). Uncovered if `partial`: trailers passed inline to `git commit`, the tool's own setting, document metadata, history already pushed.
+- [ ] **George: graduation review of `no-public-repo-create`** on `[R:repository-private-by-default]` (block). Uncovered if `partial`: a create at a shell prompt, through the web UI or the REST API.
+- [ ] **George: graduation review of `no-string-identity-compare`** on `[R:identity-is-not-equality-for-boxes]` (block). Uncovered if `partial`: boxed-number comparison, which needs operand types.
+- [ ] **George: graduation review of `no-serializable-domain-type`** on `[R:serializable-is-a-second-constructor]` (block). Uncovered if `partial`: inherited `Serializable`, and whether a sanctioned `readObject` validates.
+- [ ] **George: graduation review of `no-string-error`** on `[R:errors-name-what-failed]` (block). Uncovered if `partial`: field-less variants, and variants omitting the identifying value.
+- [ ] **George: graduation review of `no-let-underscore-local`** on `[R:no-let-underscore-on-a-local]` (block). Uncovered if `partial`: underscore-prefixed bindings.
+- [ ] **George: graduation review of `no-free-validator`** on `[R:parse-dont-validate]` (block). Uncovered if `partial`: re-checking parsed data at interior call sites.
+- [ ] **George: graduation review of `no-constructed-target-path`** on `[R:xplat-fixtures]` (block). Uncovered if `partial`: uncanonicalised path comparison, stray CRs in tool output, interpreter stubs.
+- [ ] **The remaining MECHANICAL rules are not drafted.** `docs/control-triage.md` lists them in two groups: those needing an engine relearn does not have (a type-aware linter, a cross-file or repository gate, a hashed term list, a commit-time event), and line-local warn-grade ones that need a sample of real code before drafting. Four in the first group already have a working control elsewhere (`tests/dependencies.rs`, `scripts/no-banned-names.sh`, stochos-lab's `verify-wiring.sh` and `verify-deploy.sh`) and may be `partial` candidates; that is George's call.
+- [ ] **The implicit self-excludes miss the pack's scripts at the paths the sweep reads.** `check` sweeps emitted files at their path relative to the output root (`hooks/<name>.sh`, `hooks/test-detectors.sh`), where `**/hooks-pack/**` and `**/hooks/relearn/**` do not apply. A detector scoped to `**` or `**/*.sh` therefore fires on the runner's hit fixtures, or on its own pattern text, and needs a hand-written exclude (two drafts carry one). Either extend the implicit excludes to the pack's own emitted paths or match the sweep to the committed location; decide which, with a test.
+
 ## Control resolution — `relearn controls` (2026-10-30)
 
 - [x] **Every control a `partial` or `graduated` rule names is resolved and given one verdict.** `src/resolve.rs`, `controls.toml`, `relearn controls`; exit 0 / 1 / 2 with 2 for a disarmed run. The decisions log carries the map-not-syntax choice, the subcommand-not-`verify` choice, and the `serde_json` price; FEATURES.md carries the enforcing artefacts.
