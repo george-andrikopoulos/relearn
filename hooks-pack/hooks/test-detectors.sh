@@ -88,6 +88,12 @@ run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' 'gh repo creat
 run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' '# never: gh repo create my-tool --public'
 run 'no-public-repo-create.sh' clean block 'scripts/bootstrap.sh' 'gh repo create my-tool --public --source . # allow:public-repo: the sanctioned public mirror'
 run 'no-public-repo-create.sh' clean block 'README.md' 'gh repo create my-tool --public'
+# no-serializable-domain-type
+run 'no-serializable-domain-type.sh' hit block 'src/main/java/Order.java' 'public final class Order implements Serializable {'
+run 'no-serializable-domain-type.sh' hit block 'src/main/java/Event.java' 'public interface Event extends Comparable<Event>, java.io.Serializable {'
+run 'no-serializable-domain-type.sh' clean block 'src/main/java/Order.java' 'public final class Order implements Comparable<Order> {'
+run 'no-serializable-domain-type.sh' clean block 'src/main/java/Codec.java' 'import java.io.Serializable;'
+run 'no-serializable-domain-type.sh' clean block 'src/main/java/Order.java' 'public final class Order implements Serializable { // allow:serializable: legacy cache format, readObject validates'
 # no-string-identity-compare
 run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'if (side == "BUY") {'
 run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'boolean sell = "SELL" != side;'
@@ -119,4 +125,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=16a0b980af07040ffc0ad49b3db607b24a220d07e97655ae56d8f46e9fe5831b rules=R:case-collision,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=14e51c434e4534f7b7c492b068ec2d3ee6f65179507ee830914acd23b31f9611 rules=R:case-collision,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->

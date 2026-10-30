@@ -7,6 +7,42 @@ created = "2026-09-19"
 origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: written 2026-09-19 with the rest of the Java set. It is the sharpest Java instance of a shape this corpus already names in two places -- a second construction path that skips the checks the first one enforces -- and it is the one that is also a remote code execution class, which is why it is stated as a refusal rather than a caution."
+
+[[detector]]
+name = "no-serializable-domain-type"
+engine = "line-regex"
+pattern = '(implements|extends)[^{]*\bSerializable\b'
+comment = "//"
+allow = "allow:serializable"
+files = ["**/*.java"]
+events = ["claude-code-pre-tool-use"]
+action = "block"
+message = "Serializable adds a public constructor that runs none of this class's checks and makes its private field layout an API. Cross the boundary with an explicit format and parser instead. Where it cannot be avoided, mark the line with the override token and add a validating readObject and a serialVersionUID in the same change."
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'public final class Order implements Serializable {'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/main/java/Event.java"
+input = 'public interface Event extends Comparable<Event>, java.io.Serializable {'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'public final class Order implements Comparable<Order> {'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/main/java/Codec.java"
+input = 'import java.io.Serializable;'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/main/java/Order.java"
+input = 'public final class Order implements Serializable { // allow:serializable: legacy cache format, readObject validates'
+expect = "clean"
 +++
 
 `implements Serializable` is not a marker. It is a second, invisible, public constructor

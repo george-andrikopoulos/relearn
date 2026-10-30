@@ -22,6 +22,7 @@ Where a hand-written hook with the same name is registered today, replace its en
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-embedded-local-llm.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-expect-empty-msg.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-public-repo-create.sh" },
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-serializable-domain-type.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-string-identity-compare.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-tool-attribution.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-unwrap-in-src.sh" }
@@ -32,4 +33,4 @@ Where a hand-written hook with the same name is registered today, replace its en
 }
 ```
 
-<!-- relearn:generated v0.1.0 sha256=c313db4eacb4f37464db793249116847d42085210c6e86b4daa071b3c4d85933 rules=R:case-collision,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=591c2cb53efce8c3e40d04f161d53fcbd93a169d307910d0e017191ac07aac83 rules=R:case-collision,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
