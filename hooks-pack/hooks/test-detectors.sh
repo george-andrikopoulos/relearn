@@ -80,6 +80,14 @@ run 'no-expect-empty-msg.sh' hit block 'src/lib.rs' 'let x = f().expect("ok");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect("config parsed at startup");'
 run 'no-expect-empty-msg.sh' clean block 'src/lib.rs' 'let x = f().expect(""); // allow:expect-msg'
 run 'no-expect-empty-msg.sh' clean block 'src/lib_test.rs' 'let x = f().expect("");'
+# no-tool-attribution
+run 'no-tool-attribution.sh' hit block 'msg.txt' 'Co-Authored-By: Claude <noreply@anthropic.com>'
+run 'no-tool-attribution.sh' hit block 'pr-body.md' 'Claude-Session: https://claude.ai/code/session_0000'
+run 'no-tool-attribution.sh' hit block 'README.md' 'Generated with [Claude Code](https://claude.com/claude-code)'
+run 'no-tool-attribution.sh' clean block 'msg.txt' 'Co-Authored-By: A Person <person@example.com>'
+run 'no-tool-attribution.sh' clean block 'docs/policy.md' 'Count the trailer with git log and a trailers format, not by grepping the message.'
+run 'no-tool-attribution.sh' clean block 'docs/policy.md' 'Co-Authored-By: Claude <noreply@anthropic.com> <!-- allow:attribution -->'
+run 'no-tool-attribution.sh' clean block 'hooks/test-detectors.sh' 'Generated with [Claude Code](https://claude.com/claude-code)'
 # no-unwrap-in-src
 run 'no-unwrap-in-src.sh' hit block 'src/lib.rs' 'let x = f().unwrap();'
 run 'no-unwrap-in-src.sh' clean block 'src/lib.rs' 'let x = f()?;'
@@ -96,4 +104,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=c44988fcfc1ef5bfa88e784feefcceb2949609c715cdd367f738a4f8b4225194 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=03d0ae11652ce04e077f32287144193160617d83200f7cc64929bec40c455f96 rules=R:case-collision,R:no-anyhow-in-libraries,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->

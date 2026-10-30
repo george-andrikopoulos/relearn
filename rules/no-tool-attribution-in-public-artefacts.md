@@ -7,6 +7,52 @@ created = "2026-09-20"
 origin = "mined"
 status = { kind = "active" }
 incident = "2026-09-20. A standing house rule forbids tool attribution in commits, tracked files and release artefacts. Measured across two repositories on this machine: 72 commits carry an assistant `Co-Authored-By` trailer and 67 of them are already pushed. The rule was not weakly enforced; it was not in force at all, for two reasons that compound. First, it lived only in a skill that loads when a particular vault workflow loads, so it was absent from every session that did not touch that vault -- a configuration-dependent home for an organisation-level disclosure policy. Second, and worse, the always-loaded layer carried a sentence reading \"Attribution disabled globally via settings.json\", and that setting does not exist in the file: the key is absent, the default is on, and nothing ever read the state the sentence asserted. An audit on 2026-08-16 had recorded zero such trailers, which was true of that day and was then carried forward as though it described the configuration. Both halves were found only because a rehoming task made someone open the file the sentence named. The commits cannot be unpublished; history rewriting is the only remedy for the 67 and it is not a cheap one."
+
+[[detector]]
+name = "no-tool-attribution"
+engine = "line-regex"
+pattern = '^[Cc]o-[Aa]uthored-[Bb]y: .*([Cc]laude|anthropic\.com)|^Claude-Session: |Generated with \[?Claude Code'
+allow = "allow:attribution"
+files = ["**"]
+exclude = ["**/hooks/test-detectors.sh"]
+events = ["claude-code-pre-tool-use"]
+action = "block"
+message = "This line is tool attribution: a co-author trailer, a session link or a generated-with banner. It travels with whatever the file becomes, a commit message, a PR body or a published page. Remove it. A document that quotes the form as an example marks the line with the override token."
+
+[[detector.fixture]]
+path = "msg.txt"
+input = 'Co-Authored-By: Claude <noreply@anthropic.com>'
+expect = "hit"
+
+[[detector.fixture]]
+path = "pr-body.md"
+input = 'Claude-Session: https://claude.ai/code/session_0000'
+expect = "hit"
+
+[[detector.fixture]]
+path = "README.md"
+input = 'Generated with [Claude Code](https://claude.com/claude-code)'
+expect = "hit"
+
+[[detector.fixture]]
+path = "msg.txt"
+input = 'Co-Authored-By: A Person <person@example.com>'
+expect = "clean"
+
+[[detector.fixture]]
+path = "docs/policy.md"
+input = 'Count the trailer with git log and a trailers format, not by grepping the message.'
+expect = "clean"
+
+[[detector.fixture]]
+path = "docs/policy.md"
+input = 'Co-Authored-By: Claude <noreply@anthropic.com> <!-- allow:attribution -->'
+expect = "clean"
+
+[[detector.fixture]]
+path = "hooks/test-detectors.sh"
+input = 'Generated with [Claude Code](https://claude.com/claude-code)'
+expect = "clean"
 +++
 
 Attribution a tool inserts on your behalf is **off by decision and verified**, never off by assumption.

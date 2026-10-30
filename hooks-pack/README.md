@@ -21,6 +21,7 @@ hooks-pack/
 | `no-count-in-heading.sh` | `[R:revision-integrity]` | warn | Write, Edit, MultiEdit | draft |
 | `no-embedded-local-llm.sh` | `[R:no-weak-model-for-judgment]` | warn | Write, Edit, MultiEdit | draft |
 | `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
+| `no-tool-attribution.sh` | `[R:no-tool-attribution-in-public-artefacts]` | block | Write, Edit, MultiEdit | draft |
 | `no-unwrap-in-src.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
 
 That table is hand-written. `tests/pack_counts.rs` reads it back against the scripts and
