@@ -41,7 +41,7 @@ tool warns. ARCHITECTURE.md's decisions log has both entries; FEATURES.md has *L
   `rules-pack/`, verified by `check.sh` stage `verify-rules-pack`.
 - [x] **An empty `claude-rules` build is refused** when `--home` names a home the layer does not
   carry, so the old install command fails loudly instead of writing nothing.
-- [ ] **Charter trimmed** — Part 3, its own commit.
+- [x] **Charter trimmed.** History and rationale moved verbatim to ARCHITECTURE.md (*Rationale moved from CLAUDE.md*); CLAUDE.md 33,188 → 29,127 loader characters.
 - [!] **`domain-java` now loads in no session until George installs it.** It used to load from
   this repository's `.claude/rules/` (in sessions here, which have no Java). Copy
   `rules-pack/.claude/rules/domain-java.md` into `~/.claude/rules/`. The user-level
