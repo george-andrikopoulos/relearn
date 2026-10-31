@@ -187,7 +187,7 @@ fn read_tool(block: &Value, session: &mut Session) {
         Some("NotebookEdit") => (EventKind::Write, "notebook_path"),
         Some("Read") => (EventKind::Read, "file_path"),
         Some("Skill") => {
-            if let Some(name) = input["skill"].as_str().or(input["command"].as_str()) {
+            if let Some(name) = skill_named(input) {
                 session.skills_invoked.push(name.to_owned());
             }
             return;
@@ -201,6 +201,17 @@ fn read_tool(block: &Value, session: &mut Session) {
         };
         session.events.push(SessionEvent::new(kind, subject));
     }
+}
+
+/// The skill a `Skill` call opened, as invoked: `input.skill`, or
+/// `input.command` where an older CLI wrote that. One definition for every
+/// reader of a Skill call — a stream-json `tool_use.input` here, and a hook's
+/// `tool_input`, which the hooks reference describes as the same arguments.
+/// The load-log pack's fixture runner is generated from this function, so its
+/// `jq` and this code cannot read different names from the same payload.
+#[must_use]
+pub fn skill_named(input: &Value) -> Option<&str> {
+    input["skill"].as_str().or(input["command"].as_str())
 }
 
 /// A list field of the `init` message, as names: a string entry is its own

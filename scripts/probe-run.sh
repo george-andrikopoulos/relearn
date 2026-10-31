@@ -370,7 +370,7 @@ for ((i = 1; i <= samples; i++)); do
         for arm in $arms; do
             if [ "$spent" -ge "$budget_micros" ]; then
                 echo "probe-run: budget reached (\$$budget); stopping before the next session" >&2
-                relearn probe tally --results "$results"
+                relearn probe tally --rules "$rules" --results "$results"
                 spent_line
                 exit 1
             fi
@@ -431,6 +431,6 @@ for ((i = 1; i <= samples; i++)); do
     done <<< "$plan"
 done
 echo "wall clock: $(( ($(date +%s) - started) / 60 )) minute(s)"
-relearn probe tally --results "$results"
+relearn probe tally --rules "$rules" --results "$results"
 spent_line
 exit $failed

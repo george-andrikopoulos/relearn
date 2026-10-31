@@ -779,7 +779,7 @@ fn parse_generated(content: &str) -> Option<(&str, &str)> {
 /// not the header — so it can later be recomputed and compared to detect a hand
 /// edit of a generated file.
 fn render_with_header(file: &OutputFile) -> String {
-    let hash = sha256_hex(file.contents().as_bytes());
+    let hash = content_hash(file);
     let rules = file
         .sources()
         .iter()
@@ -800,6 +800,14 @@ fn render_with_header(file: &OutputFile) -> String {
 }
 
 /// Hex-encode the SHA-256 of `bytes`.
+/// The hash a generated file's marker records: the sha256 of its body. One
+/// definition, so the reader of a load log compares what was loaded with
+/// exactly what `build` would stamp.
+#[must_use]
+pub fn content_hash(file: &OutputFile) -> String {
+    sha256_hex(file.contents().as_bytes())
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     let mut out = String::with_capacity(digest.len() * 2);

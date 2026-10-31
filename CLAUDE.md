@@ -195,6 +195,10 @@ relearn list --format tsv                              # the corpus as data:
 relearn lint --upstream <drive>                        # findings, then the federation's pokes
 #   --map <controls.toml> (the default) places named hooks; absent, every unplaced one is reported
 
+# What the load-log hook recorded: COLD, STALE (and from which location class), SHADOWED,
+# LOADED. Read-only. 0 clean / 1 findings / 2 no relearn home loaded in the window.
+relearn loads --log <load-log.jsonl> --since YYYY-MM-DD [--until YYYY-MM-DD]
+
 # Resolve every control a partial/graduated rule names against controls.toml.
 # Read-only. 0 all wired / 1 missing, unwired, unmapped or stale / 2 disarmed.
 # Not part of bare `verify`: most controls live in other repositories.
@@ -205,7 +209,8 @@ relearn controls --root stochos-lab=<path> --root design-architecture-tool=<path
 # The relearn half is read-only and pure; the script is the only model caller.
 relearn probe list                                     # tag, home, layer target, workspace, checker
 relearn probe judge --tag R:x --transcript <jsonl> [--fixture <dir> --workspace <dir> | --run-exit N]
-relearn probe tally --results <results.tsv>            # Wilson per arm, Newcombe on the difference
+relearn probe tally --results <results.tsv>            # Wilson per arm, Newcombe on the difference,
+#   and for a skill-delivered rule the load rate and the WITH arm split by load (--rules <dir>)
 bash scripts/probe-run.sh --self-test                  # every checker on its held + violated cases
 bash scripts/probe-run.sh --dry-run --model <m> [--samples N] [--tag R:x]   # sessions, tokens, $, hours
 bash scripts/probe-run.sh --model <m> --samples N --budget-usd X --out <dir outside repo and $HOME>
@@ -277,6 +282,8 @@ Before writing an incident, ask: **which repository's detector covers the file I
 - `rules-pack/` — the `claude-rules` target's **user** layer: one `paths:`-scoped file per language domain, for `~/.claude/rules/`, plus a hand-authored README that states no counts. A domain belongs to the developer and installs once at user level, never into a repository. Rebuild with `relearn build --targets claude-rules --rules-layer user --out rules-pack`; `scripts/check.sh` verifies it as a second output root.
 - `hooks-pack/` — the `hooks` target's emission: one bash + `jq` Claude Code `PreToolUse` script per detector, a `test-detectors.sh` runner and a `settings-snippet.md`, with a hand-authored README whose script table `tests/pack_counts.rs` reads back, including the `Install` cell that marks a detector on an `active` rule as a `draft` the install steps never copy. Rebuild with `relearn build --targets hooks --out hooks-pack`; `scripts/check.sh` verifies it and runs the runner. It installs into `~/.claude/hooks/relearn/` by hand, beside any hand-written hook and never over one.
 - `tests/probes/<tag-body>/` — one directory per rule carrying a `[probe]`: the synthetic `workspace/` a session starts in, `cases/held` and `cases/violated` (a transcript for `trace`, a final workspace for `diff` and `run`), and `check.sh` for a `run` checker. Fixtures are synthetic and pinned LF. `tests/probe_corpus.rs` holds the shape; `probe-run.sh --self-test` holds the verdicts.
+- `load-log-pack/` — the explicit-only `load-log` target's emission: a hook logging every skill and instruction-file load to a local file, its fixture runner and settings snippet, and a hand-authored README saying what it cannot see. Rebuild with `relearn build --targets load-log --out load-log-pack`; `scripts/check.sh` verifies it and runs the runner. Installed by hand, never by relearn. `relearn loads --log <file> --since <date>` reads what it wrote.
+- `docs/must-load-placement.md` — a dated snapshot: rules expensive to miss whose home loads on request or on read, with a recommendation each.
 - `docs/control-triage.md` — a dated snapshot binning every `active` rule by the control that could hold it (MECHANICAL, TYPE, EVAL, JUDGMENT), with the detectors drafted from it. A snapshot states its own numbers; nothing else quotes them.
 - `docs/session-start-poke.md` — the `SessionStart` hook snippet for the poke, **deliberately not installed**: anything under `~/.claude` edits the layer loaded into every session on the machine, and no gate in this repository could see it.
 - `ARCHITECTURE.md` — modules, data flow, the decisions log.
