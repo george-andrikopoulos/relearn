@@ -390,6 +390,15 @@ exactly. At the 1-hour price assumed before, the cost came out about a third too
 the run, the estimate was $46–82 for this shape; rebuilt from the run's own figures, it
 gives $13.72.
 
+**Re-tallied, 2026-10-31, with the load split.** `relearn probe tally --rules rules` now
+splits each WITH arm by whether the rule's own skill was opened, and the sentence above
+("the tally does not yet say that") is no longer true. Over the same results file:
+`R:no-silent-spend` moves from `graduate-now` to **`load-failure`** (load 0/10).
+`R:prefer-by-construction` stays `keep`, and the split shows why: load 6/9, with 0/6
+violated when loaded against 2/3 when not. The other five are unchanged
+(`non-discriminating`). The table above is kept as the pilot reported it. Where each of
+these rules should load is `docs/must-load-placement.md`.
+
 ## JUDGMENT
 
 | Rule | Why no observable signal exists |

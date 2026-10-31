@@ -355,23 +355,26 @@ fn newcombe_matches_the_published_value() {
 }
 
 #[test]
-fn the_four_recommendations() {
+fn the_four_recommendations_without_a_load_split() {
     use Recommendation::*;
     assert_eq!(
-        recommend(Some(count(0, 10)), Some(count(0, 10))),
+        recommend(Some(count(0, 10)), Some(count(0, 10)), None),
         NonDiscriminating
     );
-    assert_eq!(recommend(None, Some(count(1, 10))), NonDiscriminating);
-    assert_eq!(recommend(Some(count(9, 10)), Some(count(1, 10))), Keep);
+    assert_eq!(recommend(None, Some(count(1, 10)), None), NonDiscriminating);
     assert_eq!(
-        recommend(Some(count(5, 10)), Some(count(5, 10))),
+        recommend(Some(count(9, 10)), Some(count(1, 10)), None),
+        Keep
+    );
+    assert_eq!(
+        recommend(Some(count(5, 10)), Some(count(5, 10)), None),
         GraduateNow
     );
     assert_eq!(
-        recommend(Some(count(2, 10)), Some(count(0, 10))),
+        recommend(Some(count(2, 10)), Some(count(0, 10)), None),
         Underpowered
     );
-    assert_eq!(recommend(Some(count(2, 10)), None), NonDiscriminating);
+    assert_eq!(recommend(Some(count(2, 10)), None, None), NonDiscriminating);
 }
 
 proptest! {
@@ -402,7 +405,7 @@ proptest! {
     #[test]
     fn a_silent_without_arm_is_always_non_discriminating(n in 1u32..100, w in 0u32..100, m in 1u32..100) {
         let with = Count::new(w.min(m), m);
-        prop_assert_eq!(recommend(Some(count(0, n)), with), Recommendation::NonDiscriminating);
+        prop_assert_eq!(recommend(Some(count(0, n)), with, None), Recommendation::NonDiscriminating);
     }
 }
 

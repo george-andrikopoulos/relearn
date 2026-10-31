@@ -180,13 +180,23 @@ impl DetectorName {
             .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
             && s.chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-            // The pack's fixture runner is `test-detectors.sh`, beside the hooks.
-            && s != "test-detectors";
+            && !Self::is_reserved(&s);
         if ok {
             Ok(DetectorName(s))
         } else {
             Err(DetectorError::Name(s))
         }
+    }
+
+    /// A file stem another generated script already takes in the directory
+    /// the hooks install into: hooks-pack's fixture runner, and the load-log
+    /// pack's hook and runner, which install beside the detectors.
+    #[must_use]
+    pub fn is_reserved(stem: &str) -> bool {
+        matches!(
+            stem,
+            "test-detectors" | "relearn-load-log" | "test-load-log"
+        )
     }
 
     #[must_use]

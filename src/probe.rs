@@ -15,7 +15,11 @@ mod stats;
 mod transcript;
 
 pub use results::{
-    Arm, ArmTally, Outcome, ResultsError, Row, RuleTally, parse_results, render, tally,
+    Arm, ArmTally, Delivery, Load, LoadSplit, Outcome, ResultsError, Row, RuleTally, SkillName,
+    parse_results, render, tally,
 };
-pub use stats::{Count, Interval, Recommendation, newcombe, recommend, wilson};
-pub use transcript::{MicroUsd, Session, TranscriptError, session_from_stream_json};
+pub use stats::{
+    Count, Interval, LOW_LOAD_CEILING, LoadEvidence, LoadRate, Recommendation, newcombe, recommend,
+    wilson,
+};
+pub use transcript::{MicroUsd, Session, TranscriptError, session_from_stream_json, skill_named};

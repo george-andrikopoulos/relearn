@@ -64,8 +64,34 @@ tool warns. ARCHITECTURE.md's decisions log has both entries; FEATURES.md has *L
   repository still reads other projects' rules.
 - [ ] **`pack-sync-reminder.sh` does not cover `rules-pack/`.** It fires on `claude-pack/`
   pushes; a pushed change to the domain layers needs the same nudge to reinstall them.
-- [ ] **Stage 2 (load observability, Parts 4–8)** — waits for `feat/load-budget` to merge.
-  `feat/probes` is already in main.
+- [x] **Stage 2 (load observability, Parts 4–7)**, on `feat/load-observability`: the load split
+  in `probe tally`, `load-log-pack/`, `relearn loads`, and `docs/must-load-placement.md`.
+- [ ] **Run `load-log-pack/hooks/test-load-log.sh` on Linux.** It has run on Windows
+  (Git Bash) only. Its `$(dirname)` walk-up and `date -u` are POSIX, but that is a
+  reading, not a run (`[R:xplat-fixtures]`).
+- [ ] **Install the load-log hook and read a month of it** (George's call: it writes on every
+  load on the machine). That is the first real COLD/STALE/SHADOWED report. The
+  2026-10-31 end-to-end check already shows `global` SHADOWED, installed both as a personal
+  skill and as the account-synced copy, so every `global` load is decided by precedence.
+- [ ] **Tighten the generated skill descriptions** (`docs/must-load-placement.md`). Today
+  `description` is `Covers:` plus every rule title. Rewrite it to name the moments the
+  skill is needed, and measure the effect with the load log and the probes' load rate.
+  This is an emitter change, so the `SkillDescription` bound and the pack READMEs move with it.
+- [ ] **Decide the hand pins in `~/.claude/CLAUDE.md`.** Several global rules have
+  always-resident text there, written because the skill loads on request. That is a
+  rule-level load override in practice, made outside relearn: record it as a decision,
+  or retire it once a tightened description is measured to open the skill.
+- [ ] **`LoadSemantics::for_home(Global)` says `Always`, and Claude Code gets `Global` only
+  as an on-request skill.** Cursor and Copilot honour `Always`. The `claude-rules` target
+  refuses `Global` on the reasoning that it already has an always-resident home, but on
+  Claude Code that home is the hand-written user `CLAUDE.md`, not a relearn emission.
+  Name the gap in the function's doc, or close it. The budget rules out emitting the whole
+  `global` layer always-resident (`docs/must-load-placement.md`).
+- [ ] **Optional Part 8, trigger probes, not drafted.** A probe is per rule and has one
+  task, while a trigger probe asks whether a *home's* skill opens. Every probe already
+  records the WITH arm's opens, which is the load rate Part 4 reports, so a cheaper first
+  step is to read that column across the existing probes before writing a new kind. Drafting
+  one needs a schema decision first, then a `--dry-run`, and nothing runs without George's approval.
 
 ## Phase 0 — scaffold
 - [x] Five project files authored (CLAUDE, ARCHITECTURE, FEATURES, TODO, README)
@@ -141,7 +167,7 @@ tool warns. ARCHITECTURE.md's decisions log has both entries; FEATURES.md has *L
 
 - [x] **`[R:an-ambiguous-write-target-is-a-question]` written, `global` home.** Codified from the SABench abstract. Global is now 32 rules; the pack READMEs' counts moved with it (copilot 96 → 97, `global` 31 → 32).
 - [x] **`verify` reported claude.ai copies of relearn skills as orphans.** Claude Code's skill sync downloads skills uploaded to an account into `~/.claude/skills/synced/<bucket>/<slug>/SKILL.md`; they keep the marker, and the recursive walk of `skills/` called four of them orphans "whose rule was removed". That blocked every push through the downstream check, and deleting them would not have helped — the next sync round restores them. The scan now considers only the depth the emitters write (`fsio::Layout`).
-- [ ] **The claude.ai copies of the skills have no automatic refresh.** `c0da657` closed this item as "refreshed daily by a scheduled Cowork process". That was wrong. It was inferred from one observation, a copy arriving, which a hand save explains equally well. What actually happened on 2026-10-27: all seven non-project homes were saved to the account by hand, one at a time, from a Cowork session. Each save was read back and compared with `claude-pack/`, and body and description matched for all seven. The `domain-java` arrival at 13:16 was one of those saves. The same day, a daily cloud task was created to keep the copies in step. Its first run reported `COULD NOT RUN` and changed nothing, for two reasons. First, the tool that saves an account skill comes with the Cowork desktop app, and a cloud task does not run inside it. Second, the GitHub contents API listing of `claude-pack/skills` returned 403 for that session (raw file fetches worked). So the only working route is a manual sync in a Cowork desktop session, and an account copy lags a rule change until someone asks for that sync. One part of the earlier entry still holds: Claude Code's skill sync downloads account copies into `~/.claude/skills/synced/<bucket>/<slug>/SKILL.md` (23 files, all at that depth, on 2026-10-27). That is why the orphan fix above is needed whatever refreshes the account.
+- [ ] **The claude.ai copies of the skills have no automatic refresh.** `c0da657` closed this item as "refreshed daily by a scheduled Cowork process". That was wrong. It was inferred from one observation, a copy arriving, which a hand save explains equally well. What actually happened on 2026-10-27: all seven non-project homes were saved to the account by hand, one at a time, from a Cowork session. Each save was read back and compared with `claude-pack/`, and body and description matched for all seven. The `domain-java` arrival at 13:16 was one of those saves. The same day, a daily cloud task was created to keep the copies in step. Its first run reported `COULD NOT RUN` and changed nothing, for two reasons. First, the tool that saves an account skill comes with the Cowork desktop app, and a cloud task does not run inside it. Second, the GitHub contents API listing of `claude-pack/skills` returned 403 for that session (raw file fetches worked). So the only working route is a manual sync in a Cowork desktop session, and an account copy lags a rule change until someone asks for that sync. **Now observable, 2026-10-31:** a lagging account copy shows in `relearn loads` as STALE with location `account-synced`, by the hash in the downloaded copy's marker, once the load-log hook is installed. That turns "lags until someone asks" into "lags, and the report says which home and in how many sessions". It still refreshes nothing. One part of the earlier entry still holds: Claude Code's skill sync downloads account copies into `~/.claude/skills/synced/<bucket>/<slug>/SKILL.md` (23 files, all at that depth, on 2026-10-27). That is why the orphan fix above is needed whatever refreshes the account.
 - [x] **A pre-push reminder to run the account sync.** When a push changes `claude-pack/`, `.githooks/pre-push` prints one line telling George to run the sync in Cowork (`scripts/pack-sync-reminder.sh`, after the gates; its `--self-test` is a `check.sh` stage). The reminder refreshes nothing itself. It turns "lags until someone asks" into "lags until the reminder is acted on", and it is the only part of the gap this repository can reach.
 
 ## Codified from programmatic tool calling (2026-10-25)
@@ -1182,6 +1208,7 @@ against the phase that delivered it; those phase sections are above and are not 
 - [x] Error-class recurrence — ~~partly exists in the ledger~~ **now modelled in the library itself** (Phase F, 2026-09-06): `[[recurrence]]` tables on the rule, an `UnheldRecurrence` lint finding, and an annotation in every emitted format. The stochos-lab ledger remains the place where recurrences are *noticed*; `rules/` is now the place they are *recorded*. What is still open there is the counter-metric (`origin`) and the graduation-date question, both carried under Phase F.
 - [!] First-time-right capture on AI-assisted work
 - [!] **Cold-surface / uncited report** (moved from Phase B): flag rules that runtime data shows are never invoked — candidates for the attic cut-list. Needs skill-invocation / hook-fire counts from the stochos-lab observability layers; once that feed exists, the report itself can live either here or as a relearn lint check fed by an exported dataset.
+  **Update 2026-10-31: home-level is now possible, rule-level is not.** `relearn loads` reports a home COLD when it did not load at all in a window, from the load-log pack's log, for skills and rules layers alike. That is the feed, at the granularity a load has. A rule inside a loaded home can still be cold, because no event says which rule the model used. The candidate per-rule signal is the probes, which measure whether one rule's prose changes behaviour when it is present. The item stays `[!]` for the rule-level half.
 - [!] *(Deferred, needs a field site: rework rate, time-to-competence — study-design items, not build items)*
 
 ## Resolved decisions (2026-08-13 — see ARCHITECTURE decisions log)

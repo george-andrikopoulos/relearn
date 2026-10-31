@@ -13,7 +13,8 @@ use clap::Subcommand;
 use crate::emit::{HomeSlug, LoadSemantics};
 use crate::fsio::{self, ProbeReadError};
 use crate::probe::{
-    ResultsError, TranscriptError, parse_results, render, session_from_stream_json, tally,
+    Delivery, ResultsError, SkillName, TranscriptError, parse_results, render,
+    session_from_stream_json, tally,
 };
 use crate::rule::{Checker, Home, Rule, RuleTag, RuleTagError, Verdict};
 
@@ -57,10 +58,14 @@ pub(super) enum ProbeCommand {
         #[arg(long)]
         run_exit: Option<i32>,
     },
-    /// Turn a results file into the pilot table.
+    /// Turn a results file into the pilot table. The library says how each
+    /// rule's layer reaches a WITH session, which decides whether its WITH arm
+    /// is split by load.
     Tally {
         #[arg(long)]
         results: PathBuf,
+        #[arg(long, default_value = "rules")]
+        rules: PathBuf,
     },
 }
 
@@ -118,10 +123,11 @@ pub(super) fn dispatch(command: ProbeCommand) -> Result<ExitCode, CliError> {
             workspace: workspace.as_deref(),
             run_exit,
         }),
-        ProbeCommand::Tally { results } => {
+        ProbeCommand::Tally { results, rules } => {
+            let library = fsio::load_rules(&rules)?.validate()?;
             let text = fsio::read_probe_text(&results).map_err(ProbeCliError::from)?;
             let rows = parse_results(&text).map_err(ProbeCliError::from)?;
-            let (tallies, cost) = tally(&rows);
+            let (tallies, cost) = tally(&rows, |tag| delivery(library.rules(), tag));
             print!("{}", render(&tallies, cost));
             Ok(ExitCode::SUCCESS)
         }
@@ -136,14 +142,45 @@ fn find<'a>(rules: &'a [Rule], tag: &str) -> Result<&'a Rule, ProbeCliError> {
         .ok_or_else(|| ProbeCliError::NoSuchRule(tag.as_str().to_owned()))
 }
 
-/// Which build target writes the home's layer the way a session loads it:
-/// a skill for a layer reached by description (`global`, and a domain with no
-/// known file glob), a `.claude/rules/` file for a layer that is resident or
-/// attaches on reading (a project, a known-language domain).
-fn layer_target(home: &Home) -> &'static str {
-    match (home, LoadSemantics::for_home(home)) {
-        (Home::Global | Home::Org { .. }, _) | (_, LoadSemantics::OnRequest) => "claude",
-        (_, LoadSemantics::Always | LoadSemantics::WhenReading(_)) => "claude-rules",
+/// Which build target writes a home's layer the way a session loads it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LayerTarget {
+    /// A skill, reached by description: `global`, and a domain with no known
+    /// file glob.
+    Skill,
+    /// A `.claude/rules/` file, resident or attached on reading: a project,
+    /// and a known-language domain.
+    RulesLayer,
+}
+
+impl LayerTarget {
+    fn of(home: &Home) -> Self {
+        match (home, LoadSemantics::for_home(home)) {
+            (Home::Global | Home::Org { .. }, _) | (_, LoadSemantics::OnRequest) => {
+                LayerTarget::Skill
+            }
+            (_, LoadSemantics::Always | LoadSemantics::WhenReading(_)) => LayerTarget::RulesLayer,
+        }
+    }
+
+    /// The `--targets` name the runner builds the WITH arm's layer with.
+    fn as_str(self) -> &'static str {
+        match self {
+            LayerTarget::Skill => "claude",
+            LayerTarget::RulesLayer => "claude-rules",
+        }
+    }
+}
+
+/// How a rule's layer reaches a WITH session, for the load split.
+fn delivery(rules: &[Rule], tag: &RuleTag) -> Delivery {
+    let Some(rule) = rules.iter().find(|r| r.tag() == tag) else {
+        return Delivery::NotInLibrary;
+    };
+    match LayerTarget::of(rule.home()) {
+        LayerTarget::Skill => SkillName::new(HomeSlug::of(rule.home()).as_str())
+            .map_or(Delivery::NotInLibrary, Delivery::Skill),
+        LayerTarget::RulesLayer => Delivery::RulesLayer,
     }
 }
 
@@ -156,7 +193,7 @@ fn list(rules: &Path) -> Result<ExitCode, CliError> {
                 "{}\t{}\t{}\t{}\t{}",
                 rule.tag().as_str(),
                 HomeSlug::of(rule.home()).as_str(),
-                layer_target(rule.home()),
+                LayerTarget::of(rule.home()).as_str(),
                 probe.workspace().as_str(),
                 probe.checker().kind()
             );

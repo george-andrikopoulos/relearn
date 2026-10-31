@@ -54,9 +54,11 @@ use crate::rule::{
 use crate::scrub::{ScrubError, TermList};
 
 mod budget;
+mod loads;
 mod probe;
 
 pub use budget::BudgetCliError;
+pub use loads::LoadsCliError;
 pub use probe::ProbeCliError;
 
 /// The `relearn` command line.
@@ -526,6 +528,13 @@ enum Command {
     /// DUPLICATE_LAYER, FOREIGN_PROJECT_LAYER), 2 when the user share was not
     /// measured and `--project-only` did not say it is not the question.
     Budget(budget::BudgetArgs),
+    /// Read live load logs (written by the load-log pack's hook) against what
+    /// `build` would emit now, per home: COLD (never loaded in the window),
+    /// STALE (loaded with a hash `build` would not write, and from which
+    /// location class), SHADOWED (one home from two location classes), and
+    /// LOADED counts. Reads only. Exits 0 clean, 1 on any finding, 2 when no
+    /// relearn home loaded in the window at all.
+    Loads(loads::LoadsArgs),
     /// Probes: what the runner should replay, and how a session it ran is
     /// judged. Read-only; the runner, `scripts/probe-run.sh`, is the only thing
     /// that starts a model.
@@ -567,6 +576,11 @@ enum Target {
     /// person and installed by hand, and a shell emitter's first defect must
     /// not block an unrelated push.
     Hooks,
+    /// The live load log: a hook that appends one line per skill and
+    /// instruction-file load, its fixture runner and its settings snippet
+    /// (`hooks/relearn-load-log.sh`). The same for every corpus. **Explicit
+    /// only**, for the reason `hooks` is.
+    LoadLog,
 }
 
 /// The lowest [`lint::Severity`] that makes `relearn lint` exit non-zero.
@@ -657,6 +671,9 @@ pub enum CliError {
     /// `relearn budget` could not measure.
     #[error(transparent)]
     Budget(#[from] BudgetCliError),
+    /// `relearn loads` could not read.
+    #[error(transparent)]
+    Loads(#[from] LoadsCliError),
     /// `--home` names a home the selected rules layer does not carry, so a
     /// `claude-rules`-only build would write nothing.
     #[error(
@@ -1190,6 +1207,7 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
         } => controls(&rules, &map, &roots, settings.as_deref()),
         Command::Probe { command } => probe::dispatch(command),
         Command::Budget(args) => Ok(budget::run(&args)?),
+        Command::Loads(args) => loads::run(&args),
     }
 }
 
@@ -1424,6 +1442,7 @@ fn emit_selected(
                 }
             }
             Target::Hooks => files.extend(emit::hooks::emit(validated)),
+            Target::LoadLog => files.extend(emit::load_log::emit()),
         }
     }
     files
