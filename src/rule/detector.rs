@@ -173,6 +173,15 @@ pub enum GlobProblem {
 pub struct DetectorName(String);
 
 impl DetectorName {
+    /// A name from text: the same check a rule file's `name` passes.
+    ///
+    /// # Errors
+    /// [`DetectorError::Name`] when the text is not `[a-z0-9][a-z0-9-]*` or is
+    /// a reserved stem.
+    pub fn new(s: &str) -> Result<Self, DetectorError> {
+        Self::parse(s.to_owned())
+    }
+
     fn parse(s: String) -> Result<Self, DetectorError> {
         let ok = s
             .chars()

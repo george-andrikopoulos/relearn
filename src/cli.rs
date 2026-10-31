@@ -1322,19 +1322,26 @@ fn check(rules: &Path) -> Result<(), CliError> {
     // Every detector's fixtures already ran while parsing. What parsing cannot
     // see is the corpus around them: run each detector as a write of every rule
     // file and of every file any target emits, where each would land.
-    let sources = fsio::read_rule_sources(rules)?;
-    let every_target: Vec<Target> = Target::value_variants().to_vec();
-    let every_layer = emit::claude_rules::layers_of(&validated);
-    let emitted = emit_selected(&validated, &every_target, &every_layer);
-    let mut files: Vec<(String, &str)> = sources
-        .iter()
-        .map(|(name, text)| (format!("rules/{name}"), text.as_str()))
+    let sources: Vec<(String, String)> = fsio::read_rule_sources(rules)?
+        .into_iter()
+        .map(|(name, text)| (format!("rules/{name}"), text))
         .collect();
-    files.extend(
-        emitted
-            .iter()
-            .map(|f| (f.path().as_str().to_owned(), f.contents())),
-    );
+    // The hooks target's files come with their roles, so the sweep can skip a
+    // detector's own script and the runner by identity rather than by path.
+    let other_targets: Vec<Target> = Target::value_variants()
+        .iter()
+        .copied()
+        .filter(|t| *t != Target::Hooks)
+        .collect();
+    let every_layer = emit::claude_rules::layers_of(&validated);
+    let emitted = emit_selected(&validated, &other_targets, &every_layer);
+    let hooks = emit::hooks::emit_with_roles(&validated);
+    let mut files: Vec<emit::hooks::Swept<'_>> = sources
+        .iter()
+        .map(|(path, text)| emit::hooks::Swept::source(path, text))
+        .collect();
+    files.extend(emitted.iter().map(emit::hooks::Swept::emitted));
+    files.extend(hooks.iter().map(|(f, r)| emit::hooks::Swept::hook(f, r)));
     let matches = emit::hooks::self_matches(&validated, &files);
     for m in &matches {
         println!(

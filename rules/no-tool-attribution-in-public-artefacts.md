@@ -14,7 +14,6 @@ engine = "line-regex"
 pattern = '^[Cc]o-[Aa]uthored-[Bb]y: .*([Cc]laude|anthropic\.com)|^Claude-Session: |Generated with \[?Claude Code'
 allow = "allow:attribution"
 files = ["**"]
-exclude = ["**/hooks/test-detectors.sh"]
 events = ["claude-code-pre-tool-use"]
 action = "block"
 message = "This line is tool attribution: a co-author trailer, a session link or a generated-with banner. It travels with whatever the file becomes, a commit message, a PR body or a published page. Remove it. A document that quotes the form as an example marks the line with the override token."
@@ -52,7 +51,7 @@ expect = "clean"
 [[detector.fixture]]
 path = "hooks/test-detectors.sh"
 input = 'Generated with [Claude Code](https://claude.com/claude-code)'
-expect = "clean"
+expect = "hit"
 +++
 
 Attribution a tool inserts on your behalf is **off by decision and verified**, never off by assumption.

@@ -137,7 +137,7 @@ run 'no-tool-attribution.sh' hit block 'README.md' 'Generated with [Claude Code]
 run 'no-tool-attribution.sh' clean block 'msg.txt' 'Co-Authored-By: A Person <person@example.com>'
 run 'no-tool-attribution.sh' clean block 'docs/policy.md' 'Count the trailer with git log and a trailers format, not by grepping the message.'
 run 'no-tool-attribution.sh' clean block 'docs/policy.md' 'Co-Authored-By: Claude <noreply@anthropic.com> <!-- allow:attribution -->'
-run 'no-tool-attribution.sh' clean block 'hooks/test-detectors.sh' 'Generated with [Claude Code](https://claude.com/claude-code)'
+run 'no-tool-attribution.sh' hit block 'hooks/test-detectors.sh' 'Generated with [Claude Code](https://claude.com/claude-code)'
 # no-unwrap-in-src
 run 'no-unwrap-in-src.sh' hit block 'src/lib.rs' 'let x = f().unwrap();'
 run 'no-unwrap-in-src.sh' clean block 'src/lib.rs' 'let x = f()?;'
@@ -154,4 +154,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=8e075b4d989ddd0127011edd8c0ac378285ba328717ee0efc38086f9d765bf82 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=6e0ee413c2a4ae84710f290c300f175c894b6cbd5d8dc6e903ad8e277e80219d rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

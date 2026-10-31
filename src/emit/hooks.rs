@@ -32,7 +32,7 @@ use std::fmt::Write as _;
 use super::{OutputFile, RelativePath, emittable};
 use crate::library::{Library, Validated};
 use crate::rule::{
-    Action, Detection, Detector, Engine, Event, FixtureInput, Rule, RuleTag, Subject,
+    Action, Detection, Detector, DetectorName, Engine, Event, FixtureInput, Rule, RuleTag, Subject,
 };
 
 /// The directory this emitter owns, relative to the output root.
@@ -49,9 +49,53 @@ pub const INSTALL_DIR: &str = "hooks/relearn";
 /// The fixture runner's file stem, which no detector may take.
 pub const RUNNER: &str = "test-detectors";
 
+/// Which file of the pack this is. The self-exclusion sweep reads it to skip,
+/// **by identity**, the two files that must contain what a detector looks for:
+/// its own script, which quotes the pattern, and the runner, which pipes every
+/// hit fixture through it. A path glob would skip them as well, and would also
+/// stop the detector reading a real repository's `hooks/*.sh` at runtime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HookRole {
+    /// `<name>.sh`, the script compiled from this detector.
+    Script(DetectorName),
+    /// `test-detectors.sh`, every fixture of every detector.
+    Runner,
+    /// `settings-snippet.md`, names and commands only.
+    Snippet,
+}
+
+impl HookRole {
+    /// The role of the script compiled from the detector called `name`;
+    /// `None` when `name` is not a detector name.
+    #[must_use]
+    pub fn script_of(name: &str) -> Option<Self> {
+        DetectorName::new(name).ok().map(HookRole::Script)
+    }
+
+    /// Whether `detector` necessarily matches this file, so a hit here says
+    /// nothing about its scope.
+    fn holds_own_definition(&self, detector: &Detector) -> bool {
+        match self {
+            HookRole::Script(name) => name == detector.name(),
+            HookRole::Runner => true,
+            HookRole::Snippet => false,
+        }
+    }
+}
+
 /// Emit the hook pack. A library with no detector produces no file.
 #[must_use]
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
+    emit_with_roles(library)
+        .into_iter()
+        .map(|(file, _)| file)
+        .collect()
+}
+
+/// [`emit`], with each file's [`HookRole`]: the identity the self-exclusion
+/// sweep needs, from the only function that names these files.
+#[must_use]
+pub fn emit_with_roles(library: &Library<Validated>) -> Vec<(OutputFile, HookRole)> {
     // By name: the name is the file, so this is the order a reader lists them.
     let mut detectors: BTreeMap<&str, (&Rule, &Detector)> = BTreeMap::new();
     for rule in emittable(library) {
@@ -66,10 +110,13 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
     let mut files = Vec::with_capacity(detectors.len() + 2);
     for (name, (rule, detector)) in &detectors {
         let file = format!("{name}.sh");
-        files.push(OutputFile::script(
-            RelativePath::from_segments(&[HOOKS_DIR, &file]),
-            script(rule.tag(), detector),
-            vec![rule.tag().clone()], // allow:clone: the OutputFile owns its provenance, outliving the &Library borrow
+        files.push((
+            OutputFile::script(
+                RelativePath::from_segments(&[HOOKS_DIR, &file]),
+                script(rule.tag(), detector),
+                vec![rule.tag().clone()], // allow:clone: the OutputFile owns its provenance, outliving the &Library borrow
+            ),
+            HookRole::Script(detector.name().clone()), // allow:clone: the role names its detector beyond the &Library borrow
         ));
     }
 
@@ -77,17 +124,69 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
     sources.sort_by(|a, b| a.as_str().cmp(b.as_str()));
     sources.dedup();
     let runner = format!("{RUNNER}.sh");
-    files.push(OutputFile::script(
-        RelativePath::from_segments(&[HOOKS_DIR, &runner]),
-        test_runner(&detectors),
-        sources.clone(), // allow:clone: two generated files share one provenance list
+    files.push((
+        OutputFile::script(
+            RelativePath::from_segments(&[HOOKS_DIR, &runner]),
+            test_runner(&detectors),
+            sources.clone(), // allow:clone: two generated files share one provenance list
+        ),
+        HookRole::Runner,
     ));
-    files.push(OutputFile::new(
-        RelativePath::from_segments(&[HOOKS_DIR, "settings-snippet.md"]),
-        settings_snippet(&detectors),
-        sources,
+    files.push((
+        OutputFile::new(
+            RelativePath::from_segments(&[HOOKS_DIR, "settings-snippet.md"]),
+            settings_snippet(&detectors),
+            sources,
+        ),
+        HookRole::Snippet,
     ));
     files
+}
+
+/// One file the self-exclusion sweep runs every detector over, and whether
+/// the hooks target made it.
+#[derive(Debug, Clone, Copy)]
+pub struct Swept<'a> {
+    path: &'a str,
+    text: &'a str,
+    made_by_hooks: Option<&'a HookRole>,
+}
+
+impl<'a> Swept<'a> {
+    /// A file on disk, such as a rule file, at the path given.
+    #[must_use]
+    pub fn source(path: &'a str, text: &'a str) -> Self {
+        Swept {
+            path,
+            text,
+            made_by_hooks: None,
+        }
+    }
+
+    /// A file a target other than `hooks` emitted.
+    #[must_use]
+    pub fn emitted(file: &'a OutputFile) -> Self {
+        Swept {
+            path: file.path().as_str(),
+            text: file.contents(),
+            made_by_hooks: None,
+        }
+    }
+
+    /// A file the hooks target emitted, with the role [`emit_with_roles`] gave it.
+    #[must_use]
+    pub fn hook(file: &'a OutputFile, role: &'a HookRole) -> Self {
+        Swept {
+            path: file.path().as_str(),
+            text: file.contents(),
+            made_by_hooks: Some(role),
+        }
+    }
+
+    fn holds_own_definition(&self, detector: &Detector) -> bool {
+        self.made_by_hooks
+            .is_some_and(|role| role.holds_own_definition(detector))
+    }
 }
 
 /// A detector that would fire on a file relearn itself reads or writes.
@@ -115,7 +214,10 @@ impl SelfMatch {
 /// (`[R:detector-excludes-own-definitions]`).
 ///
 /// `files` is every rule file at `rules/<name>.md` and every file every target
-/// emits, at the path it is emitted to. A rule file holds a pattern and the
+/// emits, at the path it is emitted to. A detector's own script and the fixture
+/// runner are skipped for that detector, by their [`HookRole`]: they contain
+/// the pattern and its hit fixtures by construction, so a hit there says
+/// nothing about the detector's scope. A rule file holds a pattern and the
 /// inputs that must hit it, and an emitted instruction layer quotes what a rule
 /// forbids; a detector that fires on either has a scope wide enough to read its
 /// own definitions, and would block the edit that maintains it. The implicit
@@ -125,23 +227,34 @@ impl SelfMatch {
 /// Siblings for the case engine are the other given files in the same
 /// directory, so a case collision **among** relearn's own files is a hit too.
 #[must_use]
-pub fn self_matches(library: &Library<Validated>, files: &[(String, &str)]) -> Vec<SelfMatch> {
+pub fn self_matches(library: &Library<Validated>, files: &[Swept<'_>]) -> Vec<SelfMatch> {
     let dir_of = |p: &str| p.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
     let mut found = Vec::new();
     for rule in library.rules() {
         for detector in rule.detectors() {
-            for (path, text) in files {
+            for file in files {
+                if file.holds_own_definition(detector) {
+                    continue;
+                }
+                let path = file.path;
                 let dir = dir_of(path);
                 let siblings: Vec<String> = files
                     .iter()
-                    .filter(|(other, _)| other != path && dir_of(other) == dir)
-                    .map(|(other, _)| other.rsplit('/').next().unwrap_or(other).to_owned())
+                    .filter(|other| other.path != path && dir_of(other.path) == dir)
+                    .map(|other| {
+                        other
+                            .path
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or(other.path)
+                            .to_owned()
+                    })
                     .collect();
-                let subject = Subject::new(path, text, &siblings);
+                let subject = Subject::new(path, file.text, &siblings);
                 match detector.evaluate(&subject) {
                     Detection::Hit => found.push(SelfMatch {
                         detector: detector.name().as_str().to_owned(),
-                        file: path.clone(), // allow:clone: the finding owns the path it names, outliving the borrowed list
+                        file: path.to_owned(),
                     }),
                     Detection::Clean => {}
                 }
