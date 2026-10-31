@@ -295,6 +295,9 @@ session() { # <workspace> <task> <transcript> <session-budget>
 }
 
 spent=0
+# The tally sums results.tsv, which has no row for the preflight; this is the
+# figure the budget was enforced against.
+spent_line() { echo "spent, including the isolation preflight: \$$(dollars "$spent")"; }
 results="$out/results.tsv"
 [ -f "$results" ] || printf '#tag\tarm\tsample\toutcome\tcost_usd\ttokens\tloaded\tskills_invoked\n' > "$results"
 
@@ -316,8 +319,10 @@ session "$pre" "Quote the first heading of every CLAUDE.md or other instruction 
     "$out/preflight.jsonl" "$(dollars "$session_micros")"
 # Any probe will do for reading the transcript's metadata; every kind's inputs are given.
 pre_line=$(relearn probe judge --rules "$rules" --tag "$(printf '%s\n' "$plan" | head -n 1 | cut -f1)" \
-    --transcript "$out/preflight.jsonl" --workspace "$pre" --run-exit 2 2> "$out/preflight.judge.stderr") ||
-    die "isolation preflight: the transcript could not be read (location: $out/preflight.jsonl)"
+    --transcript "$out/preflight.jsonl" --workspace "$pre" --run-exit 2 2> "$out/preflight.judge.stderr")
+pre_rc=$?
+rm -rf "${pre:?}" "${pre:?}.config"
+[ "$pre_rc" -eq 0 ] || die "isolation preflight: the transcript could not be read (location: $out/preflight.jsonl)"
 IFS=$'\t' read -r _ pre_cost _ pre_loaded _ <<< "$pre_line"
 spent=$((spent + $(micros "$pre_cost")))
 if [ -n "$canary" ] && grep -qF "$canary" "$out/preflight.jsonl"; then
@@ -340,6 +345,7 @@ for ((i = 1; i <= samples; i++)); do
             if [ "$spent" -ge "$budget_micros" ]; then
                 echo "probe-run: budget reached (\$$budget); stopping before the next session" >&2
                 relearn probe tally --results "$results"
+                spent_line
                 exit 1
             fi
             ws="$work_root/$body-$arm-$i-$$"
@@ -377,6 +383,7 @@ for ((i = 1; i <= samples; i++)); do
             else
                 outcome=error cost="" tokens="" loaded="" invoked=""
             fi
+            [ "$outcome" = error ] && failed=1
             spent=$((spent + $(micros "$cost")))
             printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$tag" "$arm" "$i" "$outcome" "$cost" \
                 "$tokens" "$loaded" "$invoked" >> "$results"
@@ -387,4 +394,5 @@ for ((i = 1; i <= samples; i++)); do
 done
 echo "wall clock: $(( ($(date +%s) - started) / 60 )) minute(s)"
 relearn probe tally --results "$results"
+spent_line
 exit $failed
