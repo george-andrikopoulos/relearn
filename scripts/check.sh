@@ -46,6 +46,11 @@ stage verify cargo run --quiet -- verify
 stage verify-copilot-pack cargo run --quiet -- verify --targets copilot --out copilot-pack
 stage verify-claude-pack cargo run --quiet -- verify --targets claude --out claude-pack
 stage verify-hooks-pack cargo run --quiet -- verify --targets hooks --out hooks-pack
+stage verify-rules-pack cargo run --quiet -- verify --targets claude-rules --rules-layer user --out rules-pack
+# This repository's own share of a session's load set, against the project budget
+# in ARCHITECTURE.md's decisions log (2026-10-31). Hermetic: no user directory, no
+# ancestors. It is the charter growing that it exists to catch.
+stage load-budget cargo run --quiet -- budget --project . --project-only --as relearn --project-budget 40000
 # The production path for detectors: every fixture through the generated
 # scripts, because the hook is `grep -E` and `relearn check` is not. Exits 2,
 # a failed stage, when `jq` is missing: no fixture ran, which is not a pass.
@@ -59,7 +64,7 @@ stage pack-sync-self-test bash scripts/pack-sync-reminder.sh --self-test
 stage probe-self-test bash scripts/probe-run.sh --self-test
 
 if [ "${#failed[@]}" -eq 0 ]; then
-    echo "PASS: rustfmt, clippy, test, verify x4, hook fixtures, lint, money-scan, pack-sync, probe self-test"
+    echo "PASS: rustfmt, clippy, test, verify x5, hook fixtures, lint, money-scan, pack-sync, probe self-test, load budget"
     exit 0
 fi
 echo "FAIL: ${failed[*]}"

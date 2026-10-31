@@ -169,7 +169,7 @@ impl HomeSlug {
 /// Lowercase `s` and collapse every run of non-alphanumeric characters to a
 /// single `-`, with no leading or trailing `-`. Turns free-form domain names
 /// and project paths into a single filesystem- and skill-name-safe token.
-fn slugify(s: &str) -> String {
+pub(crate) fn slugify(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut pending_dash = false;
     for ch in s.chars() {

@@ -36,6 +36,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::aggregate::{Aggregate, AggregateError};
 use crate::contribute::{self, Contribution, NotContributable, NotSuperseding, SupersedingVersion};
+use crate::emit::claude_rules::RulesLayer;
 use crate::emit::{self, HomeSlug, OutputFile};
 use crate::fsio::{self, ControlReadError, LoadError, RuleWriteError, VerifyError, WriteError};
 use crate::library::{Library, Validated, ValidationError};
@@ -52,8 +53,10 @@ use crate::rule::{
 };
 use crate::scrub::{ScrubError, TermList};
 
+mod budget;
 mod probe;
 
+pub use budget::BudgetCliError;
 pub use probe::ProbeCliError;
 
 /// The `relearn` command line.
@@ -114,6 +117,13 @@ enum Command {
         /// not name. A scope no rule declares is an error, not a quiet drop.
         #[arg(long)]
         scope: Vec<String>,
+        /// Which rules layer the `claude-rules` target writes: `user` (every
+        /// domain home — for `~/.claude/rules/` or a pack) or `project=<name>`
+        /// (that project's home and nothing else). Defaults to the project named
+        /// by the `--out` directory, so a repository's bare build writes its
+        /// own layer and never another project's.
+        #[arg(long)]
+        rules_layer: Option<String>,
     },
     /// List rules, optionally filtered by home layer (its slug).
     List {
@@ -473,6 +483,13 @@ enum Command {
         /// paired `build` used, or the two disagree about what should be on disk.
         #[arg(long)]
         scope: Vec<String>,
+        /// Which rules layer the `claude-rules` target writes: `user` (every
+        /// domain home — for `~/.claude/rules/` or a pack) or `project=<name>`
+        /// (that project's home and nothing else). Defaults to the project named
+        /// by the `--out` directory, so a repository's bare build writes its
+        /// own layer and never another project's.
+        #[arg(long)]
+        rules_layer: Option<String>,
     },
     /// Resolve every control a `partial` or `graduated` rule names — does the
     /// hook, test or gate exist, and does anything run it? Reads only.
@@ -502,6 +519,13 @@ enum Command {
         #[arg(long)]
         settings: Option<PathBuf>,
     },
+    /// Measure what a Claude Code session in a project loads at start: every
+    /// instruction file, its size as the loader counts it, whether it is
+    /// always resident or path-scoped, and whether relearn generated it.
+    /// Reads only. Exits 0 clean, 1 on any finding (OVER_LIMIT, OVER_BUDGET,
+    /// DUPLICATE_LAYER, FOREIGN_PROJECT_LAYER), 2 when the user share was not
+    /// measured and `--project-only` did not say it is not the question.
+    Budget(budget::BudgetArgs),
     /// Probes: what the runner should replay, and how a session it ran is
     /// judged. Read-only; the runner, `scripts/probe-run.sh`, is the only thing
     /// that starts a model.
@@ -630,6 +654,36 @@ pub enum CliError {
     /// A `probe` subcommand failed.
     #[error(transparent)]
     Probe(#[from] ProbeCliError),
+    /// `relearn budget` could not measure.
+    #[error(transparent)]
+    Budget(#[from] BudgetCliError),
+    /// `--home` names a home the selected rules layer does not carry, so a
+    /// `claude-rules`-only build would write nothing.
+    #[error(
+        "--home {home} emits nothing into the {layer} rules layer; a domain home belongs in --rules-layer user, a project home in --rules-layer project=<name>"
+    )]
+    HomeNotInRulesLayer {
+        /// The home asked for.
+        home: String,
+        /// The layer that does not carry it.
+        layer: String,
+    },
+    /// `--rules-layer` is neither `user` nor `project=<name>`.
+    #[error("--rules-layer `{given}`: expected `user` or `project=<name>`")]
+    RulesLayerArg {
+        /// What was given.
+        given: String,
+    },
+    /// No `--rules-layer` was given and the `--out` directory has no name to
+    /// take the project's from. Refused rather than defaulted to `user`: a
+    /// guess here writes domain layers into a tree that loads them already.
+    #[error(
+        "{out:?} names no project for the claude-rules target; pass --rules-layer user or --rules-layer project=<name>"
+    )]
+    NoProjectForOut {
+        /// The output root given.
+        out: PathBuf,
+    },
     /// Loading the rules directory failed.
     #[error(transparent)]
     Load(#[from] LoadError),
@@ -1013,8 +1067,10 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             targets,
             home,
             scope,
+            rules_layer,
         } => {
-            build(&rules, &out, &targets, home.as_deref(), &scope)?;
+            let layer = rules_layer_for(rules_layer.as_deref(), &out, &targets)?;
+            build(&rules, &out, &targets, home.as_deref(), &scope, &layer)?;
             Ok(ExitCode::SUCCESS)
         }
         Command::List {
@@ -1121,7 +1177,11 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             targets,
             home,
             scope,
-        } => verify(&rules, &out, &targets, home.as_deref(), &scope),
+            rules_layer,
+        } => {
+            let layer = rules_layer_for(rules_layer.as_deref(), &out, &targets)?;
+            verify(&rules, &out, &targets, home.as_deref(), &scope, &layer)
+        }
         Command::Controls {
             rules,
             map,
@@ -1129,6 +1189,7 @@ fn dispatch(command: Command) -> Result<ExitCode, CliError> {
             settings,
         } => controls(&rules, &map, &roots, settings.as_deref()),
         Command::Probe { command } => probe::dispatch(command),
+        Command::Budget(args) => Ok(budget::run(&args)?),
     }
 }
 
@@ -1245,7 +1306,8 @@ fn check(rules: &Path) -> Result<(), CliError> {
     // file and of every file any target emits, where each would land.
     let sources = fsio::read_rule_sources(rules)?;
     let every_target: Vec<Target> = Target::value_variants().to_vec();
-    let emitted = emit_selected(&validated, &every_target);
+    let every_layer = emit::claude_rules::layers_of(&validated);
+    let emitted = emit_selected(&validated, &every_target, &every_layer);
     let mut files: Vec<(String, &str)> = sources
         .iter()
         .map(|(name, text)| (format!("rules/{name}"), text.as_str()))
@@ -1275,10 +1337,77 @@ fn check(rules: &Path) -> Result<(), CliError> {
     Ok(())
 }
 
+/// A `claude-rules`-only build narrowed to one home that emits nothing is
+/// refused, not reported as success. The home exists (`--home` already refused
+/// one that does not), so the layer does not admit it: `--home domain-rust`
+/// built into a project layer. Writing nothing and exiting 0 there is a gate
+/// that reports success while doing nothing, and `verify` would pass it too.
+fn refuse_an_empty_rules_layer(
+    targets: &[Target],
+    home: Option<&str>,
+    layer: &[RulesLayer],
+    files: &[OutputFile],
+) -> Result<(), CliError> {
+    let only_rules_layer = targets.iter().all(|t| *t == Target::ClaudeRules);
+    match (home, only_rules_layer && files.is_empty()) {
+        (Some(home), true) => Err(CliError::HomeNotInRulesLayer {
+            home: home.to_owned(),
+            layer: layer.first().map_or_else(String::new, describe_layer),
+        }),
+        (None | Some(_), _) => Ok(()),
+    }
+}
+
+fn describe_layer(layer: &RulesLayer) -> String {
+    match layer {
+        RulesLayer::User => "user".to_owned(),
+        RulesLayer::Project(slug) => slug.as_str().to_owned(),
+    }
+}
+
+/// The rules layer `build` and `verify` write, parsed once at the perimeter.
+/// Empty when `claude-rules` is not selected, since no other target has one.
+///
+/// The default is the project the `--out` directory is named for, because a
+/// rules layer is loaded from where it is written: the bare build of a
+/// repository then writes that repository's own layer, and a clone under a
+/// different name emits nothing for it — which `verify` reports as an orphan,
+/// loudly, rather than as another project's layer, silently.
+fn rules_layer_for(
+    given: Option<&str>,
+    out: &Path,
+    targets: &[Target],
+) -> Result<Vec<RulesLayer>, CliError> {
+    let layer = match given {
+        Some("user") => RulesLayer::User,
+        Some(other) => other
+            .strip_prefix("project=")
+            .and_then(|name| RulesLayer::project(name).ok())
+            .ok_or_else(|| CliError::RulesLayerArg {
+                given: other.to_owned(),
+            })?,
+        None if !targets.contains(&Target::ClaudeRules) => return Ok(Vec::new()),
+        None => fsio::directory_name(out)
+            .and_then(|name| RulesLayer::project(&name).ok())
+            .ok_or_else(|| CliError::NoProjectForOut {
+                out: out.to_path_buf(),
+            })?,
+    };
+    Ok(if targets.contains(&Target::ClaudeRules) {
+        vec![layer]
+    } else {
+        Vec::new()
+    })
+}
+
 /// Emit the deduplicated set of files for the selected targets. Shared by
 /// `build` (which writes them) and `verify` (which compares them to disk), so
 /// the two commands can never disagree about what the emitted set is.
-fn emit_selected(validated: &Library<Validated>, targets: &[Target]) -> Vec<OutputFile> {
+fn emit_selected(
+    validated: &Library<Validated>,
+    targets: &[Target],
+    layers: &[RulesLayer],
+) -> Vec<OutputFile> {
     // Deduplicate so `--targets claude,claude` does not emit the same file twice.
     let unique: BTreeSet<Target> = targets.iter().copied().collect();
     let mut files = Vec::new();
@@ -1289,7 +1418,11 @@ fn emit_selected(validated: &Library<Validated>, targets: &[Target]) -> Vec<Outp
             Target::Copilot => files.extend(emit::copilot::emit(validated)),
             Target::CopilotPaths => files.extend(emit::copilot_paths::emit(validated)),
             Target::Agents => files.extend(emit::agents::emit(validated)),
-            Target::ClaudeRules => files.extend(emit::claude_rules::emit(validated)),
+            Target::ClaudeRules => {
+                for layer in layers {
+                    files.extend(emit::claude_rules::emit(validated, layer));
+                }
+            }
             Target::Hooks => files.extend(emit::hooks::emit(validated)),
         }
     }
@@ -1375,10 +1508,12 @@ fn build(
     targets: &[Target],
     home: Option<&str>,
     scope: &[String],
+    layer: &[RulesLayer],
 ) -> Result<(), CliError> {
     let validated = restrict_to_home(&fsio::load_rules(rules)?.validate()?, home)?;
     let validated = restrict_to_scopes(&validated, scope)?;
-    let files = emit_selected(&validated, targets);
+    let files = emit_selected(&validated, targets, layer);
+    refuse_an_empty_rules_layer(targets, home, layer, &files)?;
     let written = fsio::write_all(out, &files)?;
     println!("wrote {written} file(s) under {}", out.display());
     Ok(())
@@ -1394,10 +1529,12 @@ fn verify(
     targets: &[Target],
     home: Option<&str>,
     scope: &[String],
+    layer: &[RulesLayer],
 ) -> Result<ExitCode, CliError> {
     let validated = restrict_to_home(&fsio::load_rules(rules)?.validate()?, home)?;
     let validated = restrict_to_scopes(&validated, scope)?;
-    let files = emit_selected(&validated, targets);
+    let files = emit_selected(&validated, targets, layer);
+    refuse_an_empty_rules_layer(targets, home, layer, &files)?;
     let reports = fsio::verify_all(out, &files)?;
 
     let drifted: Vec<_> = reports.iter().filter(|r| !r.status().is_clean()).collect();
@@ -2532,8 +2669,15 @@ mod tests {
                     &["java"],
                 ),
             );
-            build(rules.path(), out.path(), &[Target::Agents], None, &audience)
-                .expect("build succeeds");
+            build(
+                rules.path(),
+                out.path(),
+                &[Target::Agents],
+                None,
+                &audience,
+                &[],
+            )
+            .expect("build succeeds");
 
             let agents = std::fs::read_to_string(out.path().join("AGENTS.md"))
                 .expect("AGENTS.md was written");
@@ -2564,6 +2708,7 @@ mod tests {
             &[Target::Agents],
             None,
             &["rsut".to_owned()],
+            &[],
         )
         .expect_err("an unknown scope must fail");
 
@@ -2598,6 +2743,7 @@ mod tests {
             &[Target::Agents],
             None,
             &["rust".to_owned()],
+            &[],
         )
         .expect_err("an unknown scope must fail");
         assert!(
@@ -2619,6 +2765,7 @@ mod tests {
             &[Target::Agents],
             None,
             &["Rust".to_owned()],
+            &[],
         )
         .expect_err("a malformed scope must fail");
         assert!(matches!(err, CliError::Scope(_)), "got {err:?}");
@@ -2653,7 +2800,7 @@ mod tests {
             &rule_doc("R:r", "{ kind = \"domain\", name = \"rust\" }", "Rust rule"),
         );
 
-        build(rules.path(), out.path(), &[Target::Claude], None, &[]).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Claude], None, &[], &[]).expect("build succeeds");
 
         let skill = std::fs::read_to_string(out.path().join("skills/domain-rust/SKILL.md"))
             .expect("the rust skill was written");
@@ -2694,6 +2841,7 @@ mod tests {
             &[Target::ClaudeRules],
             Some("domain-rust"),
             &[],
+            &[RulesLayer::User],
         )
         .expect("build succeeds");
 
@@ -2702,6 +2850,36 @@ mod tests {
             !out.path().join(".claude/rules/project-relearn.md").exists(),
             "the project layer must not follow the domain layer into a user scope"
         );
+    }
+
+    /// The install command a user's own notes carried until 2026-10-31 —
+    /// `build --out ~ --targets claude-rules --home domain-rust` — would, after
+    /// the rules layer became per-destination, write nothing and exit 0. It is
+    /// refused instead, naming the flag that fixes it.
+    #[test]
+    fn a_domain_home_built_into_a_project_layer_is_refused_not_emptied() {
+        let rules = tempfile::tempdir().expect("rules tempdir");
+        let out = tempfile::tempdir().expect("out tempdir");
+        write_rule(
+            rules.path(),
+            "r.md",
+            &rule_doc("R:r", "{ kind = \"domain\", name = \"rust\" }", "Rust rule"),
+        );
+        let layer = RulesLayer::project("someone").expect("non-empty name");
+        let err = build(
+            rules.path(),
+            out.path(),
+            &[Target::ClaudeRules],
+            Some("domain-rust"),
+            &[],
+            &[layer],
+        )
+        .expect_err("an empty claude-rules build is refused");
+        assert!(
+            matches!(err, CliError::HomeNotInRulesLayer { .. }),
+            "got {err:?}"
+        );
+        assert!(!out.path().join(".claude").exists(), "nothing was written");
     }
 
     /// A home no rule is in is an error, never an empty emission — an empty
@@ -2722,6 +2900,7 @@ mod tests {
             &[Target::ClaudeRules],
             Some("domain-cobol"),
             &[],
+            &[RulesLayer::User],
         )
         .expect_err("an unknown home must fail");
 
@@ -2752,7 +2931,7 @@ mod tests {
             ),
         );
 
-        build(rules.path(), out.path(), &[Target::Cursor], None, &[]).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Cursor], None, &[], &[]).expect("build succeeds");
 
         let mdc = std::fs::read_to_string(out.path().join(".cursor/rules/parse-wide.mdc"))
             .expect("the cursor rule was written");
@@ -2807,7 +2986,7 @@ mod tests {
         std::fs::write(&target, "human authored\n").expect("seed human file");
 
         assert!(matches!(
-            build(rules.path(), out.path(), &[Target::Claude], None, &[]),
+            build(rules.path(), out.path(), &[Target::Claude], None, &[], &[]),
             Err(CliError::Write(WriteError::WouldClobberUnversioned { .. }))
         ));
         assert_eq!(
@@ -2827,9 +3006,10 @@ mod tests {
             &rule_doc("R:g", "{ kind = \"global\" }", "Global rule"),
         );
 
-        build(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("build succeeds");
+        build(rules.path(), out.path(), &[Target::Agents], None, &[], &[]).expect("build succeeds");
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None, &[], &[])
+                .expect("verify runs"),
             ExitCode::SUCCESS,
             "a freshly built tree verifies clean"
         );
@@ -2842,7 +3022,8 @@ mod tests {
         );
         std::fs::write(&agents, edited).expect("tamper");
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None, &[], &[])
+                .expect("verify runs"),
             ExitCode::FAILURE,
             "a hand-edited generated file fails verification"
         );
@@ -2859,7 +3040,8 @@ mod tests {
         );
         // Never built: the expected AGENTS.md is absent.
         assert_eq!(
-            verify(rules.path(), out.path(), &[Target::Agents], None, &[]).expect("verify runs"),
+            verify(rules.path(), out.path(), &[Target::Agents], None, &[], &[])
+                .expect("verify runs"),
             ExitCode::FAILURE,
             "a never-built (missing) target fails verification"
         );

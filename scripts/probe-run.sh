@@ -383,7 +383,15 @@ for ((i = 1; i <= samples; i++)); do
             if [ "$arm" = with ]; then
                 case $layer in
                     claude) relearn build --rules "$rules" --targets claude --home "$home" --out "$ws/.claude" > /dev/null ;;
-                    claude-rules) relearn build --rules "$rules" --targets claude-rules --home "$home" --out "$ws" > /dev/null ;;
+                    # The workspace is named for no project, so the layer is explicit:
+                    # a project home goes into its own project layer, a domain into
+                    # the user layer, which is what a domain is outside a probe.
+                    claude-rules)
+                        case $home in
+                            project-*) rl="project=${home#project-}" ;;
+                            *) rl=user ;;
+                        esac
+                        relearn build --rules "$rules" --targets claude-rules --rules-layer "$rl" --home "$home" --out "$ws" > /dev/null ;;
                 esac || { echo "probe-run: could not emit $home for $tag" >&2; failed=1; continue; }
                 allowed=$home
             fi

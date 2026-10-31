@@ -215,7 +215,7 @@ fn every_file_emitted_into_an_owned_dir_is_visible_to_the_orphan_scan() {
         .expect("the corpus validates");
     let mut f = emit::claude::emit(&lib);
     f.extend(emit::cursor::emit(&lib));
-    f.extend(emit::claude_rules::emit(&lib));
+    f.extend(every_rules_layer(&lib));
 
     let dir = tempfile::tempdir().expect("tempdir");
     fsio::write_all(dir.path(), &f).expect("write");
@@ -236,4 +236,24 @@ fn every_file_emitted_into_an_owned_dir_is_visible_to_the_orphan_scan() {
             "{path} is emitted but the orphan scan cannot see it"
         );
     }
+}
+
+/// Every rules layer the library could fill — the user's and each project's —
+/// each emitted for its own destination and concatenated. For pins about the
+/// shape of a rules-layer file, which hold in whichever layer it lands; no
+/// build writes this union to one place.
+fn every_rules_layer(
+    lib: &relearn::library::Library<relearn::library::Validated>,
+) -> Vec<relearn::emit::OutputFile> {
+    use relearn::emit::claude_rules::{RulesLayer, emit as emit_layer};
+    let mut layers = vec![RulesLayer::User];
+    for rule in lib.rules() {
+        if let relearn::rule::Home::Project { path } = rule.home() {
+            let layer = RulesLayer::project(path.as_str()).expect("a project path is non-empty");
+            if !layers.contains(&layer) {
+                layers.push(layer);
+            }
+        }
+    }
+    layers.iter().flat_map(|l| emit_layer(lib, l)).collect()
 }

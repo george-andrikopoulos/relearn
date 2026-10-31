@@ -153,6 +153,7 @@ It is the reference implementation of the error loop described in *Tuning the St
   dependency of the *compiler* — contribution and reporting are a person running `git`, which is
   why its aggregate is a repository rather than a service. `tests/solo_mode.rs` fails the build on
   a socket, a spawned process, an ambient read, or a networking crate anywhere in the tree.
+- **A rules layer is written for the place it loads.** `claude_rules::emit` takes a `RulesLayer`: a project's tree gets that project's home and nothing else, the user layer gets the domain homes and nothing else, and `admits` is exhaustive over both. Another project's home in this tree is resident in every session here; a domain copy here beside the user's loads twice. `relearn budget` is the measure, and `check.sh` holds this repository's always-resident share to the project budget in the decisions log.
 - Every dependency is priced before it is used: a row in `ARCHITECTURE.md`'s decisions log whose **Decision** cell opens with `Dependency:` (or `Dependencies:`) and names the crate in backticks. `tests/dependencies.rs` fails the build otherwise, and the nine crates that predate the rule are exempted by name in a list that may only shrink. The other half — recording a dependency *refused* — has no artifact and therefore no gate; it is on the person who refused it. `[R:price-every-dependency]`
 
 ## Build, run, test
@@ -188,6 +189,12 @@ relearn new --tag R:x --title "..." --error-class "..." --home domain=low-latenc
             --on 2026-09-18 --incident-file inc.md --body-file body.md [--dry-run]
 
 relearn build --targets claude,cursor,copilot,agents   # compile rules to all targets
+relearn build --targets claude-rules --rules-layer user --out rules-pack   # the user-level domain layers
+#   claude-rules writes ONE destination: --rules-layer user | project=<name>,
+#   defaulting to the project the --out directory is named for
+relearn budget --project . --user ~/.claude           # what a session here loads, as the loader counts it
+#   0 clean / 1 OVER_LIMIT, OVER_BUDGET, DUPLICATE_LAYER or FOREIGN_PROJECT_LAYER /
+#   2 user share UNCHECKED (no --user; --project-only says it is not the question)
 relearn check                                          # validate library, run every detector's
 #   fixtures and the self-exclusion sweep; no output written
 relearn build --targets hooks --out hooks-pack         # detectors -> hook scripts (explicit only)
@@ -258,7 +265,7 @@ Keeping the prose copies would have made this file a second home for six rules t
 
 ## The generated project layer
 
-The `claude-rules` target emits **`.claude/rules/<home-slug>.md`**, one file per project home — *not* the repository-root `CLAUDE.md`, which is this hand-authored charter. That separation is deliberate and was a defect until 2026-08-22; `ARCHITECTURE.md`'s decisions log carries the full account. This file pulls the generated layer in:
+The `claude-rules` target emits **`.claude/rules/<home-slug>.md`** for this project's home only — *not* the repository-root `CLAUDE.md`, which is this hand-authored charter. That separation is deliberate and was a defect until 2026-08-22; `ARCHITECTURE.md`'s decisions log carries the full account. This file pulls the generated layer in:
 
 @.claude/rules/project-relearn.md
 
@@ -280,6 +287,7 @@ Before writing an incident, ask: **which repository's detector covers the file I
 
 - `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and `scripts/check.sh` runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
 - `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; `scripts/check.sh` verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
+- `rules-pack/` — the `claude-rules` target's **user** layer: one `paths:`-scoped file per language domain, for `~/.claude/rules/`, plus a hand-authored README that states no counts. A domain belongs to the developer and installs once at user level, never into a repository. Rebuild with `relearn build --targets claude-rules --rules-layer user --out rules-pack`; `scripts/check.sh` verifies it as a second output root.
 - `hooks-pack/` — the `hooks` target's emission: one bash + `jq` Claude Code `PreToolUse` script per detector, a `test-detectors.sh` runner and a `settings-snippet.md`, with a hand-authored README whose script table `tests/pack_counts.rs` reads back, including the `Install` cell that marks a detector on an `active` rule as a `draft` the install steps never copy. Rebuild with `relearn build --targets hooks --out hooks-pack`; `scripts/check.sh` verifies it and runs the runner. It installs into `~/.claude/hooks/relearn/` by hand, beside any hand-written hook and never over one.
 - `tests/probes/<tag-body>/` — one directory per rule carrying a `[probe]`: the synthetic `workspace/` a session starts in, `cases/held` and `cases/violated` (a transcript for `trace`, a final workspace for `diff` and `run`), and `check.sh` for a `run` checker. Fixtures are synthetic and pinned LF. `tests/probe_corpus.rs` holds the shape; `probe-run.sh --self-test` holds the verdicts.
 - `docs/control-triage.md` — a dated snapshot binning every `active` rule by the control that could hold it (MECHANICAL, TYPE, EVAL, JUDGMENT), with the detectors drafted from it. A snapshot states its own numbers; nothing else quotes them.

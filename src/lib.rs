@@ -29,6 +29,7 @@ pub mod emit;
 pub mod fsio;
 pub mod library;
 pub mod lint;
+pub mod loadset;
 pub mod poke;
 pub mod probe;
 pub mod pull;
