@@ -18,11 +18,13 @@ use crate::emit::{HeaderStyle, OutputFile, RelativePath};
 use crate::library::{Library, Unvalidated};
 
 mod controls;
+mod loadset;
 mod probe;
 use crate::rule::{
     DroppableCache, EditableRule, ParseError, PulledRule, RuleTag, parse_document, to_document,
 };
 pub use controls::{ControlReadError, read_control_map, read_settings, snapshot};
+pub use loadset::{Ancestors, LoadSetReadError, discover_load_set};
 pub use probe::{ProbeReadError, read_text as read_probe_text, workspace_change};
 
 /// The opening of the generated-by comment. Its presence in an existing file is
@@ -473,7 +475,7 @@ impl std::fmt::Display for VerifyStatus {
                 "stale — does not match the current rules; run `relearn build` to regenerate"
             }
             VerifyStatus::Orphan => {
-                "orphan — a relearn-generated file whose rule was removed; `build` will not touch it. Delete it, or restore the rule"
+                "orphan — a relearn-generated file this build no longer emits here: its rule or home was removed, or (for `.claude/rules/`) it belongs to another rules layer. `build` will not touch it. Delete it, or restore the rule"
             }
         };
         f.write_str(msg)
@@ -543,6 +545,18 @@ pub fn verify_all(out_dir: &Path, files: &[OutputFile]) -> Result<Vec<VerifyRepo
         });
     }
     Ok(reports)
+}
+
+/// The name of the directory `path` resolves to — `.` becomes the working
+/// directory's own name. A directory that does not exist yet is named by the
+/// path's last component. `None` for a root, which has no name.
+#[must_use]
+pub fn directory_name(path: &Path) -> Option<String> {
+    let resolved = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    resolved
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_owned)
 }
 
 /// The shape of the paths relearn's emitters write beneath an owned directory.

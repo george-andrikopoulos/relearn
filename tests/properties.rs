@@ -587,8 +587,8 @@ proptest! {
         prop_assert_eq!(emit::copilot::emit(&unscoped_narrowed), emit::copilot::emit(&unscoped));
         prop_assert_eq!(emit::agents::emit(&unscoped_narrowed), emit::agents::emit(&unscoped));
         prop_assert_eq!(
-            emit::claude_rules::emit(&unscoped_narrowed),
-            emit::claude_rules::emit(&unscoped)
+            every_rules_layer(&unscoped_narrowed),
+            every_rules_layer(&unscoped)
         );
     }
 
@@ -603,7 +603,7 @@ proptest! {
         prop_assert_eq!(emit::cursor::emit(&narrowed), emit::cursor::emit(&lib));
         prop_assert_eq!(emit::copilot::emit(&narrowed), emit::copilot::emit(&lib));
         prop_assert_eq!(emit::agents::emit(&narrowed), emit::agents::emit(&lib));
-        prop_assert_eq!(emit::claude_rules::emit(&narrowed), emit::claude_rules::emit(&lib));
+        prop_assert_eq!(every_rules_layer(&narrowed), every_rules_layer(&lib));
     }
 
     /// **An audience changes *whether* a rule is emitted and announces itself in
@@ -623,7 +623,7 @@ proptest! {
             (emit::cursor::emit(&lib), emit::cursor::emit(&stripped)),
             (emit::copilot::emit(&lib), emit::copilot::emit(&stripped)),
             (emit::agents::emit(&lib), emit::agents::emit(&stripped)),
-            (emit::claude_rules::emit(&lib), emit::claude_rules::emit(&stripped)),
+            (every_rules_layer(&lib), every_rules_layer(&stripped)),
         ] {
             let with: Vec<&str> = scoped.iter().map(|f| f.path().as_str()).collect();
             let without: Vec<&str> = plain.iter().map(|f| f.path().as_str()).collect();
@@ -648,7 +648,7 @@ proptest! {
             (emit::cursor::emit(&lib), emit::cursor::emit(&stripped)),
             (emit::copilot::emit(&lib), emit::copilot::emit(&stripped)),
             (emit::agents::emit(&lib), emit::agents::emit(&stripped)),
-            (emit::claude_rules::emit(&lib), emit::claude_rules::emit(&stripped)),
+            (every_rules_layer(&lib), every_rules_layer(&stripped)),
         ] {
             prop_assert_eq!(scoped.len(), plain.len());
             for (file, bare) in scoped.iter().zip(plain.iter()) {
@@ -689,7 +689,7 @@ proptest! {
             emit::cursor::emit(&lib),
             emit::copilot::emit(&lib),
             emit::agents::emit(&lib),
-            emit::claude_rules::emit(&lib),
+            every_rules_layer(&lib),
         ];
         for files in &outputs {
             for file in files {
@@ -755,7 +755,7 @@ proptest! {
         prop_assert_eq!(emit::cursor::emit(&with), emit::cursor::emit(&without));
         prop_assert_eq!(emit::copilot::emit(&with), emit::copilot::emit(&without));
         prop_assert_eq!(emit::agents::emit(&with), emit::agents::emit(&without));
-        prop_assert_eq!(emit::claude_rules::emit(&with), emit::claude_rules::emit(&without));
+        prop_assert_eq!(every_rules_layer(&with), every_rules_layer(&without));
     }
 
     /// Every emitter is a deterministic function of the library: re-emitting the
@@ -767,7 +767,7 @@ proptest! {
         prop_assert_eq!(emit::cursor::emit(&lib), emit::cursor::emit(&lib));
         prop_assert_eq!(emit::copilot::emit(&lib), emit::copilot::emit(&lib));
         prop_assert_eq!(emit::agents::emit(&lib), emit::agents::emit(&lib));
-        prop_assert_eq!(emit::claude_rules::emit(&lib), emit::claude_rules::emit(&lib));
+        prop_assert_eq!(every_rules_layer(&lib), every_rules_layer(&lib));
     }
 
     /// **Withdrawn guidance never leaks.** For any library, no atticked rule's
@@ -782,7 +782,7 @@ proptest! {
             emit::cursor::emit(&lib),
             emit::copilot::emit(&lib),
             emit::agents::emit(&lib),
-            emit::claude_rules::emit(&lib),
+            every_rules_layer(&lib),
         ];
         for files in &outputs {
             for file in files {
@@ -814,7 +814,7 @@ proptest! {
             emit::cursor::emit(&lib),
             emit::copilot::emit(&lib),
             emit::agents::emit(&lib),
-            emit::claude_rules::emit(&lib),
+            every_rules_layer(&lib),
         ];
         for files in &outputs {
             for file in files {
@@ -844,7 +844,7 @@ proptest! {
             emit::cursor::emit(&lib),
             emit::copilot::emit(&lib),
             emit::agents::emit(&lib),
-            emit::claude_rules::emit(&lib),
+            every_rules_layer(&lib),
         ];
         for files in &outputs {
             for file in files {
@@ -890,7 +890,7 @@ proptest! {
     /// slug is this emitter's identity either way.
     #[test]
     fn each_project_layer_file_carries_only_its_own_homes_rules(lib in arb_library_mixed()) {
-        for file in emit::claude_rules::emit(&lib) {
+        for file in every_rules_layer(&lib) {
             let path = file.path().as_str().to_owned();
             let slug = path
                 .strip_prefix(".claude/rules/")
@@ -954,7 +954,7 @@ proptest! {
     /// an empty glob list rendered into a file that then applies to everything.
     #[test]
     fn no_rules_file_ever_carries_an_empty_paths_list(lib in arb_library_mixed()) {
-        for file in emit::claude_rules::emit(&lib) {
+        for file in every_rules_layer(&lib) {
             prop_assert!(
                 !file.contents().contains("paths: []"),
                 "{} carries an empty paths list, which loads always",
@@ -978,7 +978,7 @@ proptest! {
     /// every generated domain is unknown: this exercises the negative case hard.
     #[test]
     fn unknown_domains_never_reach_the_rules_layer(lib in arb_library_mixed()) {
-        for file in emit::claude_rules::emit(&lib) {
+        for file in every_rules_layer(&lib) {
             let is_unknown_domain_file = lib.rules().iter().any(|r| {
                 matches!(r.home(), Home::Domain { .. })
                     && matches!(emit::LoadSemantics::for_home(r.home()), emit::LoadSemantics::OnRequest)
@@ -1010,7 +1010,7 @@ proptest! {
             (emit::cursor::emit(&lib), emit::cursor::emit(&stripped)),
             (emit::copilot::emit(&lib), emit::copilot::emit(&stripped)),
             (emit::agents::emit(&lib), emit::agents::emit(&stripped)),
-            (emit::claude_rules::emit(&lib), emit::claude_rules::emit(&stripped)),
+            (every_rules_layer(&lib), every_rules_layer(&stripped)),
         ] {
             prop_assert_eq!(sourced.len(), plain.len());
             for (file, bare) in sourced.iter().zip(plain.iter()) {
@@ -1050,7 +1050,7 @@ proptest! {
             emit::cursor::emit(&lib),
             emit::copilot::emit(&lib),
             emit::agents::emit(&lib),
-            emit::claude_rules::emit(&lib),
+            every_rules_layer(&lib),
         ];
         for files in &outputs {
             for file in files {
@@ -1089,4 +1089,24 @@ proptest! {
             }
         }
     }
+}
+
+/// Every rules layer the library could fill — the user's and each project's —
+/// each emitted for its own destination and concatenated. For pins about the
+/// shape of a rules-layer file, which hold in whichever layer it lands; no
+/// build writes this union to one place.
+fn every_rules_layer(
+    lib: &relearn::library::Library<relearn::library::Validated>,
+) -> Vec<relearn::emit::OutputFile> {
+    use relearn::emit::claude_rules::{RulesLayer, emit as emit_layer};
+    let mut layers = vec![RulesLayer::User];
+    for rule in lib.rules() {
+        if let relearn::rule::Home::Project { path } = rule.home() {
+            let layer = RulesLayer::project(path.as_str()).expect("a project path is non-empty");
+            if !layers.contains(&layer) {
+                layers.push(layer);
+            }
+        }
+    }
+    layers.iter().flat_map(|l| emit_layer(lib, l)).collect()
 }

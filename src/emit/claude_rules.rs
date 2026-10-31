@@ -49,15 +49,77 @@ use super::{
     recurrence_note, source_note, yaml_double_quote,
 };
 use crate::library::{Library, Validated};
-use crate::rule::{Home, Rule, RuleTag};
+use crate::rule::{EmptyText, Home, Rule, RuleTag};
 
 /// The directory this emitter owns. Every file it writes lives here, named by
 /// the home slug — see the module docs for why this is not the repository root.
 pub(crate) const RULES_LAYER_DIR: &[&str] = &[".claude", "rules"];
 
-/// Emit one rules-layer file per home that this target can scope, each holding only that
-/// home's rules, ordered by tag so the output is a deterministic function of
-/// the library.
+/// Which rules layer one build writes. Claude Code loads a rules layer from the
+/// directory it sits in: a file in a project's `.claude/rules/` is resident in
+/// **that project's** sessions and no others, and a file in `~/.claude/rules/`
+/// in every session on the machine. The destination therefore decides which
+/// homes belong in it, and it is a parameter of [`emit`] rather than a filter a
+/// caller may forget (2026-10-31; ARCHITECTURE decisions log).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RulesLayer {
+    /// One project's own tree: that project's home and nothing else. Another
+    /// project's home here is resident in every session of the wrong project.
+    Project(HomeSlug),
+    /// The user's configuration: every domain home this target can scope. A
+    /// domain belongs to the developer, not to a repository — it attaches by
+    /// file type wherever that developer works, so one user-level copy serves
+    /// every repository, and a second copy inside a repository loads it twice.
+    User,
+}
+
+impl RulesLayer {
+    /// The layer of the project named `name`, slugified as its home is.
+    pub fn project(name: &str) -> Result<Self, EmptyText> {
+        Home::project(name).map(|home| Self::Project(HomeSlug::of(&home)))
+    }
+
+    /// Whether a rule homed at `home` belongs in this layer. Exhaustive over
+    /// both, so a new home or a new layer cannot compile until it is placed.
+    fn admits(&self, home: &Home) -> bool {
+        match (self, home) {
+            (RulesLayer::Project(own), Home::Project { .. }) => HomeSlug::of(home) == *own,
+            (RulesLayer::User, Home::Domain { .. }) => true,
+            (RulesLayer::Project(_), Home::Domain { .. })
+            | (RulesLayer::User, Home::Project { .. }) => false,
+            // `Global` is `Always` too, but it is not a *rules-layer* concern: it
+            // has an always-resident home already, and emitting it here as well
+            // would put one rule in two Claude files — the duplication this tool
+            // exists to stop. **`Org` follows `Global`, as a decision rather than
+            // an omission**: an organisation layer is always-resident like the
+            // global one and reaches its readers through the skill. An org that
+            // wants a project-scoped file is asking for a different feature, and
+            // `TODO.md` carries it.
+            (RulesLayer::Project(_) | RulesLayer::User, Home::Global | Home::Org { .. }) => false,
+        }
+    }
+}
+
+/// Every layer a library could fill: the user's, and each project's that has a
+/// rule. For `relearn check`, which asks what any destination would receive;
+/// no destination receives the union, so nothing writes it.
+pub(crate) fn layers_of(library: &Library<Validated>) -> Vec<RulesLayer> {
+    let mut layers = vec![RulesLayer::User];
+    for rule in library.rules() {
+        let layer = match rule.home() {
+            Home::Project { .. } => RulesLayer::Project(HomeSlug::of(rule.home())),
+            Home::Global | Home::Org { .. } | Home::Domain { .. } => continue,
+        };
+        if !layers.contains(&layer) {
+            layers.push(layer);
+        }
+    }
+    layers
+}
+
+/// Emit one rules-layer file per home that `layer` admits and this target can
+/// scope, each holding only that home's rules, ordered by tag so the output is a
+/// deterministic function of the library and the layer.
 ///
 /// Returns an empty `Vec` (no file) when the library carries no rules-layer
 /// rules — this emitter never writes an empty file.
@@ -65,7 +127,7 @@ pub(crate) const RULES_LAYER_DIR: &[&str] = &[".claude", "rules"];
 /// Accepts only `&Library<Validated>` — an unvalidated library does not have
 /// this type, so emitting unchecked rules is a compile error.
 #[must_use]
-pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
+pub fn emit(library: &Library<Validated>, layer: &RulesLayer) -> Vec<OutputFile> {
     // Group the emittable (active + graduated) rules by home, so each home's file
     // carries its own rules and no others. Atticked guidance is suppressed here
     // too: a retired rule never reaches the layer.
@@ -84,22 +146,8 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
             LoadSemantics::Always | LoadSemantics::WhenReading(_) => true,
             LoadSemantics::OnRequest => false,
         };
-        // `Global` is `Always` too, but it is not a *rules-layer* concern: it has
-        // an always-resident home already, and emitting it here as well would put
-        // one rule in two Claude files — the duplication this tool exists to stop.
-        //
-        // **`Org` follows `Global`, and this is a decision rather than an
-        // omission.** A `matches!` is not exhaustive, so the compiler did not ask
-        // — which is exactly why it is written down here: an organisation layer
-        // is always-resident like the global one and reaches its readers through
-        // the skill, so emitting it into the rules layer as well would be the
-        // same duplication. An org that wants a project-scoped file is asking
-        // for a different feature, and `TODO.md` carries it.
-        let in_layer = match rule.home() {
-            Home::Project { .. } | Home::Domain { .. } => true,
-            Home::Global | Home::Org { .. } => false,
-        };
-        if representable && in_layer {
+        // Which of those homes belong at this destination is the layer's call.
+        if representable && layer.admits(rule.home()) {
             by_home
                 .entry(HomeSlug::of(rule.home()))
                 .or_default()
@@ -220,6 +268,26 @@ mod tests {
             .expect("distinct tags validate")
     }
 
+    fn project(name: &str) -> RulesLayer {
+        RulesLayer::project(name).expect("non-empty project name")
+    }
+
+    /// Every layer the library could fill, each emitted for its own destination
+    /// and concatenated — for pins about a file's *shape*, which hold in
+    /// whichever layer the file lands.
+    fn every_layer(lib: &Library<Validated>) -> Vec<OutputFile> {
+        let mut layers = vec![RulesLayer::User];
+        for r in lib.rules() {
+            if let Home::Project { .. } = r.home() {
+                let layer = RulesLayer::Project(HomeSlug::of(r.home()));
+                if !layers.contains(&layer) {
+                    layers.push(layer);
+                }
+            }
+        }
+        layers.iter().flat_map(|l| emit(lib, l)).collect()
+    }
+
     /// Project and known-domain homes each get their own file; `Global` does not
     /// reach this layer at all (it already has an always-resident home, and a
     /// second copy here would be the duplication the tool exists to prevent).
@@ -242,7 +310,7 @@ mod tests {
                 "Project body.",
             ),
         ]);
-        let files = emit(&lib);
+        let files = every_layer(&lib);
         assert_eq!(
             files.len(),
             2,
@@ -265,7 +333,7 @@ mod tests {
             "dc",
             "Rust body.",
         )]);
-        let files = emit(&lib);
+        let files = emit(&lib, &RulesLayer::User);
         assert_eq!(files[0].path().as_str(), ".claude/rules/domain-rust.md");
         let c = files[0].contents();
         assert!(
@@ -287,7 +355,7 @@ mod tests {
             "pc",
             "Project body.",
         )]);
-        let files = emit(&lib);
+        let files = emit(&lib, &project("repo"));
         let c = files[0].contents();
         assert!(c.starts_with("# Project rules\n"), "got: {c}");
         assert!(!c.contains("paths:"));
@@ -306,7 +374,7 @@ mod tests {
             "Cobol body.",
         )]);
         assert!(
-            emit(&lib).is_empty(),
+            emit(&lib, &RulesLayer::User).is_empty(),
             "on-request domains do not reach this layer"
         );
     }
@@ -320,7 +388,7 @@ mod tests {
             "pc",
             "Project body.",
         )]);
-        let files = emit(&lib);
+        let files = emit(&lib, &project("relearn"));
         assert_eq!(files.len(), 1, "one project layer file");
         assert_eq!(files[0].path().as_str(), ".claude/rules/project-relearn.md");
     }
@@ -346,7 +414,7 @@ mod tests {
                 "Project body.",
             ),
         ]);
-        for f in emit(&lib) {
+        for f in every_layer(&lib) {
             assert_ne!(
                 f.path().as_str(),
                 "CLAUDE.md",
@@ -380,7 +448,7 @@ mod tests {
                 "Stochos body.",
             ),
         ]);
-        let files = emit(&lib);
+        let files = every_layer(&lib);
         assert_eq!(files.len(), 2, "one file per project home");
         let relearn = files
             .iter()
@@ -405,7 +473,7 @@ mod tests {
                 "Cobol body.",
             ),
         ]);
-        let files = emit(&lib);
+        let files = every_layer(&lib);
         assert!(
             files.is_empty(),
             "a global home and an on-request domain both stay out of this layer"
@@ -430,6 +498,6 @@ mod tests {
                 "Project one body.",
             ),
         ]);
-        assert_eq!(emit(&lib), emit(&lib));
+        assert_eq!(every_layer(&lib), every_layer(&lib));
     }
 }

@@ -20,6 +20,53 @@ when they are waiting for a second person, a different repository, or a journal.
 backlog that cannot be worked is one nobody reads, which is how a real item hides among
 them. `[R:doc-currency]`
 
+## Load budget and the per-destination rules layer (2026-10-31)
+
+Stage 1 of the load-observability brief. The error class: an instruction layer grows past
+the loader's budget, or loads a layer twice or out of scope, and nothing notices until the
+tool warns. ARCHITECTURE.md's decisions log has both entries; FEATURES.md has *Load budget*.
+
+- [x] **What loads, measured.** `relearn budget` walks the load set as the loader defines it,
+  counts each file once in UTF-16 units, and reports `OVER_LIMIT` / `OVER_BUDGET` /
+  `DUPLICATE_LAYER` / `FOREIGN_PROJECT_LAYER`; no `--user` is `UNCHECKED`, exit 2. The
+  definition was read from the documentation and, where it was silent, from Claude Code
+  2.1.316's own source.
+- [x] **Calibrated against George's figure.** No warning showing, against 94,075 counted —
+  consistent, and weak evidence. Recorded in FEATURES.md.
+- [x] **Hermetic gate.** `check.sh` stage `load-budget` holds this repository's share to 40,000.
+- [x] **Foreign project layers removed.** `RulesLayer` makes the destination a parameter of
+  `claude_rules::emit`; `project-design-architecture-tool.md` and `project-stochos-lab.md` are
+  gone from `.claude/rules/`.
+- [x] **Duplicate domain layers removed.** `domain-rust.md` and `domain-java.md` moved to
+  `rules-pack/`, verified by `check.sh` stage `verify-rules-pack`.
+- [x] **An empty `claude-rules` build is refused** when `--home` names a home the layer does not
+  carry, so the old install command fails loudly instead of writing nothing.
+- [x] **Charter trimmed.** History and rationale moved verbatim to ARCHITECTURE.md (*Rationale moved from CLAUDE.md*); CLAUDE.md 33,188 → 29,127 loader characters.
+- [!] **`domain-java` now loads in no session until George installs it.** It used to load from
+  this repository's `.claude/rules/` (in sessions here, which have no Java). Copy
+  `rules-pack/.claude/rules/domain-java.md` into `~/.claude/rules/`. The user-level
+  `domain-rust.md` is already byte-identical to the pack. Outside this repository.
+- [!] **The third-party rules under `~/.claude/rules/ecc/`** contradict George's own charter
+  and cost 21,744 always-resident characters in every session. Removing them is George's call,
+  in his own config repository; `relearn budget` lists them as hand-authored user-share files.
+- [!] **`~/.claude/rules/ecc/rust/testing.md` documents the old install command**
+  (`--out ~ --targets claude-rules --home domain-rust`). It now fails with
+  `HomeNotInRulesLayer` and names `--rules-layer user`. The note lives in George's config.
+- [ ] **The brief's "165.8k chars" was not reproduced.** It is the per-file warning's wording,
+  and no file in either tree is near it. If it appears again, run `relearn budget` in the same
+  session and record both, so the instrument meets a real positive.
+- [ ] **The loader's definition was read once**, from 2.1.316. Nothing notices when a Claude
+  Code upgrade changes the limit formula or what counts. A cheap control: re-read the two
+  constants (`0.05` and `120000`) and fail when they move.
+- [ ] **The same foreign-layer class exists for the other targets.** `agents`, `cursor` and
+  `copilot` still put every project's home into the tree being built. It costs nothing in a
+  Claude session, so it was out of scope here; a Codex, Cursor or Copilot session in this
+  repository still reads other projects' rules.
+- [ ] **`pack-sync-reminder.sh` does not cover `rules-pack/`.** It fires on `claude-pack/`
+  pushes; a pushed change to the domain layers needs the same nudge to reinstall them.
+- [ ] **Stage 2 (load observability, Parts 4–8)** — waits for `feat/load-budget` to merge.
+  `feat/probes` is already in main.
+
 ## Phase 0 — scaffold
 - [x] Five project files authored (CLAUDE, ARCHITECTURE, FEATURES, TODO, README)
 - [x] Relocated to `%USERPROFILE%\Documents\relearn` (the live Windows dev area, beside win-health-mcp/mesh-watchdog/Design-Architecture-Tool). NB: the named "dev root with Ferridis/sysmand/linux-health-mcp" was `D:\linux-george`, a stale Linux-home backup — see 2026-08-13 note.

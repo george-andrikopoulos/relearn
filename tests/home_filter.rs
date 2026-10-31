@@ -61,7 +61,7 @@ fn restricting_keeps_only_the_named_home() {
 #[test]
 fn the_rules_layer_for_one_domain_emits_exactly_one_file() {
     let lib = mixed();
-    let files = emit::claude_rules::emit(&lib.filter(|r| slug_of(r) == "domain-rust"));
+    let files = every_rules_layer(&lib.filter(|r| slug_of(r) == "domain-rust"));
     assert_eq!(files.len(), 1, "only the domain layer");
     assert_eq!(files[0].path().as_str(), ".claude/rules/domain-rust.md");
     assert!(files[0].contents().contains("paths:"), "still scoped");
@@ -71,7 +71,7 @@ fn the_rules_layer_for_one_domain_emits_exactly_one_file() {
 /// is measuring the filter, not an accident of the fixture.
 #[test]
 fn without_the_filter_the_project_layer_is_emitted_as_well() {
-    let paths: Vec<String> = emit::claude_rules::emit(&mixed())
+    let paths: Vec<String> = every_rules_layer(&mixed())
         .iter()
         .map(|f| f.path().as_str().to_owned())
         .collect();
@@ -89,7 +89,7 @@ fn a_filter_matching_nothing_yields_an_empty_library() {
     let lib = mixed();
     let none = lib.filter(|r| slug_of(r) == "domain-cobol");
     assert!(none.is_empty());
-    assert!(emit::claude_rules::emit(&none).is_empty());
+    assert!(every_rules_layer(&none).is_empty());
 }
 
 /// Filtering a validated library needs no re-validation: tag uniqueness over a
@@ -104,5 +104,25 @@ fn a_filtered_library_is_still_a_validated_library_for_every_emitter() {
     assert!(!emit::cursor::emit(&lib).is_empty());
     assert!(!emit::copilot::emit(&lib).is_empty());
     assert!(!emit::agents::emit(&lib).is_empty());
-    assert!(!emit::claude_rules::emit(&lib).is_empty());
+    assert!(!every_rules_layer(&lib).is_empty());
+}
+
+/// Every rules layer the library could fill — the user's and each project's —
+/// each emitted for its own destination and concatenated. For pins about the
+/// shape of a rules-layer file, which hold in whichever layer it lands; no
+/// build writes this union to one place.
+fn every_rules_layer(
+    lib: &relearn::library::Library<relearn::library::Validated>,
+) -> Vec<relearn::emit::OutputFile> {
+    use relearn::emit::claude_rules::{RulesLayer, emit as emit_layer};
+    let mut layers = vec![RulesLayer::User];
+    for rule in lib.rules() {
+        if let relearn::rule::Home::Project { path } = rule.home() {
+            let layer = RulesLayer::project(path.as_str()).expect("a project path is non-empty");
+            if !layers.contains(&layer) {
+                layers.push(layer);
+            }
+        }
+    }
+    layers.iter().flat_map(|l| emit_layer(lib, l)).collect()
 }

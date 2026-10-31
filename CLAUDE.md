@@ -17,7 +17,7 @@ It is the reference implementation of the error loop described in *Tuning the St
 1. **One rule = one file, neutral format.** `rules/<tag>.md`, TOML front-matter delimited by `+++`, imperative markdown body after. TOML because the parser is well maintained in Rust; front-matter because the body must stay human-editable and diff-friendly. Rules are the source of truth; every emitted format is a build artifact and is never hand-edited.
 2. **Emitters are pure functions of validated rules.** No emitter may read anything the neutral rule does not carry. If a target needs data, the data belongs in the rule.
 3. **Type-Driven Design, not test-first** (see `rust-typedd`). Illegal states are made unrepresentable; validation happens once at the perimeter and mints a witness type; interior code never re-checks. Property tests carry behavioural laws; unit tests are regression pins for past bugs.
-4. **Provenance is mandatory, not optional.** A rule without a date, a triggering incident, and an error class does not parse. The framework's whole governance argument rests on provenance; making it optional would make the tool complicit in the failure it exists to prevent. **Recurrence is the second observation**, added 2026-09-06: a rule also records, as `[[recurrence]]` tables, each later occurrence of the error class it already covers. The triggering incident says why the rule exists; a recurrence says the rule failed — and recurrence is the only number that tells you whether a rule is working. It is a separate field from `incident` because a recurrence needs its own date where the first incident borrows the rule's `created`; it is optional, so no rule file needed editing when it landed. **The artefact is the third**, added 2026-09-18: a *codified* rule — one written down from standing practice rather than mined from a failure — may name the document it was written down from, as `source` beside `origin`. It is optional because a practice ported out of your own always-loaded instruction file is fully accounted for by its `incident`; it exists because a practice codified from *someone else's* published artefact is not, and there the document is the provenance rather than a footnote to it (`[R:source-practice-from-its-artefact]`). A `source` on a mined or mandated rule is a parse error, not a dropped field — those origins have their own provenance, and a provenance the parser discards reads back as one the rule claimed.
+4. **Provenance is mandatory, not optional.** A rule without a date, a triggering incident, and an error class does not parse. A rule may also record `[[recurrence]]` tables — each later occurrence of the error class it already covers, each with its own date — and a *codified* rule may name the published artefact it was written down from, as `source` beside `origin` (`[R:source-practice-from-its-artefact]`). A `source` on a mined or mandated rule is a parse error, not a dropped field.
 5. **Emission is idempotent and destructive-safe.** Re-running the compiler must produce byte-identical output for unchanged rules, and must refuse to overwrite a target file it did not generate (see `[R:generate-guards-unversioned]`).
 
 ## Invariants that must never break
@@ -73,41 +73,30 @@ It is the reference implementation of the error loop described in *Tuning the St
   the other half of that question is `Authority::Local`'s optional revision, which is how a
   published rule says which revision it *is*. One field, one meaning, so a cached file never
   carries the number twice; absent, no cache of it can be told it is stale and nothing guesses.
-- **A rule can be *partly* held, and the status must then say what is not held.** Controls
-  routinely cover part of an error class and prose covers the rest; with only `Active` and
-  `Graduated`, recording that honestly was impossible, and the dishonest option was worse than
-  silence — `Graduated` prints "Also enforced by X" into five instruction layers for ground X
-  never claimed, and makes the next recurrence there a CI failure. `Status::Partial` carries
-  `uncovered` as a field of the variant, so a partial graduation that will not name the gap is
-  unconstructible. It reports like `Active` and annotates like `Graduated`, and those two halves
-  are decided by `prose_coverage` and `whole_class_claim` — exhaustive matches, so a new status
-  variant cannot compile until both are answered. Recording the truth must never turn a warning
-  into a build failure, or the honest status becomes the one nobody uses.
+- **A rule can be *partly* held, and the status must then say what is not held.**
+  `Status::Partial` carries `uncovered` as a field of the variant, so a partial graduation that
+  will not name the gap is unconstructible. It reports like `Active` and annotates like
+  `Graduated`, and those two halves are decided by `prose_coverage` and `whole_class_claim` —
+  exhaustive matches, so a new status variant cannot compile until both are answered. Recording a
+  partial status never turns a warning into a build failure.
 - **A poke is news, never a verdict.** The federation's signal is surfaced inside `lint`, carries
-  no severity, and is printed after the exit code has been decided — a signal from strangers that
-  could fail CI would have made federation required. One trigger is reactive (a rule fired *here*,
-  and upstream covers that class) and is never capped; the other four are broadcast, capped at a
-  number the operator passes, and two of them are off until named. An upstream **retirement**
-  warns and can do no more: a local attic suppresses emission, an upstream one never does,
-  because deleting an instruction a team relies on because a stranger retired it is a correction
-  lost with no reader. No clone, no pokes, and no
-  warning about their absence. `build` cannot reach the module at all, asserted by reading the
+  no severity, and is printed after the exit code has been decided. One trigger is reactive (a
+  rule fired *here*, and upstream covers that class) and is never capped; the other four are
+  broadcast, capped at a number the operator passes, and two of them are off until named. An
+  upstream **retirement** warns and can do no more: a local attic suppresses emission, an upstream
+  one never does. No clone, no pokes, and no warning about their absence. `build` cannot reach the module at all, asserted by reading the
   emitters' source: `lint` reports and `build` emits.
 - **A mandate carries its approval, and is not evidence.** `Origin::Mandated(Approval)` makes a
   mandate with no signer and an approval on a mined rule both unconstructible, and mandated rules
   are held out of the recurrence statistics entirely — they were never mined, and they are not
   *inert* either, because inert is a judgement about something that was meant to be evidence.
 - **`applies_to` is not a second home.** Home answers *who owns and maintains this rule* and has
-  one answer; `applies_to` answers *who should load it* and may have several — a low-latency rule
-  that Rust and Java engineers both need lives in one file, with one tag and one incident, and is
-  compiled into both language builds. A scope is an **audience** (`rust`, `java`, `embedded`),
+  one answer; `applies_to` answers *who should load it* and may have several. A scope is an **audience** (`rust`, `java`, `embedded`),
   never a topic (`performance`, `security`) — a topic is what `error_class` already carries.
   Scope decides *whether* a rule is emitted and says so in the body; `Home` alone decides
   *where*, and `scope_never_reaches_an_emitted_path` is what keeps that true. A scoped rule
   announces its audience — `> Written for the rust and java audiences.`, the same blockquote
-  shape as the graduation and recurrence notes — because a reader of
-  `skills/domain-low-latency/SKILL.md` otherwise cannot tell that the rule in front of them
-  was written for someone in particular (decided 2026-09-14). That announcement is the *only*
+  shape as the graduation and recurrence notes. That announcement is the *only*
   channel from `applies_to` into emitted text, and
   `scope_reaches_a_body_only_through_the_audience_note` is what keeps *that* true: it deletes
   the note from a scoped build and requires what is left to be byte-identical to an unscoped
@@ -153,6 +142,7 @@ It is the reference implementation of the error loop described in *Tuning the St
   dependency of the *compiler* — contribution and reporting are a person running `git`, which is
   why its aggregate is a repository rather than a service. `tests/solo_mode.rs` fails the build on
   a socket, a spawned process, an ambient read, or a networking crate anywhere in the tree.
+- **A rules layer is written for the place it loads.** `claude_rules::emit` takes a `RulesLayer`: a project's tree gets that project's home and nothing else, the user layer gets the domain homes and nothing else, and `admits` is exhaustive over both. Another project's home in this tree is resident in every session here; a domain copy here beside the user's loads twice. `relearn budget` is the measure, and `check.sh` holds this repository's always-resident share to the project budget in the decisions log.
 - Every dependency is priced before it is used: a row in `ARCHITECTURE.md`'s decisions log whose **Decision** cell opens with `Dependency:` (or `Dependencies:`) and names the crate in backticks. `tests/dependencies.rs` fails the build otherwise, and the nine crates that predate the rule are exempted by name in a list that may only shrink. The other half — recording a dependency *refused* — has no artifact and therefore no gate; it is on the person who refused it. `[R:price-every-dependency]`
 
 ## Build, run, test
@@ -165,8 +155,8 @@ cargo fmt --check
 
 # The local gate: every stage hosted CI used to run (fmt, clippy, test, the three
 # verifies, lint --deny error, the money scan), plus the pack-sync reminder's
-# self-test, the hook-pack fixtures and the probe self-test. Run by .githooks/pre-push on every push since hosted CI was switched
-# off on 2026-10-26. Ends with one PASS/FAIL line.
+# self-test, the hook-pack fixtures, the probe self-test and the load budget. Run by
+# .githooks/pre-push on every push. Ends with one PASS/FAIL line.
 bash scripts/check.sh
 
 bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `cargo test`)
@@ -188,6 +178,12 @@ relearn new --tag R:x --title "..." --error-class "..." --home domain=low-latenc
             --on 2026-09-18 --incident-file inc.md --body-file body.md [--dry-run]
 
 relearn build --targets claude,cursor,copilot,agents   # compile rules to all targets
+relearn build --targets claude-rules --rules-layer user --out rules-pack   # the user-level domain layers
+#   claude-rules writes ONE destination: --rules-layer user | project=<name>,
+#   defaulting to the project the --out directory is named for
+relearn budget --project . --user ~/.claude           # what a session here loads, as the loader counts it
+#   0 clean / 1 OVER_LIMIT, OVER_BUDGET, DUPLICATE_LAYER or FOREIGN_PROJECT_LAYER /
+#   2 user share UNCHECKED (no --user; --project-only says it is not the question)
 relearn check                                          # validate library, run every detector's
 #   fixtures and the self-exclusion sweep; no output written
 relearn build --targets hooks --out hooks-pack         # detectors -> hook scripts (explicit only)
@@ -237,7 +233,7 @@ Binding for this repository. A change is not complete until all five pass, in or
 
 State the five results briefly at the end of any task. If a request conflicts with the discipline ("just patch it quickly"), do the patch, then say which checks were skipped and what exposure that creates — never silently drop it, never block the user with ceremony.
 
-*This is the project-layer application of `[R:definition-of-done-every-change]`, whose general form is in `rules/` and reaches every emitted layer as of 2026-08-25. It stays written out here rather than reduced to a pointer because the five checks above are **specialised** to this repository — check 2 names `FEATURES.md` and its enforcing artifacts, check 4 names `ARCHITECTURE.md`'s decisions log — and a charter that recreates the project has to state what a contributor must actually do. The original justification for writing it here (that an external contributor cannot load the author's `project-discipline` skill) has partly expired: the generic rule is now public in this repository too. What has not expired is the specialisation. If the two ever disagree, `rules/` is the source and this section is the derived text — see TODO.md, where the residual duplication is carried as George's call rather than resolved unilaterally.*
+*The project-layer application of `[R:definition-of-done-every-change]`, specialised to this repository's files. If the two disagree, `rules/` is the source.*
 
 ## Design discipline: Type-Driven, not test-first
 
@@ -252,19 +248,17 @@ Unit testing is **not** removed — it is demoted to the layer where it is the r
 
 ## Standing rules referenced by this repo
 
-Rules cited by tag elsewhere in these files **now live in `rules/`** and are compiled out to every emitted layer. This section used to restate six of them in prose, "scheduled for migration into `rules/` in Phase A, at which point this section points there instead." That migration completed 2026-08-25 and this is the pointer it promised: run `relearn list` for the corpus, or read `rules/<tag>.md` for any single rule with its full provenance.
-
-Keeping the prose copies would have made this file a second home for six rules that have one — the P2 violation this tool exists to prevent, in the charter of the tool that prevents it. The last two to migrate were `[R:wired-artifact]` and `[R:revision-integrity]`; the corpus had been citing both for weeks without defining either.
+Rules cited by tag in these files live in `rules/` and are compiled out to every emitted layer: run `relearn list` for the corpus, or read `rules/<tag>.md` for any single rule with its full provenance. This file restates none of them (P2).
 
 ## The generated project layer
 
-The `claude-rules` target emits **`.claude/rules/<home-slug>.md`**, one file per project home — *not* the repository-root `CLAUDE.md`, which is this hand-authored charter. That separation is deliberate and was a defect until 2026-08-22; `ARCHITECTURE.md`'s decisions log carries the full account. This file pulls the generated layer in:
+The `claude-rules` target emits **`.claude/rules/<home-slug>.md`** for this project's home only — *not* the repository-root `CLAUDE.md`, which is this hand-authored charter. `ARCHITECTURE.md`'s decisions log carries why (2026-08-22, 2026-10-31). This file pulls the generated layer in:
 
 @.claude/rules/project-relearn.md
 
 ## This repository is a publication surface
 
-A rule's `incident` field is a **verbatim quotation from a private working session**, and `TODO.md` narrates the same material. Provenance is mandatory here for good reasons, and a narrative is specific by nature — which means the field that makes a correction durable is also the one that carries private identifiers out of the repository they came from. That repository's own detector cannot help: a gate scans its own tree, stays green, and the quotation travels without it. `[R:names-travel-with-the-quote]`
+A rule's `incident` field is a **verbatim quotation from a private working session**, and `TODO.md` narrates the same material, so either can carry a private identifier out of the repository it came from — where that repository's own detector cannot see it. `[R:names-travel-with-the-quote]`
 
 Install the gate once per clone:
 
@@ -272,14 +266,15 @@ Install the gate once per clone:
 git config core.hooksPath .githooks     # pre-push -> scripts/no-banned-names.sh
 ```
 
-It reports **location and count, never the term**, and exits **2 rather than 0 when it has no list** — a disarmed gate is not a pass. The term list is deliberately **not committed**: this repository is public and one protected name normalises to four characters, so publishing the salt would publish the name. It lives at `$BANNED_TERMS_FILE`, or `~/.claude/usage/banned-terms.sha256`. CI therefore cannot run this gate and is not wired to it; FEATURES.md records it as configuration-dependent rather than claiming a CI gate it does not have.
+It reports **location and count, never the term**, and exits **2 rather than 0 when it has no list** — a disarmed gate is not a pass. The term list is deliberately **not committed**; it lives at `$BANNED_TERMS_FILE`, or `~/.claude/usage/banned-terms.sha256`, so only a machine that has it can run this gate.
 
 Before writing an incident, ask: **which repository's detector covers the file I am about to write into?** If the answer is the repository the quotation came *from*, nothing covers the destination.
 
 ## Where the rest is
 
-- `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`, and `scripts/check.sh` runs the matching `verify` because the pack lies outside every relearn-owned path and bare `verify` cannot reach it.
-- `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; `scripts/check.sh` verifies it as a second output root. A skill is only installable if its `description` fits Claude's 1024-character cap, which is why that field is bounded by the `SkillDescription` type rather than assembled inline.
+- `copilot-pack/` — a committed **second emission** of the copilot target plus a hand-authored install README, so the folder can be downloaded and dropped into an unrelated repository whole. Generated, never transcribed: rebuild with `relearn build --targets copilot --out copilot-pack`; `scripts/check.sh` verifies it as a second output root.
+- `claude-pack/` — the same idea for the `claude` (Skills) target: one installable skill folder per home layer, plus a README covering a Claude Code project (`.claude/skills/`), a whole machine (`~/.claude/skills/`), and claude.ai. Rebuild with `relearn build --targets claude --out claude-pack`; `scripts/check.sh` verifies it as a second output root. A skill's `description` is bounded by the `SkillDescription` type.
+- `rules-pack/` — the `claude-rules` target's **user** layer: one `paths:`-scoped file per language domain, for `~/.claude/rules/`, plus a hand-authored README that states no counts. A domain belongs to the developer and installs once at user level, never into a repository. Rebuild with `relearn build --targets claude-rules --rules-layer user --out rules-pack`; `scripts/check.sh` verifies it as a second output root.
 - `hooks-pack/` — the `hooks` target's emission: one bash + `jq` Claude Code `PreToolUse` script per detector, a `test-detectors.sh` runner and a `settings-snippet.md`, with a hand-authored README whose script table `tests/pack_counts.rs` reads back, including the `Install` cell that marks a detector on an `active` rule as a `draft` the install steps never copy. Rebuild with `relearn build --targets hooks --out hooks-pack`; `scripts/check.sh` verifies it and runs the runner. It installs into `~/.claude/hooks/relearn/` by hand, beside any hand-written hook and never over one.
 - `tests/probes/<tag-body>/` — one directory per rule carrying a `[probe]`: the synthetic `workspace/` a session starts in, `cases/held` and `cases/violated` (a transcript for `trace`, a final workspace for `diff` and `run`), and `check.sh` for a `run` checker. Fixtures are synthetic and pinned LF. `tests/probe_corpus.rs` holds the shape; `probe-run.sh --self-test` holds the verdicts.
 - `docs/control-triage.md` — a dated snapshot binning every `active` rule by the control that could hold it (MECHANICAL, TYPE, EVAL, JUDGMENT), with the detectors drafted from it. A snapshot states its own numbers; nothing else quotes them.

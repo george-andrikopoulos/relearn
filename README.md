@@ -140,6 +140,15 @@ relearn list --rules ./rules --home domain-rust
 relearn build --rules ./rules --out .
 relearn build --rules ./rules --out . --targets cursor,copilot
 
+# The Claude rules layer is loaded from where it is written, so claude-rules
+# writes one destination: a project's own tree gets that project's home (the
+# default, named by --out), and the user layer gets the language domains.
+relearn build --rules ./rules --out ~ --targets claude-rules --rules-layer user
+
+# What a Claude Code session in a project actually loads, counted the way the
+# loader counts it, with any layer that loads twice or for the wrong project.
+relearn budget --project . --user ~/.claude
+
 # The path-scoped Copilot shape: one .github/instructions/<home>.instructions.md
 # per home, each with an `applyTo` glob, so the Rust rules attach to Rust files
 # and nothing else. Selected explicitly and never a default — it is the
