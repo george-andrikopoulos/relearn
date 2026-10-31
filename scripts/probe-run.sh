@@ -31,10 +31,10 @@
 # stops at it. The user layer is cut off with an empty CLAUDE_CONFIG_DIR,
 # `--setting-sources project,local` and `--strict-mcp-config`. The docs do not
 # promise that this removes everything under ~/.claude, so two things are
-# checked rather than assumed: every session's `init` event (a user skill,
-# plugin or MCP server in it makes the session `contaminated`, excluded and
-# counted), and one preflight session at the start of a real run that must not
-# be able to quote the user's CLAUDE.md. The canary is read from that file at
+# checked rather than assumed: every session's `init` event (anything in it
+# beyond the CLI's own baseline and the WITH arm's skill makes the session
+# `contaminated`, excluded and counted), and one preflight session at the start
+# of a real run that must not be able to quote the user's CLAUDE.md. The canary is read from that file at
 # run time and is never printed (`[R:report-the-hit-not-the-match]`).
 #
 # Raw transcripts and workspaces go to --out, which must also lie outside the
@@ -249,55 +249,78 @@ done
 inside "$work_root" "$home" && die "--work-root $work_root is inside \$HOME, where ~/.claude is an ancestor of every workspace"
 
 
-# Names the user layer could contribute. A session listing one of them, other
-# than the WITH arm's own home skill, is contaminated.
-user_names() {
-    local d
-    for d in "$HOME"/.claude/skills/*/ "$HOME"/.claude/skills/synced/*/*/; do
-        [ -d "$d" ] && basename "$d"
-    done
-    if [ -f "$HOME/.claude/plugins/installed_plugins.json" ]; then
-        jq -r '.plugins // {} | keys[] | split("@")[0]' "$HOME/.claude/plugins/installed_plugins.json" 2> /dev/null
-    fi
-}
-denied=$(user_names | grep -v '^synced$' | sort -u)
-
-contaminated() { # <loaded> <allowed-skill or empty>
-    local item name
-    IFS=, read -r -a items <<< "$1"
-    for item in "${items[@]}"; do
-        [ -n "$item" ] || continue
-        name=${item#*:}
-        case $item in
-            mcp:*) return 0 ;;
-            skill:*) [ "$name" = "$2" ] && continue ;;
-        esac
-        # A plugin's skill is listed as `<plugin>:<skill>`; the plugin is the name denied.
-        grep -qxF "$name" <<< "$denied" && return 0
-        grep -qxF "${name%%:*}" <<< "$denied" && return 0
-    done
-    return 1
-}
+cli_flags=(--model "$model"
+    --output-format stream-json --verbose
+    --setting-sources project,local
+    --strict-mcp-config
+    --permission-mode dontAsk --permission-prompts none
+    --tools "Bash,Read,Write,Edit,Glob,Grep,Skill"
+    --allowedTools "Bash Read Write Edit Glob Grep Skill"
+    --no-session-persistence)
 
 session() { # <workspace> <task> <transcript> <session-budget>
     local cfg="$1.config"
     mkdir -p "$cfg"
-    (cd "$1" && CLAUDE_CONFIG_DIR=$(native "$cfg") claude -p "$2" \
-        --model "$model" \
-        --output-format stream-json --verbose \
-        --setting-sources project,local \
-        --strict-mcp-config \
-        --permission-mode dontAsk --permission-prompts none \
-        --tools "Bash,Read,Write,Edit,Glob,Grep,Skill" \
-        --allowedTools "Bash Read Write Edit Glob Grep Skill" \
-        --max-budget-usd "$4" \
-        --no-session-persistence < /dev/null > "$3" 2> "$3.stderr")
+    (cd "$1" && CLAUDE_CONFIG_DIR=$(native "$cfg") claude -p "$2" "${cli_flags[@]}" \
+        --max-budget-usd "$4" < /dev/null > "$3" 2> "$3.stderr")
+}
+
+judge_loaded() { # <transcript> <an existing workspace>: the judge's cost and loaded fields
+    local line
+    line=$(relearn probe judge --rules "$rules" --tag "$(printf '%s\n' "$plan" | head -n 1 | cut -f1)" \
+        --transcript "$1" --workspace "$2" --run-exit 2 2> "$1.judge.stderr") || return 1
+    printf '%s\n' "$line" | cut -f2,4
+}
+
+# What the CLI loads by itself, measured rather than listed. A session with an
+# empty home, an empty config directory and a key that cannot authenticate
+# prints its `init` and fails at the first request, so it costs nothing. A
+# session listing anything beyond this, other than the WITH arm's own skill,
+# took it from somewhere else, and is contaminated. A list of the user's skill
+# names could not decide this: Claude Code bundles `deep-research`, and an
+# account-synced copy of Anthropic's skill uses the same name, which failed a
+# clean preflight on 2026-10-31. A synced copy loads as `<plugin>:<skill>` besides.
+base="$work_root/baseline-$$"
+mkdir -p "$base/ws" "$base/home" "$base/cfg" && git -C "$base/ws" init -q
+(cd "$base/ws" && env -u CLAUDE_CODE_OAUTH_TOKEN HOME="$(native "$base/home")" USERPROFILE="$(native "$base/home")" \
+    CLAUDE_CONFIG_DIR="$(native "$base/cfg")" ANTHROPIC_API_KEY=probe-baseline-cannot-authenticate \
+    claude -p "Answer NONE." "${cli_flags[@]}" --max-budget-usd 0.01 \
+    < /dev/null > "$out/baseline.jsonl" 2> "$out/baseline.jsonl.stderr")
+base_line=$(judge_loaded "$out/baseline.jsonl" "$base/ws")
+base_rc=$?
+rm -rf "${base:?}"
+[ "$base_rc" -eq 0 ] || die "the baseline transcript could not be read (location: $out/baseline.jsonl)"
+grep -q '"subtype":"init"' "$out/baseline.jsonl" ||
+    die "the CLI's own baseline printed no init event, so contamination could not be judged (location: $out/baseline.jsonl)"
+IFS=$'\t' read -r base_cost base_loaded <<< "$base_line"
+[ "$(micros "${base_cost:-0}")" -eq 0 ] || die "the baseline session reported a cost, so its key authenticated; nothing else was run"
+baseline=$(tr , '\n' <<< "$base_loaded")
+echo "CLI baseline: $(grep -c . <<< "$baseline") item(s) the CLI loads by itself"
+
+contaminated() { # <loaded> <allowed-skill or empty>; prints the first item from elsewhere
+    local item
+    IFS=, read -r -a items <<< "$1"
+    for item in "${items[@]}"; do
+        [ -n "$item" ] || continue
+        [ -n "$2" ] && [ "$item" = "skill:$2" ] && continue
+        grep -qxF "$item" <<< "$baseline" || { printf '%s' "$item"; return 0; }
+    done
+    return 1
 }
 
 spent=0
 # The tally sums results.tsv, which has no row for the preflight; this is the
 # figure the budget was enforced against.
-spent_line() { echo "spent, including the isolation preflight: \$$(dollars "$spent")"; }
+spent_line() {
+    echo "spent, including the isolation preflight: \$$(dollars "$spent")"
+    # One model per run is a stated condition; one CLI is too, and an update
+    # elsewhere on the machine can change it between sessions (seen 2026-10-31).
+    echo "CLI version per session:"
+    find "$out" -name transcript.jsonl -exec jq -r 'select(.type == "system" and .subtype == "init") | .claude_code_version // "unreported"' {} + |
+        sort | uniq -c
+}
+# A probe session never updates the CLI itself.
+export DISABLE_AUTOUPDATER=1
 results="$out/results.tsv"
 [ -f "$results" ] || printf '#tag\tarm\tsample\toutcome\tcost_usd\ttokens\tloaded\tskills_invoked\n' > "$results"
 
@@ -317,21 +340,25 @@ pre="$work_root/preflight-$$"
 mkdir -p "$pre" && git -C "$pre" init -q
 session "$pre" "Quote the first heading of every CLAUDE.md or other instruction file you were given, and list every skill you can see. If there are none, answer NONE." \
     "$out/preflight.jsonl" "$(dollars "$session_micros")"
-# Any probe will do for reading the transcript's metadata; every kind's inputs are given.
-pre_line=$(relearn probe judge --rules "$rules" --tag "$(printf '%s\n' "$plan" | head -n 1 | cut -f1)" \
-    --transcript "$out/preflight.jsonl" --workspace "$pre" --run-exit 2 2> "$out/preflight.judge.stderr")
+pre_src=$?
+pre_line=$(judge_loaded "$out/preflight.jsonl" "$pre")
 pre_rc=$?
 rm -rf "${pre:?}" "${pre:?}.config"
 [ "$pre_rc" -eq 0 ] || die "isolation preflight: the transcript could not be read (location: $out/preflight.jsonl)"
-IFS=$'\t' read -r _ pre_cost _ pre_loaded _ <<< "$pre_line"
-spent=$((spent + $(micros "$pre_cost")))
+IFS=$'\t' read -r pre_cost pre_loaded <<< "$pre_line"
+spent=$((spent + $(micros "${pre_cost:-0}")))
+# A preflight that failed and spent nothing never reached the model, usually a
+# key that does not authenticate; every session after it would do the same.
+if [ "$pre_src" -ne 0 ] && [ "$(micros "${pre_cost:-0}")" -eq 0 ]; then
+    die "isolation preflight: the session exited $pre_src having spent nothing, so it never reached the model; check the key (location: $out/preflight.jsonl). Nothing else was run."
+fi
 if [ -n "$canary" ] && grep -qF "$canary" "$out/preflight.jsonl"; then
     die "isolation preflight FAILED: the session could quote the user's CLAUDE.md (location: $out/preflight.jsonl). Nothing else was run."
 fi
-if contaminated "$pre_loaded" ""; then
-    die "isolation preflight FAILED: the session started with a user skill, plugin or MCP server (location: $out/preflight.jsonl). Nothing else was run."
+if leaked=$(contaminated "$pre_loaded" ""); then
+    die "isolation preflight FAILED: the session's init listed $leaked, which the CLI does not load by itself (location: $out/preflight.jsonl). Nothing else was run."
 fi
-echo "isolation preflight: no user CLAUDE.md canary, and nothing from the user layer in init"
+echo "isolation preflight: no user CLAUDE.md canary, and nothing in init beyond the CLI's baseline"
 
 failed=0
 started=$(date +%s)
@@ -378,8 +405,12 @@ for ((i = 1; i <= samples; i++)); do
             if line=$("${judge[@]}" 2> "$rec/judge.stderr"); then
                 IFS=$'\t' read -r verdict cost tokens loaded invoked <<< "$line"
                 outcome=$verdict
-                if [ "$src" -ne 0 ] && [ -z "$cost" ]; then outcome=error; fi
-                contaminated "$loaded" "$allowed" && outcome=contaminated
+                # A session that failed and spent nothing did nothing, so a verdict
+                # on its empty transcript would be `inconclusive` for a reason that
+                # is not the probe's. One that failed after spending, such as at its
+                # cap, did work, and is judged on what it did.
+                if [ "$src" -ne 0 ] && [ "$(micros "${cost:-0}")" -eq 0 ]; then outcome=error; fi
+                contaminated "$loaded" "$allowed" > /dev/null && outcome=contaminated
             else
                 outcome=error cost="" tokens="" loaded="" invoked=""
             fi

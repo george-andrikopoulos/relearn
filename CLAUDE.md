@@ -140,7 +140,8 @@ It is the reference implementation of the error loop described in *Tuning the St
   answer. Every checker carries a held and a violated case, and `probe-run.sh --self-test`, a
   `check.sh` stage, fails unless each comes back as named: a checker that cannot say `violated`
   measures nothing. A sample whose task was not done is `inconclusive`, and a session whose
-  `init` lists a user skill, plugin or MCP server is `contaminated`. Neither is ever counted as
+  `init` lists anything beyond the CLI's own baseline, measured free at the start of each run,
+  and the WITH arm's skill is `contaminated`. Neither is ever counted as
   held. relearn only lists, judges and tallies. The runner, `scripts/probe-run.sh`, is the one
   thing in the repository that starts a model, so solo mode still holds. It spends nothing
   without `--budget-usd`, and it writes transcripts only outside the repository.
