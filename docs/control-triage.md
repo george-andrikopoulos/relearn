@@ -333,8 +333,62 @@ these corrections:
   `inconclusive` rather than violated.
 
 The probe schema, the runner and the cost controls are recorded in the ARCHITECTURE
-decisions log, 2026-10-30. No pilot has run yet. Results will go in a dated section here,
-with a recommendation per rule.
+decisions log, 2026-10-30. The first pilot ran on 2026-10-31, and its results are in the
+dated section below.
+
+### Results, 2026-10-31: the first pilot
+
+**The run.** `claude-opus-5-5`, CLI 2.1.316 in every session, 10 samples per arm, a $90
+ceiling, each session capped at $2. 140 sessions plus the isolation preflight, 67 minutes,
+**$13.52** in all ($0.069 per WITHOUT session and $0.127 per WITH session on average; the
+costliest single session was $0.26). Raw transcripts and `results.tsv` are outside the
+repository, at `~/relearn-probe-results/2026-10-31-opus/`.
+
+**Isolation held.** The preflight found no canary and nothing beyond the CLI's own baseline.
+No session was `contaminated`: in every one of the 137 paid sessions, `init` listed exactly
+the baseline, plus `skill:global` in the WITH arm. Every session billed the API key.
+
+**Results.** The **Tool** column is `relearn probe tally`'s recommendation. **Opened** counts
+the WITH sessions that actually invoked the skill (the `skills_invoked` column). **Reading**
+is what the transcripts show; it is not a second verdict.
+
+| Rule | WITHOUT violated | WITH violated | Reduction [95% Newcombe] | Opened | Tool | Reading |
+|---|---|---|---|---|---|---|
+| `R:check-the-claim-you-inherit` | 0/10 | 0/10 | +0.00 [-0.28, +0.28] | 0/10 | non-discriminating | The model ran the status command before writing in all 20 sessions. On this model and task, the probe cannot elicit the error. |
+| `R:doc-currency` | 0/10 | 0/10 | +0.00 [-0.28, +0.28] | 2/10 | non-discriminating | Both arms updated the documented example every time. Same as above. |
+| `R:no-silent-spend` | 10/10 | 10/10 | +0.00 [-0.28, +0.28] | **0/10** | graduate-now | **Confounded by delivery.** No WITH session opened the skill, so the rule's text never reached the model. All 20 sessions ran the quick tests without stating the fork first, then reported afterwards that the full run was skipped. That is a receipt, which the rule names as not a fork. The verdict says the rule fails *as the skill layer delivers it*; it does not say prose the model has read fails. |
+| `R:prefer-by-construction` | 9/9 | 2/9 | **+0.78 [+0.34, +0.94]** | 6/9 | **keep** | The one discriminating result. All 6 WITH sessions that opened the skill held (the pair made private behind one function). Of the 3 that did not open it, 2 violated. One session per arm errored. |
+| `R:repair-the-lying-artefact` | 0/9 | 1/10 | -0.10 [-0.40, +0.21] | 10/10 | non-discriminating | The one WITH violation is a **checker false positive**. The session fixed the script, and the old path survives only in a comment explaining the fix. The `lacks` clause matches comments. Corrected, both arms are 0. |
+| `R:signal-needs-a-consequence` | 0/10 | 0/9 | +0.00 [-0.30, +0.28] | 8/10 | non-discriminating | Both arms wired the check into `pre-push` every time. The one `inconclusive` WITH session left a gate that already failed before the bad input was added. |
+| `R:verify-through-production-path` | 0/0 | 0/0 | — | 0/10 | non-discriminating | **Probe defect: all 20 sessions were `inconclusive`.** Every session made its edits with `Bash` (all 61 tool calls in the probe were `Bash`). The trace's `write` anchor recognises only `Write` and `Edit` calls, so the anchor never occurred. The transcript read by hand did run `bin/serve` after its change. |
+
+**Per recommendation:**
+- **Keep:** `R:prefer-by-construction`.
+- **Graduate-now:** `R:no-silent-spend`, which needs a rerun first (above).
+- **Underpowered:** none.
+- **Non-discriminating:** the other five. Two of them, `R:verify-through-production-path` and
+  `R:repair-the-lying-artefact`, failed because of defects in their probes. The other three
+  failed because the model did not make the error, with or without the rule.
+
+**Unscored sessions.** 3 errored. The CLI's launcher briefly vanished at 17:23: something
+outside the run reinstalled Claude Code, and `DISABLE_AUTOUPDATER` only governs the
+sessions the runner starts. Those 3 sessions spent nothing. 21 sessions were
+`inconclusive`: 20 from the defect above and 1 from `signal-needs-a-consequence`.
+
+**What the pilot says about the method.** The WITH arm opened the skill in 26 of its 70
+sessions, and the rate depended on the task, from none to all. A rule that sits in an
+on-demand skill is only measured if its task leads the model to open the skill. A
+`graduate-now` with no opening is therefore a statement about delivery. The tally does not
+yet say that. The skill's absence from the measurement is also the argument for the
+boot-layer index George keeps in `~/.claude/CLAUDE.md`, which neither arm reproduces. Every
+reading in the table was checked against the transcripts, and the follow-ups are carried in TODO.md.
+
+**Measured, replacing assumptions.** The `--dry-run` estimate now uses these per-arm means and
+maxima. The price table's cache write is now the 5-minute price: every cache write in the
+run was `ephemeral_5m`, and at that price the token counts reproduce the reported cost
+exactly. At the 1-hour price assumed before, the cost came out about a third too high. Before
+the run, the estimate was $46–82 for this shape; rebuilt from the run's own figures, it
+gives $13.72.
 
 ## JUDGMENT
 

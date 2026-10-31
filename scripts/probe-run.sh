@@ -49,29 +49,31 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 rules="$repo/rules"
 probes="$repo/tests/probes"
 
-# --- the price and size assumptions behind --dry-run -------------------------
-# Per million tokens: input, output, cache write (1-hour, the dearer of the
-# two), cache read. Official pricing page, read 2026-10-30. A model not listed
-# here has no estimate, and --dry-run says so rather than guess.
+# --- the price and size figures behind --dry-run -----------------------------
+# Per million tokens: input, output, cache write, cache read. Official pricing
+# page, read 2026-10-30. The cache write is the 5-minute one, 1.25x input: every
+# write in the 2026-10-31 pilot was `ephemeral_5m`, and at that price the
+# pilot's token counts reproduce its reported cost exactly (the 1-hour price,
+# assumed before it, put the cost about a third too high). A model not listed here
+# has no estimate, and --dry-run says so rather than guess.
 price_for() {
     case "$1" in
-        claude-opus-5-5 | opus) echo "4 20 8 0.20" ;;
-        claude-sonnet-5-5 | sonnet) echo "2 10 4 0.10" ;;
+        claude-opus-5-5 | opus) echo "4 20 5 0.20" ;;
+        claude-sonnet-5-5 | sonnet) echo "2 10 2.5 0.10" ;;
         *) return 1 ;;
     esac
 }
-# Per session, ASSUMED until a pilot measures it: turns, the prompt and tool
-# definitions every turn re-reads, context added per turn, output per turn,
-# uncached input, and the extra the WITH arm pays when the model opens the
-# skill (the global skill is about 62 KB).
-EST_TURNS=10
-EST_BASE=25000
-EST_GROWTH=1500
-EST_OUT=600
-EST_UNCACHED=5000
-EST_SKILL=16000
-EST_SECONDS_LO=60
-EST_SECONDS_HI=120
+# Per session, MEASURED on the 2026-10-31 pilot (claude-opus-5-5, CLI 2.1.316,
+# the 137 sessions that left a transcript): cache read, cache written, output,
+# uncached input. The low end is each arm's mean, the high end its costliest
+# session. The WITH arm is dearer because a session that opens the skill reads
+# it. Another model, or a probe set with longer tasks, may differ.
+MEAN_WITHOUT="44647 6527 1365 9"
+MEAN_WITH="73167 15004 1874 9"
+MAX_WITHOUT="65630 7881 2391 12"
+MAX_WITH="145569 30341 4017 12"
+# Wall clock per session, judging included: 67 minutes for 140 sessions.
+SECONDS_PER_SESSION=29
 
 die() { echo "probe-run: $*" >&2; exit 2; }
 
@@ -91,13 +93,13 @@ while [ $# -gt 0 ]; do
         --self-test) mode=self-test ;;
         --dry-run) mode=dry-run ;;
         --model) model=${2:?--model needs a value}; shift ;;
-        --samples) samples=${2:?}; shift ;;
-        --max-samples) max_samples=${2:?}; shift ;;
-        --budget-usd) budget=${2:?}; shift ;;
-        --session-budget-usd) per_session=${2:?}; shift ;;
-        --out) out=${2:?}; shift ;;
-        --work-root) work_root=${2:?}; shift ;;
-        --tag) tags+=("${2:?}"); shift ;;
+        --samples) samples=${2:?--samples needs a value}; shift ;;
+        --max-samples) max_samples=${2:?--max-samples needs a value}; shift ;;
+        --budget-usd) budget=${2:?--budget-usd needs a value}; shift ;;
+        --session-budget-usd) per_session=${2:?--session-budget-usd needs a value}; shift ;;
+        --out) out=${2:?--out needs a value}; shift ;;
+        --work-root) work_root=${2:?--work-root needs a value}; shift ;;
+        --tag) tags+=("${2:?--tag needs a value}"); shift ;;
         *) die "unknown argument $1" ;;
     esac
     shift
@@ -181,22 +183,19 @@ estimate() {
         return
     fi
     read -r in_p out_p cw_p cr_p <<< "$p"
-    awk -v s="$sessions" -v t="$EST_TURNS" -v b="$EST_BASE" -v g="$EST_GROWTH" \
-        -v o="$EST_OUT" -v u="$EST_UNCACHED" -v k="$EST_SKILL" \
-        -v ip="$in_p" -v op="$out_p" -v wp="$cw_p" -v rp="$cr_p" 'BEGIN {
-        read  = t * b + g * t * (t - 1) / 2
-        out   = t * o
-        # Low: the shared prompt prefix is a cache hit after the first session.
-        wlo   = t * g
-        # High: every session writes its prefix again, and every WITH session
-        # opens the skill.
-        whi   = b + t * g + k / 2
-        lo = (u * ip + out * op + wlo * wp + (read + b) * rp) / 1e6
-        hi = (u * ip + out * op + whi * wp + read * rp) / 1e6
-        printf "estimated tokens per session: about %d (%d cache read, %d written, %d output)\n", \
-            read + whi + out + u, read, whi, out
-        printf "estimated tokens in total: about %.1f million\n", s * (read + whi + out + u) / 1e6
-        printf "estimated cost: $%.2f to $%.2f ($%.2f to $%.2f per session)\n", s * lo, s * hi, lo, hi
+    awk -v s="$sessions" -v mw="$MEAN_WITH" -v mo="$MEAN_WITHOUT" \
+        -v xw="$MAX_WITH" -v xo="$MAX_WITHOUT" \
+        -v ip="$in_p" -v op="$out_p" -v wp="$cw_p" -v rp="$cr_p" '
+    function tokens(f,   a) { split(f, a, " "); return a[1] + a[2] + a[3] + a[4] }
+    function cost(f,   a) { split(f, a, " "); return (a[1] * rp + a[2] * wp + a[3] * op + a[4] * ip) / 1e6 }
+    BEGIN {
+        # Half the sessions are each arm.
+        t  = (tokens(mw) + tokens(mo)) / 2
+        lo = (cost(mw) + cost(mo)) / 2
+        hi = (cost(xw) + cost(xo)) / 2
+        printf "estimated tokens per session: about %d (WITH %d, WITHOUT %d, mean)\n", t, tokens(mw), tokens(mo)
+        printf "estimated tokens in total: about %.1f million\n", s * t / 1e6
+        printf "estimated cost: $%.2f to $%.2f ($%.3f to $%.3f per session)\n", s * lo, s * hi, lo, hi
     }'
 }
 
@@ -208,9 +207,9 @@ if [ "$mode" = dry-run ]; then
     echo "samples per arm: $samples (hard cap --max-samples $max_samples)"
     echo "headless sessions: $sessions ($n_probes probes x 2 arms x $samples), plus 1 isolation preflight"
     estimate
-    awk -v s="$sessions" -v lo="$EST_SECONDS_LO" -v hi="$EST_SECONDS_HI" 'BEGIN {
-        printf "estimated wall clock, serial: %.1f to %.1f hours\n", s * lo / 3600, s * hi / 3600 }'
-    echo "every per-session figure above is an ASSUMPTION in this script (EST_*), not a measurement"
+    awk -v s="$sessions" -v t="$SECONDS_PER_SESSION" 'BEGIN {
+        printf "estimated wall clock, serial: about %.1f hours\n", s * t / 3600 }'
+    echo "per-session figures above were MEASURED on one pilot (2026-10-31, claude-opus-5-5); another model or probe set may differ"
     exit 0
 fi
 
