@@ -11,7 +11,7 @@ name='no-embedded-local-llm'
 tag='R:no-weak-model-for-judgment'
 message='This wires a local model runtime into the tool. If the work it does needs judgment, route it to the capable model the tool already reaches instead of embedding a sub-tier one. A tightly scoped mechanical pass is the exception: mark the line with the override token and say why.'
 files_ere='((^|/)([^/]+/)*[^/]*\.rs$)|((^|/)([^/]+/)*[^/]*\.py$)|((^|/)([^/]+/)*[^/]*\.ts$)|((^|/)([^/]+/)*[^/]*\.js$)|((^|/)([^/]+/)*[^/]*\.go$)|((^|/)([^/]+/)*[^/]*\.java$)|((^|/)([^/]+/)*Cargo\.toml$)|((^|/)([^/]+/)*package\.json$)|((^|/)([^/]+/)*pyproject\.toml$)|((^|/)([^/]+/)*requirements[^/]*\.txt$)|((^|/)([^/]+/)*go\.mod$)'
-exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -53,4 +53,4 @@ context="$(
 jq -n --arg c "$context" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}' || fail "jq could not build the warning"
 exit 0
 
-# <!-- relearn:generated v0.1.0 sha256=a34aec55127626585ccfba3378a710642a2ef7201eef72afbf131a7962a566e4 rules=R:no-weak-model-for-judgment -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=f7efe2b3f8c35ea3ee36e4fe96f58af7914bd8a5a1e5c94f4f3b022c5b5d0b66 rules=R:no-weak-model-for-judgment -- DO NOT EDIT; regenerate with `relearn build` -->

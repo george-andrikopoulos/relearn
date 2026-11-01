@@ -11,7 +11,7 @@ name='no-unwrap-in-src'
 tag='R:no-unwrap-in-production'
 message='No unwrap() in production code. Propagate with ?, or use .expect() with a message naming the resource and the invariant, or match both arms. A call that truly cannot fail is marked on its line.'
 files_ere='((^|/)src/([^/]+/)*[^/]*\.rs$)'
-exclude_ere='((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*[^/]*test_[^/]*\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*[^/]*test_[^/]*\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:unwrap')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=422624543f9df69cb4611dec2a65a894f627b1a341485fa94cff6892c0fbd17c rules=R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=30930ae837a7d448e728731fa65ce59104fd047d943b5839772b0bf06a2ad813 rules=R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->

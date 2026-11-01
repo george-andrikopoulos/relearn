@@ -21,7 +21,7 @@
 use std::fmt::Write as _;
 
 use crate::rule::{
-    Authority, Body, Date, Detector, ErrorClass, Federation, FixtureInput, Home, Origin,
+    Authority, Body, Date, Detector, ErrorClass, Federation, FixtureInput, Gate, Home, Origin,
     PublishedIncident, Rule, RuleTag, ScopeTag, Status, Version, to_document,
 };
 
@@ -215,6 +215,20 @@ pub struct Contribution<'a> {
     /// Travels whole: a detector is the rule's mechanical half, and a
     /// contribution without it would publish the prose and keep the control.
     detectors: &'a [Detector],
+    /// Travels whole, for the same reason: a gate is a mechanical half too.
+    gates: &'a [Gate],
+}
+
+/// The free text one gate carries: its message and every field of every
+/// fixture record.
+fn gate_texts(gate: &Gate) -> impl Iterator<Item = (&'static str, &str)> {
+    std::iter::once(("detector.message", gate.message())).chain(gate.fixtures().iter().flat_map(
+        |f| {
+            f.texts()
+                .into_iter()
+                .map(|t| ("detector.fixture.records", t))
+        },
+    ))
 }
 
 /// The free text one detector carries, each paired with its field name.
@@ -226,6 +240,10 @@ fn detector_texts(detector: &Detector) -> impl Iterator<Item = (&'static str, &s
                 FixtureInput::Siblings(names) => names
                     .iter()
                     .map(|n| ("detector.fixture.siblings", n.as_str()))
+                    .collect(),
+                FixtureInput::Listed(list) => list
+                    .iter()
+                    .map(|e| ("detector.fixture.list", e.as_str()))
                     .collect(),
             };
             std::iter::once(("detector.fixture.path", f.path().as_str())).chain(input)
@@ -266,6 +284,7 @@ impl<'a> Contribution<'a> {
             body: rule.body(),
             applies_to: rule.applies_to(),
             detectors: rule.detectors(),
+            gates: rule.gates(),
         })
     }
 
@@ -326,6 +345,7 @@ impl<'a> Contribution<'a> {
         // input; both travel, so both are scanned. The pattern and globs are
         // not prose, and a name inside a fixture is caught by its input.
         .chain(self.detectors.iter().flat_map(detector_texts))
+        .chain(self.gates.iter().flat_map(gate_texts))
     }
 
     /// Render the contribution as a rule document.
@@ -373,7 +393,8 @@ impl<'a> Contribution<'a> {
             Authority::local_at(version.get()),
             None,
             self.detectors.to_vec(), // allow:clone: the rendered rule owns its fields, as above
-        );
+        )
+        .with_gates(self.gates.to_vec()); // allow:clone: same
         to_document(&rule)
     }
 

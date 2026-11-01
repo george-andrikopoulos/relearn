@@ -15,7 +15,6 @@ pattern = 'gh repo create .*--public|gh repo edit .*--visibility[= ]public|visib
 comment = "#"
 allow = "allow:public-repo"
 files = ["**/*.sh", "**/*.bash", "**/*.ps1", "**/*.py", "**/*.tf", "**/*.yml", "**/*.yaml", "**/Makefile", "**/justfile"]
-exclude = ["**/hooks/test-detectors.sh", "**/hooks/no-public-repo-create.sh"]
 events = ["claude-code-pre-tool-use"]
 action = "block"
 message = "This creates or flips a repository to public. Publication has no undo, so it is a decision somebody names, not a default a script carries. Create it private; if this repository is a named public exception, mark the line with the override token and say which exception."

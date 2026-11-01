@@ -581,6 +581,11 @@ enum Target {
     /// (`hooks/relearn-load-log.sh`). The same for every corpus. **Explicit
     /// only**, for the reason `hooks` is.
     LoadLog,
+    /// Repository gates compiled from rules' gate `[[detector]]` tables
+    /// (`gates/<name>.sh`) and their fixture runner, for a consuming
+    /// repository's own gate to call. **Explicit only**, for the reason
+    /// `hooks` is.
+    Repo,
 }
 
 /// The lowest [`lint::Severity`] that makes `relearn lint` exit non-zero.
@@ -1283,6 +1288,33 @@ fn controls(
     for stale in resolution.unclaimed() {
         println!("STALE_MAP_ENTRY     {stale}  — controls map places it and no rule names it");
     }
+    // Reported, never graded: the rule does not name the control yet, and
+    // naming it is a status change that is the operator's to make.
+    for p in resolution.proposals() {
+        let place = format!(
+            "{}:{}",
+            p.location().root(),
+            p.location().artefact().primary()
+        );
+        if p.is_open() {
+            println!(
+                "PROPOSED            {}  {}  [{}] {}: {}",
+                p.tag(),
+                p.control(),
+                place,
+                p.verdict().label(),
+                p.verdict()
+            );
+        } else {
+            println!(
+                "STALE_PROPOSAL      {}  {}  [{}] {}",
+                p.tag(),
+                p.control(),
+                place,
+                p.standing()
+            );
+        }
+    }
     let count = |label: &str| {
         resolution
             .rows()
@@ -1291,14 +1323,20 @@ fn controls(
             .count()
     };
     let summary = format!(
-        "{} control(s): {} wired, {} not wired, {} missing, {} uncheckable, {} unmapped, {} stale map entries",
+        "{} control(s): {} wired, {} not wired, {} missing, {} uncheckable, {} unmapped, {} stale map entries; {} proposal(s), {} stale",
         resolution.rows().len(),
         count("RESOLVED_AND_WIRED"),
         count("RESOLVED_NOT_WIRED"),
         count("MISSING"),
         count("UNCHECKABLE"),
         count("UNMAPPED"),
-        resolution.unclaimed().len()
+        resolution.unclaimed().len(),
+        resolution.proposals().len(),
+        resolution
+            .proposals()
+            .iter()
+            .filter(|p| !p.is_open())
+            .count()
     );
     Ok(match resolution.outcome() {
         Outcome::Pass => {
@@ -1322,19 +1360,28 @@ fn check(rules: &Path) -> Result<(), CliError> {
     // Every detector's fixtures already ran while parsing. What parsing cannot
     // see is the corpus around them: run each detector as a write of every rule
     // file and of every file any target emits, where each would land.
-    let sources = fsio::read_rule_sources(rules)?;
-    let every_target: Vec<Target> = Target::value_variants().to_vec();
-    let every_layer = emit::claude_rules::layers_of(&validated);
-    let emitted = emit_selected(&validated, &every_target, &every_layer);
-    let mut files: Vec<(String, &str)> = sources
-        .iter()
-        .map(|(name, text)| (format!("rules/{name}"), text.as_str()))
+    let sources: Vec<(String, String)> = fsio::read_rule_sources(rules)?
+        .into_iter()
+        .map(|(name, text)| (format!("rules/{name}"), text))
         .collect();
-    files.extend(
-        emitted
-            .iter()
-            .map(|f| (f.path().as_str().to_owned(), f.contents())),
-    );
+    // The hooks and repo targets' files come with their roles, so the sweep
+    // can skip a detector's own script and a runner by identity, not by path.
+    let other_targets: Vec<Target> = Target::value_variants()
+        .iter()
+        .copied()
+        .filter(|t| *t != Target::Hooks && *t != Target::Repo)
+        .collect();
+    let every_layer = emit::claude_rules::layers_of(&validated);
+    let emitted = emit_selected(&validated, &other_targets, &every_layer);
+    let hooks = emit::hooks::emit_with_roles(&validated);
+    let repo = emit::repo::emit_with_roles(&validated);
+    let mut files: Vec<emit::hooks::Swept<'_>> = sources
+        .iter()
+        .map(|(path, text)| emit::hooks::Swept::source(path, text))
+        .collect();
+    files.extend(emitted.iter().map(emit::hooks::Swept::emitted));
+    files.extend(hooks.iter().map(|(f, r)| emit::hooks::Swept::hook(f, r)));
+    files.extend(repo.iter().map(|(f, r)| emit::hooks::Swept::hook(f, r)));
     let matches = emit::hooks::self_matches(&validated, &files);
     for m in &matches {
         println!(
@@ -1443,6 +1490,7 @@ fn emit_selected(
             }
             Target::Hooks => files.extend(emit::hooks::emit(validated)),
             Target::LoadLog => files.extend(emit::load_log::emit()),
+            Target::Repo => files.extend(emit::repo::emit(validated)),
         }
     }
     files

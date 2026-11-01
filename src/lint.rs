@@ -23,7 +23,7 @@ use std::fmt;
 use crate::emit::HomeSlug;
 use crate::library::{Library, Validated};
 use crate::resolve::ControlMap;
-use crate::rule::{ControlKind, Date, Home, ProseCoverage, Rule, RuleTag, ScopeTag, Status};
+use crate::rule::{ControlKind, Date, Event, Home, ProseCoverage, Rule, RuleTag, ScopeTag, Status};
 
 /// How much a finding matters. Ordered so `Error > Warning > Info`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -137,7 +137,7 @@ pub enum Finding {
         /// The date of the most recent one.
         latest: Date,
     },
-    /// A rule held by prose carries a detector its status does not name.
+    /// A rule held by prose carries a detector or gate its status does not name.
     ///
     /// The fixtures already pass — `check` would have refused the rule
     /// otherwise — so the detector demonstrably works. Whether it covers the
@@ -148,9 +148,10 @@ pub enum Finding {
     GraduationCandidate {
         /// The rule held by prose.
         tag: RuleTag,
-        /// The `hook:<name>` controls its detectors compile to and its status
-        /// does not name.
-        hooks: Vec<String>,
+        /// The controls its detectors and gates compile to and its status
+        /// does not name: `hook:<name>` for a Claude Code script, then
+        /// `gate:<name>` for a commit-time detector or a repository gate.
+        controls: Vec<String>,
     },
     /// A rule names `hook:<name>` and nothing places it: no detector in the
     /// corpus defines it and the control map has no entry for it.
@@ -259,11 +260,11 @@ impl fmt::Display for Finding {
                     tag.as_str()
                 )
             }
-            Finding::GraduationCandidate { tag, hooks } => write!(
+            Finding::GraduationCandidate { tag, controls } => write!(
                 f,
                 "graduation candidate: {} is held by prose and carries {} whose fixtures pass, which its status does not name. If it covers the whole error class, record `status = {{ kind = \"graduated\", to = \"...\" }}`; if it covers part, record `partial` and name what it does not",
                 tag.as_str(),
-                hooks.join(" + ")
+                controls.join(" + ")
             ),
             Finding::UnplacedHook { tag, hook } => write!(
                 f,
@@ -487,7 +488,8 @@ fn unheld_recurrences(library: &Library<Validated>) -> Vec<Finding> {
         .collect()
 }
 
-/// Rules held by prose that carry a detector their status does not name.
+/// Rules held by prose that carry a detector or gate their status does not
+/// name.
 ///
 /// Read through [`Status::prose_coverage`], so `Partial` is included: a partial
 /// rule with a new detector that its `by` does not list has a control it is not
@@ -499,39 +501,48 @@ fn graduation_candidates(library: &Library<Validated>) -> Vec<Finding> {
             ProseCoverage::Holds => {}
             ProseCoverage::None => continue,
         }
-        let named = named_hooks(rule);
-        let hooks: Vec<String> = rule
+        let named_hooks = named(rule, ControlKind::Hook);
+        let named_gates = named(rule, ControlKind::Gate);
+        // A detector with a Claude Code script is a `hook:`; one that runs at
+        // commit, and every repository gate, is a `gate:` (George,
+        // 2026-11-01). A detector at both events is proposed as both.
+        let hooks = rule
             .detectors()
             .iter()
+            .filter(|d| d.has_hook_script())
             .map(|d| d.name().as_str())
-            .filter(|name| !named.contains(name))
-            .map(|name| format!("hook:{name}"))
-            .collect();
-        if !hooks.is_empty() {
+            .filter(|name| !named_hooks.contains(name))
+            .map(|name| format!("hook:{name}"));
+        let commit_time = rule
+            .detectors()
+            .iter()
+            .filter(|d| d.runs_at(Event::GitPreCommit))
+            .map(|d| d.name().as_str());
+        let gates = commit_time
+            .chain(rule.gates().iter().map(|g| g.name().as_str()))
+            .filter(|name| !named_gates.contains(name))
+            .map(|name| format!("gate:{name}"));
+        let controls: Vec<String> = hooks.chain(gates).collect();
+        if !controls.is_empty() {
             findings.push(Finding::GraduationCandidate {
                 tag: rule.tag().clone(), // allow:clone: the finding owns its tag, outliving the &Library borrow
-                hooks,
+                controls,
             });
         }
     }
     findings
 }
 
-/// The `hook:` controls a rule's status names, by name.
-fn named_hooks(rule: &Rule) -> Vec<&str> {
+/// The controls of `kind` a rule's status names, by name.
+fn named(rule: &Rule, kind: ControlKind) -> Vec<&str> {
     let Some(controls) = rule.status().named_controls() else {
         return Vec::new();
     };
     controls
         .as_slice()
         .iter()
-        .filter_map(|control| match control.kind() {
-            ControlKind::Hook => Some(control.name()),
-            ControlKind::Type
-            | ControlKind::PropertyTest
-            | ControlKind::UnitTest
-            | ControlKind::Gate => None,
-        })
+        .filter(|control| control.kind() == kind)
+        .map(|control| control.name())
         .collect()
 }
 
@@ -552,7 +563,7 @@ pub fn unplaced_hooks(library: &Library<Validated>, map: Option<&ControlMap>) ->
         .collect();
     let mut findings = Vec::new();
     for rule in library.rules() {
-        for hook in named_hooks(rule) {
+        for hook in named(rule, ControlKind::Hook) {
             let placed = map.is_some_and(|m| {
                 m.entries()
                     .any(|(id, _)| id.kind() == ControlKind::Hook && id.name() == hook)

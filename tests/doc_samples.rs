@@ -157,3 +157,47 @@ fn the_extractor_finds_a_sample_whatever_the_line_endings() {
     assert_eq!(samples(&crlf).len(), 1, "CRLF");
     assert!(samples(&crlf)[0].document.contains("tag = \"R:x\""));
 }
+
+/// Documents whose sample is a **copy of a real rule file**, and the file it
+/// copies. The rule file is authoritative.
+///
+/// A copy shown to a reader is a second original unless something fails when
+/// it diverges (`[R:one-home-per-rule]`: "give the copy a check that fails
+/// when it diverges"). `every_rule_sample_in_the_documentation_parses` only
+/// asks that the sample is *a* rule; this asks that it is *this* rule. Found by
+/// the `one-home-paragraph` gate's first run, 2026-11-01, when the copy was
+/// still identical and nothing would have said so the day it stopped being.
+///
+/// `docs/worked-example-two-installs.md` is deliberately absent: its samples
+/// are a rule at successive revisions, which differ from the file by design.
+const COPIES: &[(&str, &str)] = &[("docs/worked-example.md", "rules/order-by-explicit-rank.md")];
+
+#[test]
+fn a_sample_that_copies_a_rule_file_matches_it() {
+    let root = repo_root();
+    for (doc, rule_file) in COPIES {
+        let text =
+            fs::read_to_string(root.join(doc)).unwrap_or_else(|e| panic!("reading {doc}: {e}"));
+        let source = fs::read_to_string(root.join(rule_file))
+            .unwrap_or_else(|e| panic!("reading {rule_file}: {e}"));
+        let rule =
+            parse_document(&source).unwrap_or_else(|e| panic!("{rule_file} must parse: {e}"));
+        let copies: Vec<Sample> = samples(&text)
+            .into_iter()
+            .filter(|s| parse_document(&s.document).is_ok_and(|r| r.tag() == rule.tag()))
+            .collect();
+        assert!(
+            !copies.is_empty(),
+            "{doc} is listed as copying {rule_file} and shows no sample with its tag"
+        );
+        for copy in copies {
+            let shown = parse_document(&copy.document).expect("filtered to samples that parse");
+            assert_eq!(
+                shown, rule,
+                "{doc}:{} copies {rule_file} and has diverged from it. The rule file is \
+                 the source: re-copy it into the document.",
+                copy.line
+            );
+        }
+    }
+}

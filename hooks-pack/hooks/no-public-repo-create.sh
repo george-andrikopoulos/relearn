@@ -11,7 +11,7 @@ name='no-public-repo-create'
 tag='R:repository-private-by-default'
 message='This creates or flips a repository to public. Publication has no undo, so it is a decision somebody names, not a default a script carries. Create it private; if this repository is a named public exception, mark the line with the override token and say which exception.'
 files_ere='((^|/)([^/]+/)*[^/]*\.sh$)|((^|/)([^/]+/)*[^/]*\.bash$)|((^|/)([^/]+/)*[^/]*\.ps1$)|((^|/)([^/]+/)*[^/]*\.py$)|((^|/)([^/]+/)*[^/]*\.tf$)|((^|/)([^/]+/)*[^/]*\.yml$)|((^|/)([^/]+/)*[^/]*\.yaml$)|((^|/)([^/]+/)*Makefile$)|((^|/)([^/]+/)*justfile$)'
-exclude_ere='((^|/)([^/]+/)*hooks/test-detectors\.sh$)|((^|/)([^/]+/)*hooks/no-public-repo-create\.sh$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:public-repo')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=9bca5a4c997fecbf3b5018ba48c4a294388a3a260cc27727a02ebbe1033d6aa7 rules=R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=61f5ab0bed5cd8d8be98f43f7753022c41ee09a87e86b9e21cad6142de2c2186 rules=R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -19,7 +19,7 @@ use serde::Deserialize;
 
 use crate::emit::hooks::{HOOKS_DIR, INSTALL_DIR, PACK_DIR};
 use crate::library::{Library, Validated};
-use crate::rule::{Control, ControlError, ControlKind, Controls};
+use crate::rule::{Control, ControlError, ControlKind, Controls, RuleTag, RuleTagError};
 
 /// Why a mapping file could not be read.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -61,8 +61,20 @@ pub enum MapError {
     NotOneControl(String),
 
     /// Two entries for one control — two answers to "where does it live?".
+    /// A `[[proposed]]` entry counts: proposing a control already placed is a
+    /// second answer too.
     #[error("control `{0}` is mapped twice")]
     Duplicate(String),
+
+    /// A `[[proposed]]` entry whose `rule` is not a tag.
+    #[error("proposed control `{control}`: `rule`: {source}")]
+    ProposalRule {
+        /// The control the proposal is for.
+        control: String,
+        /// Why the tag does not parse.
+        #[source]
+        source: RuleTagError,
+    },
 
     /// A hook a rule's `[[detector]]` defines, also placed by hand. The
     /// detector is the hook's one home: delete the map entry.
@@ -442,11 +454,35 @@ impl Location {
     }
 }
 
+/// A control that already exists, placed for a rule that does not name it
+/// yet: `[[proposed]]` in the map. Resolved and reported, never graded,
+/// because naming it is a status change and the status is the operator's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Proposal {
+    rule: RuleTag,
+    location: Location,
+}
+
+impl Proposal {
+    /// The rule the control is proposed for.
+    #[must_use]
+    pub fn rule(&self) -> &RuleTag {
+        &self.rule
+    }
+
+    /// Where the control lives.
+    #[must_use]
+    pub fn location(&self) -> &Location {
+        &self.location
+    }
+}
+
 /// The committed answer to "where does each control live?".
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ControlMap {
     here: RootName,
     entries: BTreeMap<ControlId, Location>,
+    proposals: BTreeMap<ControlId, Proposal>,
 }
 
 #[derive(Deserialize)]
@@ -455,6 +491,34 @@ struct RawMap {
     here: String,
     #[serde(default)]
     control: Vec<RawEntry>,
+    #[serde(default)]
+    proposed: Vec<RawProposal>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawProposal {
+    rule: String,
+    control: String,
+    root: String,
+    path: String,
+    function: Option<String>,
+    invoked_by: Option<String>,
+}
+
+impl RawProposal {
+    fn split(self) -> (String, RawEntry) {
+        (
+            self.rule,
+            RawEntry {
+                control: self.control,
+                root: self.root,
+                path: self.path,
+                function: self.function,
+                invoked_by: self.invoked_by,
+            },
+        )
+    }
 }
 
 #[derive(Deserialize)]
@@ -467,6 +531,27 @@ struct RawEntry {
     invoked_by: Option<String>,
 }
 
+impl RawEntry {
+    /// The entry's identity, its `control` text for an error, and its place.
+    fn into_location(self) -> Result<(ControlId, String, Location), MapError> {
+        let id = ControlId::parse(&self.control)?;
+        let location = Location {
+            root: RootName::parse(self.root)?,
+            artefact: Artefact::build(
+                id.kind(),
+                RelPath::parse(self.path)?,
+                self.function.map(Ident::parse).transpose()?,
+                self.invoked_by.map(RelPath::parse).transpose()?,
+            )
+            .map_err(|why| MapError::Shape {
+                control: self.control.clone(), // allow:clone: the error outlives the entry it names, which is consumed field by field above
+                why,
+            })?,
+        };
+        Ok((id, self.control, location))
+    }
+}
+
 impl ControlMap {
     /// Parse a mapping file. All-or-nothing: one bad entry refuses the file,
     /// because a half-read map reports the controls it dropped as `UNMAPPED`
@@ -476,26 +561,35 @@ impl ControlMap {
         let here = RootName::parse(raw.here)?;
         let mut entries = BTreeMap::new();
         for entry in raw.control {
-            let id = ControlId::parse(&entry.control)?;
-            let location = Location {
-                root: RootName::parse(entry.root)?,
-                artefact: Artefact::build(
-                    id.kind(),
-                    RelPath::parse(entry.path)?,
-                    entry.function.map(Ident::parse).transpose()?,
-                    entry.invoked_by.map(RelPath::parse).transpose()?,
-                )
-                .map_err(|why| MapError::Shape {
-                    control: entry.control.clone(), // allow:clone: the error outlives the entry it names, which is consumed field by field above
-                    why,
-                })?,
-            };
+            let (id, control, location) = entry.into_location()?;
             if entries.contains_key(&id) {
-                return Err(MapError::Duplicate(entry.control));
+                return Err(MapError::Duplicate(control));
             }
             entries.insert(id, location);
         }
-        Ok(ControlMap { here, entries })
+        let mut proposals = BTreeMap::new();
+        for raw in raw.proposed {
+            let (rule, entry) = raw.split();
+            let rule = RuleTag::parse(rule).map_err(|source| MapError::ProposalRule {
+                control: entry.control.clone(), // allow:clone: owned by the error on the failure path only
+                source,
+            })?;
+            let (id, control, location) = entry.into_location()?;
+            if entries.contains_key(&id) || proposals.contains_key(&id) {
+                return Err(MapError::Duplicate(control));
+            }
+            proposals.insert(id, Proposal { rule, location });
+        }
+        Ok(ControlMap {
+            here,
+            entries,
+            proposals,
+        })
+    }
+
+    /// Every `[[proposed]]` entry, in a stable order.
+    pub fn proposals(&self) -> impl Iterator<Item = (&ControlId, &Proposal)> {
+        self.proposals.iter()
     }
 
     /// The root this map file sits in. The caller locates it from the map
@@ -519,7 +613,12 @@ impl ControlMap {
     /// Every root any entry names, plus `here`.
     #[must_use]
     pub fn roots(&self) -> BTreeSet<&RootName> {
-        let mut roots: BTreeSet<&RootName> = self.entries.values().map(Location::root).collect();
+        let mut roots: BTreeSet<&RootName> = self
+            .entries
+            .values()
+            .chain(self.proposals.values().map(Proposal::location))
+            .map(Location::root)
+            .collect();
         roots.insert(&self.here);
         roots
     }
@@ -529,12 +628,15 @@ impl ControlMap {
     pub fn reads(&self) -> BTreeSet<(&RootName, &RelPath)> {
         self.entries
             .values()
+            .chain(self.proposals.values().map(Proposal::location))
             .flat_map(|loc| loc.artefact.reads().into_iter().map(|p| (&loc.root, p)))
             .collect()
     }
 
-    /// This map plus one entry per `[[detector]]` in the corpus, each locating
-    /// `hook:<name>` at the generated script in this repository's pack.
+    /// This map plus one entry per write-time `[[detector]]` in the corpus,
+    /// each locating `hook:<name>` at the generated script in this repository's
+    /// pack. A commit-only detector has no hook script, so it locates nothing
+    /// here.
     ///
     /// A detector is the hook's one home (`[R:one-home-per-rule]`), so a map
     /// entry for the same control is refused rather than preferred: two
@@ -545,10 +647,13 @@ impl ControlMap {
     pub fn with_detectors(mut self, library: &Library<Validated>) -> Result<Self, MapError> {
         for rule in library.rules() {
             for detector in rule.detectors() {
+                if !detector.has_hook_script() {
+                    continue;
+                }
                 let name = detector.name().as_str();
                 let control = format!("hook:{name}");
                 let id = ControlId::parse(&control)?;
-                if self.entries.contains_key(&id) {
+                if self.entries.contains_key(&id) || self.proposals.contains_key(&id) {
                     return Err(MapError::DetectorAlsoMapped(control));
                 }
                 let file = RelPath::parse(format!("{PACK_DIR}/{HOOKS_DIR}/{name}.sh"))?;

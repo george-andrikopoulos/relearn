@@ -263,14 +263,15 @@ fn a_detector_and_a_map_entry_for_one_hook_is_two_homes_and_refused() {
     assert!(err.to_string().contains("hook:no-unwrap"), "{err}");
 }
 
-/// **Only the hooks target reads a detector.** An instruction layer is prose for
-/// a model; a detector is a program for a shell. If another emitter began to
+/// **Only the hooks and repo targets read a detector**: hooks for write time,
+/// repo for the commit-time dispatcher. An instruction layer is prose for a
+/// model; a detector is a program for a shell. If another emitter began to
 /// print one — a pattern quoted into a skill — that layer becomes text a
 /// detector fires on, and the self-exclusion sweep in `check` turns red for a
 /// reason nobody chose. Read from the source, comments stripped, because a
 /// build that quietly consults a field arrives as an improvement.
 #[test]
-fn no_emitter_but_hooks_reads_a_detector() {
+fn no_emitter_but_hooks_and_repo_reads_a_detector() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut checked = 0;
     let mut paths = vec![root.join("src/emit.rs")];
@@ -278,7 +279,10 @@ fn no_emitter_but_hooks_reads_a_detector() {
         paths.push(entry.expect("a readable entry").path());
     }
     for path in paths {
-        if path.file_name().is_some_and(|n| n == "hooks.rs") {
+        if path
+            .file_name()
+            .is_some_and(|n| n == "hooks.rs" || n == "repo.rs")
+        {
             continue;
         }
         let source = fs::read_to_string(&path).expect("a readable source file");
@@ -290,7 +294,7 @@ fn no_emitter_but_hooks_reads_a_detector() {
         for marker in ["detectors()", "Detector"] {
             assert!(
                 !code.contains(marker),
-                "{} reads a detector ({marker}); only emit::hooks may",
+                "{} reads a detector ({marker}); only emit::hooks and emit::repo may",
                 path.display()
             );
         }

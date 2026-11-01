@@ -45,8 +45,9 @@ pub use date::{Date, DateError};
 pub use def::{Recurrence, Rule};
 pub use detector::{
     Action, Detection, Detector, DetectorError, DetectorName, Engine, Event, Fixture, FixtureInput,
-    FixturePath, Glob, GlobProblem, PathScope, Pattern, PatternProblem, SELF_EXCLUDES, Subject,
-    Token,
+    FixturePath, Gate, GateEngine, GateFixture, Glob, GlobProblem, HeadingLevel, LintDefault,
+    LintLevel, LintName, MinBytes, PathScope, Pattern, PatternProblem, RecordProblem,
+    SELF_EXCLUDES, Subject, Token,
 };
 pub use home::{DomainName, Federation, Home, OrgName, ProjectPath};
 pub use origin::{

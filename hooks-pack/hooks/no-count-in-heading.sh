@@ -11,7 +11,7 @@ name='no-count-in-heading'
 tag='R:revision-integrity'
 message='This heading states a count, and the count goes stale on the next addition with nothing to say so. Write the heading without the number, or mark the line with the override token if the number is the subject rather than a tally of what follows.'
 files_ere='((^|/)([^/]+/)*[^/]*\.md$)'
-exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -53,4 +53,4 @@ context="$(
 jq -n --arg c "$context" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}' || fail "jq could not build the warning"
 exit 0
 
-# <!-- relearn:generated v0.1.0 sha256=db86490f1a05797bfdfdea3ce81bf3cfbf86826858914448545061e352ca52e3 rules=R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=a4854b1eced7dfdbd6f10d709a3244897e7392d579266957cdaafaa23ac2917f rules=R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->

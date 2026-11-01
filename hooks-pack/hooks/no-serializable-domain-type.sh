@@ -11,7 +11,7 @@ name='no-serializable-domain-type'
 tag='R:serializable-is-a-second-constructor'
 message='Serializable adds a public constructor that runs none of this class'\''s checks and makes its private field layout an API. Cross the boundary with an explicit format and parser instead. Where it cannot be avoided, mark the line with the override token and add a validating readObject and a serialVersionUID in the same change.'
 files_ere='((^|/)([^/]+/)*[^/]*\.java$)'
-exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:serializable')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=01a7b46bd53936cd5d78f66c596e0e9cba97188f90568b606a7e71762fb6ee7d rules=R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=182dd1ac4f4b6e47ba8f9ce0f3e6ba60de461e64e3cc140e66ae6c223b9600d5 rules=R:serializable-is-a-second-constructor -- DO NOT EDIT; regenerate with `relearn build` -->

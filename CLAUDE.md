@@ -113,10 +113,15 @@ It is the reference implementation of the error loop described in *Tuning the St
   is a `cargo test`.
 - **A detector is proved where it is defined, and installed by a person.** A rule's `[[detector]]`
   tables are its mechanical control, and the rule is their only source: `relearn build --targets
-  hooks` compiles each into a hook script, and nothing else reads them
-  (`no_emitter_but_hooks_reads_a_detector`), so no instruction layer ever quotes a pattern. Its
+  hooks` compiles each Claude Code one into a hook script (a whole-file `sections` one also runs
+  after an `Edit`, reading the file back, and there it only warns), `--targets repo` compiles each
+  `git-pre-commit` one into a commit dispatcher a repository's own `pre-commit` calls, and nothing
+  else reads them (`no_emitter_but_hooks_and_repo_reads_a_detector`), so no instruction layer ever
+  quotes a pattern. A `listed-path` detector's list is machine-local, named per clone in
+  `.git/config`, and never in a rule; without a readable list the dispatcher exits 2, never 0. Its
   fixtures run **while the rule parses** — at least one hit and one clean, and one that disagrees
-  stops the build — and a pattern outside the dialect `regex` and `grep -E` read alike does not
+  stops the build; a gate's `records` fixtures are held the same way, and only `--targets repo`
+  reads a gate (`no_emitter_but_repo_reads_a_gate`) — and a pattern outside the dialect `regex` and `grep -E` read alike does not
   parse, because the same pattern runs in Rust at `check` and in `grep` in the hook. `check` then
   runs every detector over every rule file and every emitted file and fails on any hit
   (`[R:detector-excludes-own-definitions]`). A detector never changes its rule's status:
@@ -188,6 +193,12 @@ relearn check                                          # validate library, run e
 #   fixtures and the self-exclusion sweep; no output written
 relearn build --targets hooks --out hooks-pack         # detectors -> hook scripts (explicit only)
 bash hooks-pack/hooks/test-detectors.sh                # every fixture through the generated scripts
+relearn build --targets repo --out repo-pack           # repository gates -> scripts (explicit only)
+bash repo-pack/gates/test-gates.sh --trees tests/gates # every record fixture, and each gate whole
+#   over a synthetic checkout; a gate script exits 0 clean / 1 finding / 2 could not check;
+#   and every commit-time fixture staged in a throwaway repository and run through
+bash repo-pack/gates/relearn-pre-commit.sh [name ...]  # 0 clean / 1 blocked / 2 could not check
+#   (a listed-path detector reads `git config --local relearn.<name>.list <file>`)
 relearn list --home global                             # inspect
 relearn list --format tsv                              # the corpus as data:
 #   tag, home, created, origin, status, controls, recurrences, last_recurrence
@@ -282,6 +293,7 @@ Before writing an incident, ask: **which repository's detector covers the file I
 - `rules-pack/` — the `claude-rules` target's **user** layer: one `paths:`-scoped file per language domain, for `~/.claude/rules/`, plus a hand-authored README that states no counts. A domain belongs to the developer and installs once at user level, never into a repository. Rebuild with `relearn build --targets claude-rules --rules-layer user --out rules-pack`; `scripts/check.sh` verifies it as a second output root.
 - `hooks-pack/` — the `hooks` target's emission: one bash + `jq` Claude Code `PreToolUse` script per detector, a `test-detectors.sh` runner and a `settings-snippet.md`, with a hand-authored README whose script table `tests/pack_counts.rs` reads back, including the `Install` cell that marks a detector on an `active` rule as a `draft` the install steps never copy. Rebuild with `relearn build --targets hooks --out hooks-pack`; `scripts/check.sh` verifies it and runs the runner. It installs into `~/.claude/hooks/relearn/` by hand, beside any hand-written hook and never over one.
 - `tests/probes/<tag-body>/` — one directory per rule carrying a `[probe]`: the synthetic `workspace/` a session starts in, `cases/held` and `cases/violated` (a transcript for `trace`, a final workspace for `diff` and `run`), and `check.sh` for a `run` checker. Fixtures are synthetic and pinned LF. `tests/probe_corpus.rs` holds the shape; `probe-run.sh --self-test` holds the verdicts.
+- `repo-pack/` — the explicit-only `repo` target's emission: one bash script per **repository gate** (a `[[detector]]` whose event is `repository-gate`), which collects records from a checkout with `git` and judges them in `awk`; `gates/relearn-pre-commit.sh`, every `git-pre-commit` detector in one dispatcher over the index; plus `gates/test-gates.sh`. A hand-authored README holds two tables, gates and commit-time detectors, that `tests/repo_gates.rs` and `tests/pre_commit.rs` read back. Rebuild with `relearn build --targets repo --out repo-pack`. `scripts/check.sh` verifies it, runs the runner over the synthetic checkouts in `tests/gates/<name>/{hit,clean}`, and runs the eol gate over this repository. Copied into a consuming repository by a person, never installed by relearn.
 - `load-log-pack/` — the explicit-only `load-log` target's emission: a hook logging every skill and instruction-file load to a local file, its fixture runner and settings snippet, and a hand-authored README saying what it cannot see. Rebuild with `relearn build --targets load-log --out load-log-pack`; `scripts/check.sh` verifies it and runs the runner. Installed by hand, never by relearn. `relearn loads --log <file> --since <date>` reads what it wrote.
 - `docs/must-load-placement.md` — a dated snapshot: rules expensive to miss whose home loads on request or on read, with a recommendation each.
 - `docs/control-triage.md` — a dated snapshot binning every `active` rule by the control that could hold it (MECHANICAL, TYPE, EVAL, JUDGMENT), with the detectors drafted from it. A snapshot states its own numbers; nothing else quotes them.

@@ -4,7 +4,7 @@
 //! with its arguments in the wrong order — a swap is a compile error.
 
 use super::{
-    Authority, Body, Date, Detector, ErrorClass, Federation, Home, Incident, Origin, Probe,
+    Authority, Body, Date, Detector, ErrorClass, Federation, Gate, Home, Incident, Origin, Probe,
     PublishedIncident, RecurrenceRole, RuleTag, ScopeTag, Status, Title,
 };
 
@@ -61,6 +61,7 @@ pub struct Rule {
     authority: Authority,
     published_incident: Option<PublishedIncident>,
     detectors: Vec<Detector>,
+    gates: Vec<Gate>,
     probe: Option<Probe>,
 }
 
@@ -125,6 +126,7 @@ impl Rule {
             authority,
             published_incident,
             detectors,
+            gates: Vec::new(),
             probe: None,
         }
     }
@@ -229,6 +231,20 @@ impl Rule {
     #[must_use]
     pub fn detectors(&self) -> &[Detector] {
         &self.detectors
+    }
+
+    /// The repository gates that compile to the repo pack's scripts, in file
+    /// order: `[[detector]]` tables whose engine reads a whole checkout. A
+    /// gate is never a write detector, so `detectors` never holds one.
+    #[must_use]
+    pub fn gates(&self) -> &[Gate] {
+        &self.gates
+    }
+
+    /// The same rule carrying `gates`. A transform, after [`Rule::with_probe`].
+    #[must_use]
+    pub fn with_gates(self, gates: Vec<Gate>) -> Self {
+        Rule { gates, ..self }
     }
 
     /// The rule's probe, if it carries one: the task that replays its error

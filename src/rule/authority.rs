@@ -523,30 +523,34 @@ impl PulledRule {
             }
         }
 
-        Ok(PulledRule(Rule::new(
-            upstream.tag().clone(), // allow:clone: the cache owns every field, and the upstream document it was read from is left intact for the caller to print
-            upstream.title().clone(), // allow:clone: same
-            upstream.error_class().clone(), // allow:clone: same
-            upstream.home().clone(), // allow:clone: same — the cache keeps the home it arrived with, which is what lets it emit like a local rule
-            upstream.created(),
-            upstream.origin().clone(),   // allow:clone: same
-            upstream.status().clone(),   // allow:clone: same
-            upstream.incident().clone(), // allow:clone: same — upstream's `incident` is already a published account; the raw one never left their machine
-            upstream.body().clone(),     // allow:clone: same
-            // **No recurrences.** Upstream's history of its own rule is theirs;
-            // this install has not seen this rule fire even once, and copying
-            // their count would fabricate local evidence.
-            Vec::new(),
-            upstream.applies_to().to_vec(), // allow:clone: same
-            Authority::cached(from, version, pulled),
-            // Not carried: a published incident is what upstream wrote *to
-            // publish with*, and this install has nothing to publish.
-            None,
-            // Carried whole. A detector is the rule's mechanical half, not
-            // local evidence: dropping it would cache the prose and lose the
-            // control, and a cache must compile like the rule it copies.
-            upstream.detectors().to_vec(), // allow:clone: same
-        )))
+        Ok(PulledRule(
+            Rule::new(
+                upstream.tag().clone(), // allow:clone: the cache owns every field, and the upstream document it was read from is left intact for the caller to print
+                upstream.title().clone(), // allow:clone: same
+                upstream.error_class().clone(), // allow:clone: same
+                upstream.home().clone(), // allow:clone: same — the cache keeps the home it arrived with, which is what lets it emit like a local rule
+                upstream.created(),
+                upstream.origin().clone(),   // allow:clone: same
+                upstream.status().clone(),   // allow:clone: same
+                upstream.incident().clone(), // allow:clone: same — upstream's `incident` is already a published account; the raw one never left their machine
+                upstream.body().clone(),     // allow:clone: same
+                // **No recurrences.** Upstream's history of its own rule is theirs;
+                // this install has not seen this rule fire even once, and copying
+                // their count would fabricate local evidence.
+                Vec::new(),
+                upstream.applies_to().to_vec(), // allow:clone: same
+                Authority::cached(from, version, pulled),
+                // Not carried: a published incident is what upstream wrote *to
+                // publish with*, and this install has nothing to publish.
+                None,
+                // Carried whole. A detector is the rule's mechanical half, not
+                // local evidence: dropping it would cache the prose and lose the
+                // control, and a cache must compile like the rule it copies.
+                upstream.detectors().to_vec(), // allow:clone: same
+            )
+            // A gate is the same: the rule's mechanical half, carried whole.
+            .with_gates(upstream.gates().to_vec()),
+        )) // allow:clone: same
     }
 
     /// The cache this pull would write.

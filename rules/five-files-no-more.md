@@ -8,6 +8,31 @@ origin = "codified"
 status = { kind = "active" }
 incident = "Codification-dated, not single-incident: ported 2026-08-25 from ~/.claude/skills/project-discipline/SKILL.md, the artefact that defines the practice, and specified in *Aiming the Stochastic Machine* (Zenodo, doi:10.5281/zenodo.22083202) which names this repository as its worked case. Surfaced when the emitted Copilot pack was read and found to carry the type discipline and the verification discipline but not one rule about the repository discipline the paper is *about* -- so it reached Claude through a skill and reached Cursor, Copilot and AGENTS.md not at all. Same vendor-lock failure as the ten Rust patterns ported 2026-08-24, in the part of the corpus that had the strongest claim to be there."
 published_incident = "Codified from a standing repository discipline rather than mined from a failure. It surfaced in an audit of an emitted instruction pack, which carried no rule about that discipline at all while the type-design half was fully present — so one of the two disciplines the author works by reached every assistant and the other reached none. The practice: a project carries a small fixed set of standing documents and resists a sixth. Each new document is individually reasonable and collectively the reason none of them is read; the constraint is what keeps the set small enough that every one is maintained."
+
+[[detector]]
+name = "five-root-documents"
+engine = "root-documents"
+files = ["*.md"]
+exclude = ["README.md", "CLAUDE.md", "ARCHITECTURE.md", "FEATURES.md", "TODO.md", "AGENTS.md"]
+events = ["repository-gate"]
+action = "warn"
+message = "A standing document at the repository root beyond the five (README, CLAUDE, ARCHITECTURE, FEATURES, TODO). Fold its content into one of the five, or into a domain rule if it generalises, unless it is a convention a host reads by name (a changelog, a contribution guide). AGENTS.md is exempt because relearn generates it."
+
+[[detector.fixture]]
+records = ["README.md", "CLAUDE.md", "ARCHITECTURE.md", "FEATURES.md", "TODO.md", "NOTES.md"]
+expect = "hit"
+
+[[detector.fixture]]
+records = ["README.md", "DESIGN.md", "src/main.rs"]
+expect = "hit"
+
+[[detector.fixture]]
+records = ["README.md", "CLAUDE.md", "ARCHITECTURE.md", "FEATURES.md", "TODO.md", "AGENTS.md", "docs/guide.md", "Cargo.toml"]
+expect = "clean"
+
+[[detector.fixture]]
+records = ["src/lib.rs", "docs/NOTES.md"]
+expect = "clean"
 +++
 
 A project keeps exactly five standing documents, each with one job:

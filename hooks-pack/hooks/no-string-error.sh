@@ -11,7 +11,7 @@ name='no-string-error'
 tag='R:errors-name-what-failed'
 message='This error is a string: a caller cannot match on it, and the message carries no value that identifies the failure. Return a thiserror enum with one variant per condition a caller could treat differently, each carrying the path, address, key or duration that names the instance.'
 files_ere='((^|/)([^/]+/)*[^/]*\.rs$)'
-exclude_ere='((^|/)([^/]+/)*main\.rs$)|((^|/)([^/]+/)*[^/]*build\.rs$)|((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*main\.rs$)|((^|/)([^/]+/)*[^/]*build\.rs$)|((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:string-error')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=5004290addec05eaa54936966a97539618b2537f5ea7b2659ba0c3c366308492 rules=R:errors-name-what-failed -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=01ebfca291549fa3bd163086bec8443fcfbb4485ac5e63c0919d99bf6e04a498 rules=R:errors-name-what-failed -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -11,7 +11,7 @@ name='no-constructed-target-path'
 tag='R:xplat-fixtures'
 message='A literal target/<profile> path ignores CARGO_TARGET_DIR and the platform'\''s executable suffix, so it passes on the authoring machine and fails as an exec error elsewhere. Use CARGO_BIN_EXE_<name> for this crate'\''s bins, or start at current_exe() and join EXE_SUFFIX.'
 files_ere='((^|/)([^/]+/)*tests/([^/]+/)*[^/]*\.rs$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*build\.rs$)'
-exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:target-path')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=451c89ff3b6ffeb9665e512e236edd73cf201d6fbb3a697ba7e997c2d2ebf401 rules=R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=c8e52bdb27caa36c5124e9f4dbb47f0e377bbe4e3e51e0d807df23ce52022f66 rules=R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

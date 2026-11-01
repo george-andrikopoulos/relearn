@@ -82,10 +82,17 @@ impl Library<Unvalidated> {
         }
         let mut detectors: BTreeMap<&str, &RuleTag> = BTreeMap::new();
         for rule in &self.rules {
-            for detector in rule.detectors() {
-                if let Some(first) = detectors.insert(detector.name().as_str(), rule.tag()) {
+            // Gates share the namespace: a name is a file stem and a control
+            // name, and one name for two artefacts is a control that vanishes.
+            let names = rule
+                .detectors()
+                .iter()
+                .map(|d| d.name())
+                .chain(rule.gates().iter().map(|g| g.name()));
+            for name in names {
+                if let Some(first) = detectors.insert(name.as_str(), rule.tag()) {
                     return Err(ValidationError::DuplicateDetector {
-                        name: detector.name().as_str().to_owned(),
+                        name: name.as_str().to_owned(),
                         first: first.clone(), // allow:clone: owned by the diagnostic on the failure path
                         second: rule.tag().clone(), // allow:clone: same
                     });

@@ -12,7 +12,7 @@
 
 use serde::Deserialize;
 
-use super::detector::RawDetector;
+use super::detector::{Parsed, RawDetector};
 use super::probe::RawProbe;
 
 use super::{
@@ -329,15 +329,19 @@ impl RawRule {
             .map(PublishedIncident::parse)
             .transpose()?;
         // Collected with `?`: one refused detector stops the build, named.
-        let detectors = self
-            .detector
-            .into_iter()
-            .map(|raw| {
-                let name = raw.raw_name().to_owned();
-                raw.into_detector()
-                    .map_err(|source| ParseError::Detector { name, source })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        // One table shape authors both kinds; the engine decides which.
+        let mut detectors = Vec::new();
+        let mut gates = Vec::new();
+        for raw in self.detector {
+            let name = raw.raw_name().to_owned();
+            match raw
+                .into_parsed()
+                .map_err(|source| ParseError::Detector { name, source })?
+            {
+                Parsed::Detector(d) => detectors.push(d),
+                Parsed::Gate(g) => gates.push(g),
+            }
+        }
         let probe = self
             .probe
             .map(|raw| raw.into_probe(&detectors))
@@ -357,7 +361,8 @@ impl RawRule {
             authority,
             published_incident,
             detectors,
-        );
+        )
+        .with_gates(gates);
         Ok(match probe {
             Some(probe) => rule.with_probe(probe),
             None => rule,

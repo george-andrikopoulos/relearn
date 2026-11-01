@@ -25,6 +25,8 @@ must outlive the session so the next engineer does not re-derive it — is the r
 One file, `rules/order-by-explicit-rank.md`: TOML front-matter carrying the rule's identity,
 home, provenance (the date and the triggering incident), and status, followed by an
 imperative markdown body.
+The block below is a copy of that file, and the file is the source: `tests/doc_samples.rs`
+fails if the two diverge.
 
 ```toml
 +++

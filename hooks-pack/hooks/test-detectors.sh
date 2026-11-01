@@ -27,7 +27,7 @@ run() {
   for sibling in "$@"; do : > "$(dirname "$target")/$sibling"; done
   local out got
   out="$(jq -nc --arg p "$target" --arg c "$text" \
-    '{tool_name:"Write",tool_input:{file_path:$p,content:$c}}' \
+    '{hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:$p,content:$c}}' \
     | bash "$here/$script" 2>"$work/stderr")"
   got=$?
   local err
@@ -47,6 +47,115 @@ run() {
   fi
 }
 
+# run_post <script> <expect hit|clean> <path> <text>
+# The file is written to disk first, then an Edit's PostToolUse payload names
+# it. After an edit a hit only ever warns, whatever the detector's action.
+run_post() {
+  local script="$1" expect="$2" path="$3" text="$4"
+  local case_dir="$work/$((pass + failed))"
+  local target="$case_dir/$path"
+  mkdir -p "$(dirname "$target")"
+  printf '%s' "$text" > "$target"
+  local out got
+  out="$(jq -nc --arg p "$target" \
+    '{hook_event_name:"PostToolUse",tool_name:"Edit",tool_input:{file_path:$p,old_string:"",new_string:""},tool_response:{}}' \
+    | bash "$here/$script" 2>"$work/stderr")"
+  got=$?
+  local err
+  err="$(cat "$work/stderr")"
+  local ok=no
+  case "$expect" in
+    clean) [ "$got" -eq 0 ] && [ -z "$out" ] && [ -z "$err" ] && ok=yes ;;
+    hit) [ "$got" -eq 0 ] && case "$out" in *'"PostToolUse"'*additionalContext*) true ;; *) false ;; esac && ok=yes ;;
+  esac
+  if [ "$ok" = yes ]; then
+    pass=$((pass + 1))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL  %s  %s expected %s after an edit: exit %s, stdout %s bytes, stderr %s bytes\n' \
+      "$script" "$path" "$expect" "$got" "${#out}" "${#err}"
+  fi
+}
+
+# ledger-entry-names-artefact
+run_post 'ledger-entry-names-artefact.sh' hit 'FEATURES.md' '# Features
+
+## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+**Enforced by:** `widget::parse` tests.
+
+### Gizmos render
+What: a gizmo renders in colour.
+'
+run 'ledger-entry-names-artefact.sh' hit block 'FEATURES.md' '# Features
+
+## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+**Enforced by:** `widget::parse` tests.
+
+### Gizmos render
+What: a gizmo renders in colour.
+'
+run_post 'ledger-entry-names-artefact.sh' hit 'docs/FEATURES.md' '## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+
+### Widgets parse twice
+What: the same widget twice.
+**Enforced by:** `widget::parse` tests.
+'
+run 'ledger-entry-names-artefact.sh' hit block 'docs/FEATURES.md' '## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+
+### Widgets parse twice
+What: the same widget twice.
+**Enforced by:** `widget::parse` tests.
+'
+run_post 'ledger-entry-names-artefact.sh' clean 'FEATURES.md' '# Features
+
+## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+#### Detail
+**Enforced by:** `widget::parse` tests.
+
+### Gizmos render
+What: a gizmo renders in colour.
+NOTHING YET, exposed; carried in TODO.md.
+
+```text
+### not an entry
+```
+'
+run 'ledger-entry-names-artefact.sh' clean block 'FEATURES.md' '# Features
+
+## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+#### Detail
+**Enforced by:** `widget::parse` tests.
+
+### Gizmos render
+What: a gizmo renders in colour.
+NOTHING YET, exposed; carried in TODO.md.
+
+```text
+### not an entry
+```
+'
+run_post 'ledger-entry-names-artefact.sh' clean 'README.md' '### An entry with nothing
+'
+run 'ledger-entry-names-artefact.sh' clean block 'README.md' '### An entry with nothing
+'
 # no-anyhow-in-lib
 run 'no-anyhow-in-lib.sh' hit block 'src/lib.rs' 'use anyhow::Result;'
 run 'no-anyhow-in-lib.sh' clean block 'src/lib.rs' 'use thiserror::Error;'
@@ -137,7 +246,7 @@ run 'no-tool-attribution.sh' hit block 'README.md' 'Generated with [Claude Code]
 run 'no-tool-attribution.sh' clean block 'msg.txt' 'Co-Authored-By: A Person <person@example.com>'
 run 'no-tool-attribution.sh' clean block 'docs/policy.md' 'Count the trailer with git log and a trailers format, not by grepping the message.'
 run 'no-tool-attribution.sh' clean block 'docs/policy.md' 'Co-Authored-By: Claude <noreply@anthropic.com> <!-- allow:attribution -->'
-run 'no-tool-attribution.sh' clean block 'hooks/test-detectors.sh' 'Generated with [Claude Code](https://claude.com/claude-code)'
+run 'no-tool-attribution.sh' hit block 'hooks/test-detectors.sh' 'Generated with [Claude Code](https://claude.com/claude-code)'
 # no-unwrap-in-src
 run 'no-unwrap-in-src.sh' hit block 'src/lib.rs' 'let x = f().unwrap();'
 run 'no-unwrap-in-src.sh' clean block 'src/lib.rs' 'let x = f()?;'
@@ -154,4 +263,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=8e075b4d989ddd0127011edd8c0ac378285ba328717ee0efc38086f9d765bf82 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=b11947ce312eb57a00c73e1e82d785ae7ece648b2e951a8ea814947b84a0412b rules=R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
