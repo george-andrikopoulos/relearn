@@ -624,3 +624,142 @@ proptest! {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Proposals: a control that already exists for a rule that does not name it
+// yet. Resolved and reported, never graded, because the status is George's
+// to change (2026-11-01).
+// ---------------------------------------------------------------------------
+
+/// A synthetic rule that names no control: `active`.
+fn active_rule(body: &str) -> String {
+    format!(
+        r#"+++
+tag = "R:{body}"
+title = "A synthetic rule"
+error_class = "a synthetic error class"
+home = {{ kind = "global" }}
+created = "2026-10-30"
+origin = "mined"
+status = {{ kind = "active" }}
+incident = "Synthetic."
++++
+
+Synthetic.
+"#
+    )
+}
+
+/// A corpus holding active rules only, and a map.
+fn active_corpus(bodies: &[&str], map: &str) -> tempfile::TempDir {
+    let dir = corpus(&[], map);
+    for body in bodies {
+        fs::write(
+            dir.path().join("rules").join(format!("{body}.md")),
+            active_rule(body),
+        )
+        .expect("write a rule");
+    }
+    dir
+}
+
+const PROPOSALS: &str = r#"
+[[proposed]]
+rule = "R:a"
+control = "test:tests/whole.rs"
+root = "code"
+path = "tests/whole.rs"
+
+[[proposed]]
+rule = "R:a"
+control = "gate:scripts/gate.sh silently"
+root = "code"
+path = "scripts/gate.sh"
+invoked_by = "scripts/silent-invoker.sh"
+"#;
+
+#[test]
+fn a_proposal_is_resolved_and_reported_without_grading_the_run() {
+    let dir = active_corpus(&["a"], PROPOSALS);
+    let (code, out) = run(dir.path(), &["--root", &root("code", "code-root")]);
+    let wired = line_for(&out, "test:tests/whole.rs");
+    assert!(wired.starts_with("PROPOSED"), "{out}");
+    assert!(wired.contains("R:a"), "{out}");
+    assert!(wired.contains("RESOLVED_AND_WIRED"), "{out}");
+    // Not wired is a fact worth printing and not a failure: the rule does not
+    // claim the control yet, so nothing it says is false.
+    let unwired = line_for(&out, "gate:scripts/gate.sh silently");
+    assert!(unwired.contains("RESOLVED_NOT_WIRED"), "{out}");
+    assert_eq!(code, 0, "{out}");
+}
+
+#[test]
+fn a_proposal_whose_root_is_not_supplied_still_does_not_grade_the_run() {
+    let dir = active_corpus(&["a"], PROPOSALS);
+    let (code, out) = run(dir.path(), &[]);
+    assert!(
+        line_for(&out, "test:tests/whole.rs").contains("UNCHECKABLE"),
+        "{out}"
+    );
+    assert_eq!(code, 0, "{out}");
+}
+
+#[test]
+fn a_proposal_for_a_rule_the_corpus_does_not_hold_fails() {
+    let dir = active_corpus(&[], PROPOSALS);
+    let (code, out) = run(dir.path(), &["--root", &root("code", "code-root")]);
+    assert!(out.contains("STALE_PROPOSAL"), "{out}");
+    assert_eq!(code, 1, "{out}");
+}
+
+#[test]
+fn a_proposal_the_rule_already_names_fails_and_says_to_promote_it() {
+    // The rule now claims the control: the proposal was accepted, so it
+    // belongs in `[[control]]`, and the rule's row is UNMAPPED until it moves.
+    let dir = corpus(&[("a", "test:tests/whole.rs")], PROPOSALS);
+    let (code, out) = run(dir.path(), &["--root", &root("code", "code-root")]);
+    assert!(out.contains("STALE_PROPOSAL"), "{out}");
+    assert!(out.contains("[[control]]"), "{out}");
+    assert_eq!(code, 1, "{out}");
+}
+
+#[test]
+fn a_control_both_mapped_and_proposed_is_refused() {
+    let map = format!("{PROPOSALS}\n{}", only(TESTS, "test:tests/whole.rs"));
+    let dir = active_corpus(&["a"], &map);
+    let (code, out) = run(dir.path(), &["--root", &root("code", "code-root")]);
+    assert!(out.contains("mapped twice"), "{out}");
+    assert_eq!(code, 1, "{out}");
+}
+
+/// Every proposal in this repository's map names a rule the corpus holds and
+/// does not already name the control, and every one placed **here** resolves
+/// and is wired, so a proposal George accepts is true on the day he accepts it.
+#[test]
+fn every_proposal_in_this_repository_is_open_and_the_ones_held_here_are_wired() {
+    let (library, map) = real_inputs();
+    let snapshot = fsio::snapshot(&map, &repo_root(), &[]).expect("the repository root reads");
+    let resolution = resolve::resolve(&library, &map, &snapshot, None);
+    let mut held_here = 0;
+    for proposal in resolution.proposals() {
+        assert!(
+            proposal.is_open(),
+            "{} {}: {}",
+            proposal.tag(),
+            proposal.control(),
+            proposal.standing()
+        );
+        if proposal.location().root() == map.here() {
+            held_here += 1;
+            assert_eq!(
+                proposal.verdict().label(),
+                "RESOLVED_AND_WIRED",
+                "{} {}: {}",
+                proposal.tag(),
+                proposal.control(),
+                proposal.verdict()
+            );
+        }
+    }
+    assert!(held_here >= 3, "only {held_here} proposal(s) held here");
+}

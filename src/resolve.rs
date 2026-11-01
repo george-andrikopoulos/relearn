@@ -28,8 +28,8 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 pub use map::{
-    Artefact, ControlId, ControlMap, Ident, Location, MapError, PathProblem, RelPath, RootName,
-    ShapeProblem,
+    Artefact, ControlId, ControlMap, Ident, Location, MapError, PathProblem, Proposal, RelPath,
+    RootName, ShapeProblem,
 };
 pub use settings::{HookRegistry, SettingsError};
 
@@ -261,11 +261,88 @@ impl<'a> Row<'a> {
     }
 }
 
-/// Every verdict, and every map entry no rule claims.
+/// Whether a `[[proposed]]` entry still describes a proposal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Standing {
+    /// The rule exists and does not name the control yet.
+    Open,
+    /// No rule in the corpus has this tag.
+    NoSuchRule,
+    /// The rule already names the control: the proposal was taken, and the
+    /// entry belongs in `[[control]]`.
+    Accepted,
+}
+
+impl fmt::Display for Standing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Standing::Open => "open",
+            Standing::NoSuchRule => "no rule in the corpus has this tag",
+            Standing::Accepted => {
+                "the rule already names this control; move the entry to [[control]]"
+            }
+        })
+    }
+}
+
+/// One `[[proposed]]` entry: the verdict its control would get, and whether the
+/// proposal still stands. The verdict is reported and never graded; only a
+/// proposal that no longer stands fails the run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProposalRow<'a> {
+    control: &'a ControlId,
+    proposal: &'a Proposal,
+    verdict: Verdict,
+    standing: Standing,
+}
+
+impl<'a> ProposalRow<'a> {
+    /// The rule the control is proposed for.
+    #[must_use]
+    pub fn tag(&self) -> &'a RuleTag {
+        self.proposal.rule()
+    }
+
+    /// The control.
+    #[must_use]
+    pub fn control(&self) -> &'a ControlId {
+        self.control
+    }
+
+    /// Where the map places it.
+    #[must_use]
+    pub fn location(&self) -> &'a Location {
+        self.proposal.location()
+    }
+
+    /// The verdict it would get if the rule named it.
+    #[must_use]
+    pub fn verdict(&self) -> &Verdict {
+        &self.verdict
+    }
+
+    /// Whether the proposal still stands.
+    #[must_use]
+    pub fn standing(&self) -> Standing {
+        self.standing
+    }
+
+    /// Whether the proposal still stands. Exhaustive over [`Standing`].
+    #[must_use]
+    pub fn is_open(&self) -> bool {
+        match self.standing {
+            Standing::Open => true,
+            Standing::NoSuchRule | Standing::Accepted => false,
+        }
+    }
+}
+
+/// Every verdict, every map entry no rule claims, and every proposal.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resolution<'a> {
     rows: Vec<Row<'a>>,
     unclaimed: Vec<&'a ControlId>,
+    proposals: Vec<ProposalRow<'a>>,
 }
 
 impl<'a> Resolution<'a> {
@@ -283,6 +360,12 @@ impl<'a> Resolution<'a> {
         &self.unclaimed
     }
 
+    /// Every `[[proposed]]` entry, in map order.
+    #[must_use]
+    pub fn proposals(&self) -> &[ProposalRow<'a>] {
+        &self.proposals
+    }
+
     /// The run's outcome: `Fail` if anything definitely failed or the map is
     /// stale, else `Disarmed` if anything could not be checked, else `Pass`. A
     /// definite failure outranks "could not check", because reporting a
@@ -291,7 +374,17 @@ impl<'a> Resolution<'a> {
     pub fn outcome(&self) -> Outcome {
         let rows = self.rows.iter().map(|row| row.verdict.outcome());
         let stale = (!self.unclaimed.is_empty()).then_some(Outcome::Fail);
-        rows.chain(stale).max().unwrap_or(Outcome::Pass)
+        // A proposal's verdict is never graded: the rule does not claim the
+        // control, so nothing it says is false. One that no longer stands is.
+        let lapsed = self
+            .proposals
+            .iter()
+            .any(|p| !p.is_open())
+            .then_some(Outcome::Fail);
+        rows.chain(stale)
+            .chain(lapsed)
+            .max()
+            .unwrap_or(Outcome::Pass)
     }
 }
 
@@ -308,7 +401,7 @@ pub fn resolve<'a>(
 
     let mut claimed = std::collections::BTreeSet::new();
     let mut rows = Vec::new();
-    for rule in rules {
+    for rule in &rules {
         let Some(controls) = rule.status().named_controls() else {
             continue;
         };
@@ -333,7 +426,31 @@ pub fn resolve<'a>(
         .map(|(id, _)| id)
         .filter(|id| !claimed.contains(*id))
         .collect();
-    Resolution { rows, unclaimed }
+    let proposals = map
+        .proposals()
+        .map(|(id, proposal)| {
+            let standing = match rules.iter().find(|r| r.tag() == proposal.rule()) {
+                None => Standing::NoSuchRule,
+                Some(rule) => match rule.status().named_controls() {
+                    Some(named) if named.as_slice().iter().any(|c| ControlId::of(c) == *id) => {
+                        Standing::Accepted
+                    }
+                    Some(_) | None => Standing::Open,
+                },
+            };
+            ProposalRow {
+                control: id,
+                proposal,
+                verdict: verdict(id, Some(proposal.location()), snapshot, settings),
+                standing,
+            }
+        })
+        .collect();
+    Resolution {
+        rows,
+        unclaimed,
+        proposals,
+    }
 }
 
 fn verdict(

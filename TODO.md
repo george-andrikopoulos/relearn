@@ -133,7 +133,11 @@ tool warns. ARCHITECTURE.md's decisions log has both entries; FEATURES.md has *L
 ## Detector engines (2026-10-31)
 
 - [x] **The self-exclusion sweep skips by identity** (Part 1; decisions log).
-- [!] **Engines for the rules the triage could not draft: proposed, waiting for George.** One disposition per rule, the decisions on `git-pre-commit`, the whole-file engine, the repository gate and build order, and seven questions are in ARCHITECTURE.md, "Proposed 2026-10-31: detector engines". Nothing is built and no rule changes until he answers.
+- [x] **Engines for the rules the triage could not draft: proposed (2026-10-31) and approved with every recommendation (2026-11-01).** The two Java rows are deferred (Q5).
+- [x] **ADOPT-EXISTING mapped as `[[proposed]]` (2026-11-01).** Five proposals resolve through `relearn controls`. Proposed `partial` for George: `R:price-every-dependency`, `R:employer-identity-not-in-public-artefacts`, `R:names-travel-with-the-quote`, `R:reconcile-wiring-at-start`. Not proposed: `R:verify-tracked-after-move`, whose control resolves as not wired.
+- [ ] **George: move the four proposed rules to `partial`** (with the `uncovered` text in ARCHITECTURE.md's disposition table) and their entries from `[[proposed]]` to `[[control]]`, or decline. `relearn controls` reports a proposal the rule already names as `STALE_PROPOSAL` until the entry moves.
+- [ ] **stochos-lab: wire `verify-deploy.sh` into something that runs**, then propose `R:verify-tracked-after-move` as `partial`.
+- [ ] **Java CONFIGURE-LINTER: deferred (Q5)** for `R:equality-is-one-contract` and `R:no-reference-to-internals-escapes` until a Java repository is to hand to test the build-file checks against.
 
 ## Probes — measuring whether a rule's prose does anything (2026-10-30)
 

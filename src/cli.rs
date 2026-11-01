@@ -1283,6 +1283,33 @@ fn controls(
     for stale in resolution.unclaimed() {
         println!("STALE_MAP_ENTRY     {stale}  — controls map places it and no rule names it");
     }
+    // Reported, never graded: the rule does not name the control yet, and
+    // naming it is a status change that is the operator's to make.
+    for p in resolution.proposals() {
+        let place = format!(
+            "{}:{}",
+            p.location().root(),
+            p.location().artefact().primary()
+        );
+        if p.is_open() {
+            println!(
+                "PROPOSED            {}  {}  [{}] {}: {}",
+                p.tag(),
+                p.control(),
+                place,
+                p.verdict().label(),
+                p.verdict()
+            );
+        } else {
+            println!(
+                "STALE_PROPOSAL      {}  {}  [{}] {}",
+                p.tag(),
+                p.control(),
+                place,
+                p.standing()
+            );
+        }
+    }
     let count = |label: &str| {
         resolution
             .rows()
@@ -1291,14 +1318,20 @@ fn controls(
             .count()
     };
     let summary = format!(
-        "{} control(s): {} wired, {} not wired, {} missing, {} uncheckable, {} unmapped, {} stale map entries",
+        "{} control(s): {} wired, {} not wired, {} missing, {} uncheckable, {} unmapped, {} stale map entries; {} proposal(s), {} stale",
         resolution.rows().len(),
         count("RESOLVED_AND_WIRED"),
         count("RESOLVED_NOT_WIRED"),
         count("MISSING"),
         count("UNCHECKABLE"),
         count("UNMAPPED"),
-        resolution.unclaimed().len()
+        resolution.unclaimed().len(),
+        resolution.proposals().len(),
+        resolution
+            .proposals()
+            .iter()
+            .filter(|p| !p.is_open())
+            .count()
     );
     Ok(match resolution.outcome() {
         Outcome::Pass => {

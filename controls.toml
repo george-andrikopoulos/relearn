@@ -121,3 +121,49 @@ root = "design-architecture-tool"
 path = "scripts/verify.sh"
 function = "emoji_ban"
 invoked_by = "scripts/verify.sh"
+
+# --- proposals ---------------------------------------------------------------
+#
+# `[[proposed]]` places a control that already exists for a rule that does NOT
+# name it yet (its status is `active`). `relearn controls` resolves each one and
+# prints it as PROPOSED with the verdict it would get, and never grades it:
+# naming a control is a status change, and the status is George's to make.
+# A proposal fails the run only when it no longer stands — its rule is gone, or
+# the rule now names the control, when the entry moves up to `[[control]]`.
+# Proposed 2026-11-01 (ARCHITECTURE.md, "detector engines").
+
+[[proposed]]
+rule = "R:price-every-dependency"
+control = "test:tests/dependencies.rs"
+root = "relearn"
+path = "tests/dependencies.rs"
+
+[[proposed]]
+rule = "R:employer-identity-not-in-public-artefacts"
+control = "gate:scripts/no-banned-names.sh"
+root = "relearn"
+path = "scripts/no-banned-names.sh"
+invoked_by = ".githooks/pre-push"
+
+[[proposed]]
+rule = "R:names-travel-with-the-quote"
+control = "test:every_authored_field_that_travels_is_offered_to_the_scan"
+root = "relearn"
+path = "tests/contribution.rs"
+function = "every_authored_field_that_travels_is_offered_to_the_scan"
+
+[[proposed]]
+rule = "R:reconcile-wiring-at-start"
+control = "hook:session-wiring-check"
+root = "stochos-lab"
+path = "hooks/session-wiring-check.sh"
+
+# Held at RESOLVED_NOT_WIRED: nothing runs verify-deploy automatically, and
+# stochos-lab's pre-push names it only in comments. Not proposed as `partial`
+# until something invokes it.
+[[proposed]]
+rule = "R:verify-tracked-after-move"
+control = "gate:scripts/verify-deploy.sh"
+root = "stochos-lab"
+path = "scripts/verify-deploy.sh"
+invoked_by = ".githooks/pre-push"
