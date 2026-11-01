@@ -38,3 +38,11 @@ scripts/**   text eol=lf
 # executes and transcripts a checker parses: the same bytes on every checkout.
 # `[R:pin-eol-for-executable-text]`
 tests/probes/** text eol=lf
+
+# Synthetic shell scripts a test reads, the repository-gate trees a gate runs
+# over, and the repo pack's generated scripts: executable text, pinned at rest.
+# The pack's own eol gate found the first five unpinned on 2026-11-01.
+# `[R:pin-eol-for-executable-text]`
+tests/fixtures/controls/** text eol=lf
+tests/gates/**             text eol=lf
+repo-pack/**               text eol=lf

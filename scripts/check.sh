@@ -48,6 +48,7 @@ stage verify-claude-pack cargo run --quiet -- verify --targets claude --out clau
 stage verify-hooks-pack cargo run --quiet -- verify --targets hooks --out hooks-pack
 stage verify-rules-pack cargo run --quiet -- verify --targets claude-rules --rules-layer user --out rules-pack
 stage verify-load-log-pack cargo run --quiet -- verify --targets load-log --out load-log-pack
+stage verify-repo-pack cargo run --quiet -- verify --targets repo --out repo-pack
 # This repository's own share of a session's load set, against the project budget
 # in ARCHITECTURE.md's decisions log (2026-10-31). Hermetic: no user directory, no
 # ancestors. It is the charter growing that it exists to catch.
@@ -59,6 +60,13 @@ stage hooks-pack-fixtures bash hooks-pack/hooks/test-detectors.sh
 # The load-log hook on the production path: synthetic payloads through the
 # generated script. Exit 2 means jq is missing, which is DISARMED, not a pass.
 stage load-log-fixtures bash load-log-pack/hooks/test-load-log.sh
+# Repository gates on the production path: every fixture's records through the
+# generated awk judge, and every gate run whole over a synthetic checkout built
+# from tests/gates/. Exit 2 means git is missing: no tree ran, not a pass.
+stage repo-pack-fixtures bash repo-pack/gates/test-gates.sh --trees tests/gates
+# This repository's own checkout through the eol gate. It found five unpinned
+# shell fixtures the day it was built (2026-11-01).
+stage eol-gate bash repo-pack/gates/executable-text-eol-pinned.sh .
 stage lint cargo run --quiet -- lint --deny error
 stage money-self-test bash scripts/no-float-money.sh --self-test
 stage money-scan bash scripts/no-float-money.sh
@@ -68,7 +76,7 @@ stage pack-sync-self-test bash scripts/pack-sync-reminder.sh --self-test
 stage probe-self-test bash scripts/probe-run.sh --self-test
 
 if [ "${#failed[@]}" -eq 0 ]; then
-    echo "PASS: rustfmt, clippy, test, verify x6, hook fixtures, load-log fixtures, lint, money-scan, pack-sync, probe self-test, load budget"
+    echo "PASS: rustfmt, clippy, test, verify x7, hook fixtures, load-log fixtures, gate fixtures, eol gate, lint, money-scan, pack-sync, probe self-test, load budget"
     exit 0
 fi
 echo "FAIL: ${failed[*]}"

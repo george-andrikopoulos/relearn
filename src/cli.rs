@@ -581,6 +581,11 @@ enum Target {
     /// (`hooks/relearn-load-log.sh`). The same for every corpus. **Explicit
     /// only**, for the reason `hooks` is.
     LoadLog,
+    /// Repository gates compiled from rules' gate `[[detector]]` tables
+    /// (`gates/<name>.sh`) and their fixture runner, for a consuming
+    /// repository's own gate to call. **Explicit only**, for the reason
+    /// `hooks` is.
+    Repo,
 }
 
 /// The lowest [`lint::Severity`] that makes `relearn lint` exit non-zero.
@@ -1359,22 +1364,24 @@ fn check(rules: &Path) -> Result<(), CliError> {
         .into_iter()
         .map(|(name, text)| (format!("rules/{name}"), text))
         .collect();
-    // The hooks target's files come with their roles, so the sweep can skip a
-    // detector's own script and the runner by identity rather than by path.
+    // The hooks and repo targets' files come with their roles, so the sweep
+    // can skip a detector's own script and a runner by identity, not by path.
     let other_targets: Vec<Target> = Target::value_variants()
         .iter()
         .copied()
-        .filter(|t| *t != Target::Hooks)
+        .filter(|t| *t != Target::Hooks && *t != Target::Repo)
         .collect();
     let every_layer = emit::claude_rules::layers_of(&validated);
     let emitted = emit_selected(&validated, &other_targets, &every_layer);
     let hooks = emit::hooks::emit_with_roles(&validated);
+    let repo = emit::repo::emit_with_roles(&validated);
     let mut files: Vec<emit::hooks::Swept<'_>> = sources
         .iter()
         .map(|(path, text)| emit::hooks::Swept::source(path, text))
         .collect();
     files.extend(emitted.iter().map(emit::hooks::Swept::emitted));
     files.extend(hooks.iter().map(|(f, r)| emit::hooks::Swept::hook(f, r)));
+    files.extend(repo.iter().map(|(f, r)| emit::hooks::Swept::hook(f, r)));
     let matches = emit::hooks::self_matches(&validated, &files);
     for m in &matches {
         println!(
@@ -1483,6 +1490,7 @@ fn emit_selected(
             }
             Target::Hooks => files.extend(emit::hooks::emit(validated)),
             Target::LoadLog => files.extend(emit::load_log::emit()),
+            Target::Repo => files.extend(emit::repo::emit(validated)),
         }
     }
     files

@@ -26,6 +26,7 @@ pub mod copilot_paths;
 pub mod cursor;
 pub mod hooks;
 pub mod load_log;
+pub mod repo;
 
 use crate::library::{Library, Validated};
 use crate::rule::{Emittability, Home, Rule, RuleTag, ScopeTag, Status};

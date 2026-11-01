@@ -218,6 +218,14 @@ be drafted:
 | `R:no-secrets-in-config-repo` | commit-time event (`git-pre-commit`, named and not built) | a staged path on a machine-local list | secrets inside an otherwise shareable file |
 | `R:verify-tracked-after-move` | repository gate; stochos-lab's `verify-deploy.sh` is one | a moved path that left the index | none for the paths the gate reads |
 
+**Note, 2026-11-01: engines built.** The repository gate exists, with engines `eol-attribute`,
+`root-documents` and `lint-enabled`. `R:pin-eol-for-executable-text` now carries a gate
+(`executable-text-eol-pinned`, block, status still `active`). Its first run over this
+repository found five unpinned shebang fixtures, which are now pinned in `.gitattributes`.
+The disposition of every row above is in ARCHITECTURE.md (`Proposed 2026-10-31: detector
+engines`). Which rows have a drafted gate is listed in `repo-pack/README.md`'s table, which a
+test reads, and in `hooks-pack/README.md` once the commit-time event lands.
+
 Four of these already have a working control somewhere (`tests/dependencies.rs`,
 `scripts/no-banned-names.sh`, stochos-lab's `verify-wiring.sh` and `verify-deploy.sh`), so
 those rules may be candidates for `partial`. That is noted for George's review and not

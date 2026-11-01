@@ -11,7 +11,7 @@ name='no-free-validator'
 tag='R:parse-dont-validate'
 message='A validator that returns bool or Result<()> checks and then throws the proof away, so every interior caller must check again or trust that someone did. Parse instead: return the witness newtype, so holding one is the proof.'
 files_ere='((^|/)([^/]+/)*[^/]*\.rs$)'
-exclude_ere='((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:validator')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=18a7de0d01d8583ed03a2e5164601a724d3af1cc99a685b0aed84e282e8aa7a8 rules=R:parse-dont-validate -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=7bbed4493a813a98f8e06bf387bec0672731c7c18330964d28b671a13aa189dd rules=R:parse-dont-validate -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -11,7 +11,7 @@ name='no-expect-empty-msg'
 tag='R:no-unwrap-in-production'
 message='An empty or three-character expect() message panics with nothing to diagnose from one log line. Name the resource and the invariant that should have held, or propagate with ?.'
 files_ere='((^|/)src/([^/]+/)*[^/]*\.rs$)'
-exclude_ere='((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*[^/]*test_[^/]*\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*[^/]*test_[^/]*\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:expect-msg')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=2994012b1420d26e70f629dfc335fe7cc7c7e144c2440c158c5bcdd5450d4807 rules=R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=f70f167d9ca945a8c124cbadb5fd90dd365c60cd9f056718a59c83ffeab37215 rules=R:no-unwrap-in-production -- DO NOT EDIT; regenerate with `relearn build` -->

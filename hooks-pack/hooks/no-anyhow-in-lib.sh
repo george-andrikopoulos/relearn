@@ -11,7 +11,7 @@ name='no-anyhow-in-lib'
 tag='R:no-anyhow-in-libraries'
 message='anyhow belongs only in a binary'\''s main.rs. Library code returns a thiserror enum with a variant per failure, so a caller can match on what went wrong.'
 files_ere='((^|/)([^/]+/)*[^/]*\.rs$)'
-exclude_ere='((^|/)([^/]+/)*main\.rs$)|((^|/)([^/]+/)*[^/]*build\.rs$)|((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*[^/]*test_[^/]*\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*main\.rs$)|((^|/)([^/]+/)*[^/]*build\.rs$)|((^|/)([^/]+/)*tests/.*$)|((^|/)([^/]+/)*benches/.*$)|((^|/)([^/]+/)*examples/.*$)|((^|/)([^/]+/)*tests\.rs$)|((^|/)([^/]+/)*[^/]*_test\.rs$)|((^|/)([^/]+/)*[^/]*_tests\.rs$)|((^|/)([^/]+/)*[^/]*test_[^/]*\.rs$)|((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:anyhow')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=3444d0c5ae36408096c9547c3f61aa5b3568cd8b9ec5d9708abdf8907149a764 rules=R:no-anyhow-in-libraries -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=b48f217ad82e82ed6ba078aeb20d8d9a8b73fd238a4fd486362402ddba9d8410 rules=R:no-anyhow-in-libraries -- DO NOT EDIT; regenerate with `relearn build` -->

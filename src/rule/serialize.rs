@@ -13,8 +13,8 @@
 //! survive the round trip.
 
 use super::{
-    Approval, Authority, Checker, Detector, DiffClause, Engine, EventPattern, FixtureInput, Glob,
-    Home, Probe, Rule, ScopeTag, Status,
+    Approval, Authority, Checker, Detector, DiffClause, Engine, EventPattern, FixtureInput, Gate,
+    GateEngine, Glob, Home, Probe, Rule, ScopeTag, Status,
 };
 
 /// Serialize a rule to its neutral document form (`+++` front-matter, then the
@@ -86,6 +86,11 @@ pub fn to_document(rule: &Rule) -> String {
     // renders exactly as before the field existed.
     for detector in rule.detectors() {
         out.push_str(&detector_tables(detector));
+    }
+    // Gates after write detectors: both are `[[detector]]` tables, and this is
+    // the one order a rule file may hold them in for its round trip to hold.
+    for gate in rule.gates() {
+        out.push_str(&gate_tables(gate));
     }
     // After the detectors, last of all: a `diff` checker's clauses are an
     // array of tables. A rule with no probe renders exactly as before.
@@ -213,6 +218,52 @@ fn detector_tables(d: &Detector) -> String {
                 out.push_str(&kv_list("siblings", names.iter().map(String::as_str)));
             }
         }
+        out.push_str(&kv("expect", fixture.expect().as_str()));
+    }
+    out
+}
+
+/// A gate's `[[detector]]` table and its record fixtures.
+fn gate_tables(g: &Gate) -> String {
+    let mut out = String::from("\n[[detector]]\n");
+    out.push_str(&kv("name", g.name().as_str()));
+    out.push_str(&kv("engine", g.engine().as_str()));
+    match g.engine() {
+        GateEngine::EolAttribute { always } => {
+            if !always.is_empty() {
+                out.push_str(&kv_list("always", always.iter().map(Glob::as_str)));
+            }
+        }
+        GateEngine::RootDocuments => {}
+        GateEngine::LintEnabled {
+            lint,
+            groups,
+            default,
+        } => {
+            out.push_str(&kv("lint", lint.as_str()));
+            if !groups.is_empty() {
+                out.push_str(&kv_list("groups", groups.iter().map(|l| l.as_str())));
+            }
+            out.push_str(&kv("default", default.as_str()));
+        }
+    }
+    out.push_str(&kv_list(
+        "files",
+        g.scope().files().iter().map(Glob::as_str),
+    ));
+    if !g.scope().exclude().is_empty() {
+        out.push_str(&kv_list(
+            "exclude",
+            g.scope().exclude().iter().map(Glob::as_str),
+        ));
+    }
+    out.push_str(&kv_list("events", std::iter::once("repository-gate")));
+    out.push_str(&kv("action", g.action().as_str()));
+    out.push_str(&kv("message", g.message()));
+    for fixture in g.fixtures() {
+        out.push_str("\n[[detector.fixture]]\n");
+        let lines = fixture.lines();
+        out.push_str(&kv_list("records", lines.iter().map(String::as_str)));
         out.push_str(&kv("expect", fixture.expect().as_str()));
     }
     out

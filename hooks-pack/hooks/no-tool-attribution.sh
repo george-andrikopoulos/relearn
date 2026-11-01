@@ -11,7 +11,7 @@ name='no-tool-attribution'
 tag='R:no-tool-attribution-in-public-artefacts'
 message='This line is tool attribution: a co-author trailer, a session link or a generated-with banner. It travels with whatever the file becomes, a commit message, a PR body or a published page. Remove it. A document that quotes the form as an example marks the line with the override token.'
 files_ere='((^|/).*$)'
-exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -52,4 +52,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:attribution')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=ab2099ae5e93511ab2f73615249bc3ce6fe7762f20912b8f5d045f8d055a2d59 rules=R:no-tool-attribution-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=c711a4a55812b6d9139920cae41173202c1a80826025277efbfd5674c192777b rules=R:no-tool-attribution-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->

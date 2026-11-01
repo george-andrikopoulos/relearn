@@ -11,7 +11,7 @@ name='no-let-underscore-local'
 tag='R:no-let-underscore-on-a-local'
 message='let _ = on a local switches off the unused-binding warning at the moment it was right. Use the value, report or propagate it, or delete the code that computed it. A discarded call result is a different case: write the call, not the local.'
 files_ere='((^|/)([^/]+/)*[^/]*\.rs$)'
-exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:let-underscore')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=d2c1db0c99ae4a4c2242d59213ff10fdbfdfec382fe3b8b9d20dab46f8915b19 rules=R:no-let-underscore-on-a-local -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=3d810063664449c5be1ad125aab9b90c5177067ff8483d0da505a5f07f72f7d5 rules=R:no-let-underscore-on-a-local -- DO NOT EDIT; regenerate with `relearn build` -->

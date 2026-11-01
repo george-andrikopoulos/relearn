@@ -138,6 +138,11 @@ tool warns. ARCHITECTURE.md's decisions log has both entries; FEATURES.md has *L
 - [ ] **George: move the four proposed rules to `partial`** (with the `uncovered` text in ARCHITECTURE.md's disposition table) and their entries from `[[proposed]]` to `[[control]]`, or decline. `relearn controls` reports a proposal the rule already names as `STALE_PROPOSAL` until the entry moves.
 - [ ] **stochos-lab: wire `verify-deploy.sh` into something that runs**, then propose `R:verify-tracked-after-move` as `partial`.
 - [ ] **Java CONFIGURE-LINTER: deferred (Q5)** for `R:equality-is-one-contract` and `R:no-reference-to-internals-escapes` until a Java repository is to hand to test the build-file checks against.
+- [x] **Repository gate built (2026-11-01):** `rule::Gate`, engines `eol-attribute`, `root-documents` and `lint-enabled`, the `repo` target, `repo-pack/`, and three `check.sh` stages. First pilot: `[R:pin-eol-for-executable-text]`. On its first run over this repository it found five unpinned shell fixtures, which are now pinned.
+- [ ] **Run `bash repo-pack/gates/test-gates.sh --trees tests/gates` and `bash scripts/check.sh` on Linux** (WSL or a Linux host). The gate scripts have run on Windows, Git Bash and git 2.53 only (`[R:xplat-fixtures]`). Watch for `xargs -0 awk ... nextfile` on a non-GNU awk, and for git older than 2.32, which ignores `GIT_CONFIG_GLOBAL`.
+- [ ] **Rebuild the installed relearn after this branch merges** (`cargo install --path .`). The 0.1.0 binary on PATH refuses the corpus (`unknown field records`), so the stochos-lab session-start recurrence hook cannot read the library while this branch is checked out. Observed 2026-11-01. George's call, because the binary drives live hooks.
+- [ ] **George: dogfood `lint-enabled` here?** relearn's `Cargo.toml` has no `[lints]` table, so a `lint-enabled` gate for `[R:borrow-in-signatures]` or `[R:must-use-on-consequential-returns]` would fail on this repository today. Adding the table means fixing every pedantic finding it raises.
+- [ ] **Still to build (approved order):** `git-pre-commit` + `listed-path` (`[R:no-secrets-in-config-repo]`), `sections` (`[R:features-ledger-names-its-artefact]`), `duplicate-paragraph` (`[R:one-home-per-rule]`).
 
 ## Probes — measuring whether a rule's prose does anything (2026-10-30)
 

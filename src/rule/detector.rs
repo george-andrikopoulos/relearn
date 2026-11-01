@@ -27,6 +27,10 @@ use std::fmt;
 use regex::bytes::{Regex, RegexBuilder};
 use serde::Deserialize;
 
+mod gate;
+
+pub use gate::{Gate, GateEngine, GateFixture, LintDefault, LintLevel, LintName, RecordProblem};
+
 /// What a detector concluded about one write.
 ///
 /// The same type is a fixture's `expect`, so "the fixture agrees" is an
@@ -71,8 +75,25 @@ pub enum DetectorError {
         "`name` {0:?} must be lowercase letters, digits and hyphens, starting with a letter or digit"
     )]
     Name(String),
-    #[error("unknown `engine` {0:?} (expected line-regex | sibling-case)")]
+    #[error(
+        "unknown `engine` {0:?} (expected line-regex | sibling-case | eol-attribute | root-documents | lint-enabled)"
+    )]
     UnknownEngine(String),
+    #[error("engine `{engine}` runs at {expected}")]
+    EventNotForEngine {
+        engine: &'static str,
+        expected: &'static str,
+    },
+    #[error("`lint` {0:?} must be a lint name, `[a-z][a-z0-9_]*` with at most one `tool::` prefix")]
+    LintName(String),
+    #[error("unknown `default` {0:?} (expected allow | warn)")]
+    LintDefault(String),
+    #[error("fixture {index}, record {record}: {problem}")]
+    Record {
+        index: usize,
+        record: usize,
+        problem: Box<RecordProblem>,
+    },
     #[error("engine `{engine}` requires field `{field}`")]
     FieldRequired {
         engine: &'static str,
@@ -112,7 +133,11 @@ pub enum DetectorError {
     FixturePath { index: usize, path: String },
     #[error(
         "fixture {index}: engine `{engine}` needs {} and nothing else",
-        if *engine == "sibling-case" { "`siblings`" } else { "`input`" }
+        match *engine {
+            "sibling-case" => "`path` and `siblings`",
+            "line-regex" => "`path` and `input`",
+            _ => "`records`",
+        }
     )]
     FixtureInputMismatch { index: usize, engine: &'static str },
     #[error("no fixture expects `hit`: a detector that cannot show a hit may detect nothing")]
@@ -199,12 +224,17 @@ impl DetectorName {
 
     /// A file stem another generated script already takes in the directory
     /// the hooks install into: hooks-pack's fixture runner, and the load-log
-    /// pack's hook and runner, which install beside the detectors.
+    /// pack's hook and runner, which install beside the detectors; and the
+    /// repo pack's runner and commit dispatcher, which sit beside the gates.
     #[must_use]
     pub fn is_reserved(stem: &str) -> bool {
         matches!(
             stem,
-            "test-detectors" | "relearn-load-log" | "test-load-log"
+            "test-detectors"
+                | "relearn-load-log"
+                | "test-load-log"
+                | "test-gates"
+                | "relearn-pre-commit"
         )
     }
 
@@ -293,14 +323,19 @@ impl Glob {
 }
 
 /// The globs every **content** detector excludes without being told:
-/// rule files (which hold patterns and inputs that must hit them), the pack
-/// relearn generates, and the directory those scripts are installed into
-/// (`[R:detector-excludes-own-definitions]`).
+/// rule files (which hold patterns and inputs that must hit them), the packs
+/// relearn generates that quote patterns and fixtures, and the directory the
+/// hook scripts are installed into (`[R:detector-excludes-own-definitions]`).
 ///
 /// Not applied to `sibling-case`, which reads no text and so cannot match its
 /// own definition — excluding `rules/` there would only stop it catching a real
 /// collision among rule files.
-pub const SELF_EXCLUDES: &[&str] = &["**/rules/*.md", "**/hooks-pack/**", "**/hooks/relearn/**"];
+pub const SELF_EXCLUDES: &[&str] = &[
+    "**/rules/*.md",
+    "**/hooks-pack/**",
+    "**/repo-pack/**",
+    "**/hooks/relearn/**",
+];
 
 /// Which files a detector reads: authored globs plus, for a content engine,
 /// [`SELF_EXCLUDES`].
@@ -777,6 +812,10 @@ pub(crate) struct RawDetector {
     pattern: Option<String>,
     comment: Option<String>,
     allow: Option<String>,
+    always: Option<Vec<String>>,
+    lint: Option<String>,
+    groups: Option<Vec<String>>,
+    default: Option<String>,
     files: Vec<String>,
     #[serde(default)]
     exclude: Vec<String>,
@@ -790,10 +829,36 @@ pub(crate) struct RawDetector {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawFixture {
-    path: String,
+    path: Option<String>,
     input: Option<String>,
     siblings: Option<Vec<String>>,
+    records: Option<Vec<String>>,
     expect: String,
+}
+
+/// A `[[detector]]` table, parsed: a write detector, or a repository gate.
+/// The engine decides which, so one table shape authors both.
+#[derive(Debug)]
+pub(crate) enum Parsed {
+    Detector(Detector),
+    Gate(Gate),
+}
+
+/// Every glob in a list, or the first refusal.
+fn globs(list: Vec<String>) -> Result<Vec<Glob>, DetectorError> {
+    list.into_iter()
+        .map(|g| Glob::parse(&g).map_err(|problem| DetectorError::Glob { glob: g, problem }))
+        .collect()
+}
+
+/// A relative, forward-slash path with no `..` and no drive: a fixture's
+/// path, and a gate record's path field.
+fn fixture_path_ok(path: &str) -> bool {
+    !path.is_empty()
+        && !path.starts_with('/')
+        && !path.contains('\\')
+        && !path.contains(':')
+        && path.split('/').all(|s| !s.is_empty() && s != "..")
 }
 
 impl RawDetector {
@@ -802,9 +867,32 @@ impl RawDetector {
         &self.name
     }
 
-    /// Parse, then run every fixture. A detector exists only if they agree.
-    pub(crate) fn into_detector(self) -> Result<Detector, DetectorError> {
-        let name = DetectorName::parse(self.name)?;
+    /// Parse, then run every fixture. A detector or a gate exists only if
+    /// they agree.
+    pub(crate) fn into_parsed(self) -> Result<Parsed, DetectorError> {
+        let name = DetectorName::parse(self.name.clone())?; // allow:clone: the gate path below consumes the raw table whole, so the name is taken by value first
+        match self.engine.as_str() {
+            "eol-attribute" | "root-documents" | "lint-enabled" => {
+                gate::gate(self, name).map(Parsed::Gate)
+            }
+            _ => self.into_detector(name).map(Parsed::Detector),
+        }
+    }
+
+    fn into_detector(self, name: DetectorName) -> Result<Detector, DetectorError> {
+        for (field, present) in [
+            ("always", self.always.is_some()),
+            ("lint", self.lint.is_some()),
+            ("groups", self.groups.is_some()),
+            ("default", self.default.is_some()),
+        ] {
+            if present {
+                return Err(DetectorError::FieldNotUsed {
+                    engine: "a write engine",
+                    field,
+                });
+            }
+        }
         let engine = match self.engine.as_str() {
             "line-regex" => {
                 let pattern = self.pattern.ok_or(DetectorError::FieldRequired {
@@ -837,13 +925,6 @@ impl RawDetector {
             }
             other => return Err(DetectorError::UnknownEngine(other.to_owned())),
         };
-        let globs = |list: Vec<String>| {
-            list.into_iter()
-                .map(|g| {
-                    Glob::parse(&g).map_err(|problem| DetectorError::Glob { glob: g, problem })
-                })
-                .collect::<Result<Vec<_>, _>>()
-        };
         let scope = PathScope::new(
             globs(self.files)?,
             globs(self.exclude)?,
@@ -852,6 +933,12 @@ impl RawDetector {
 
         let mut events: Vec<Event> = Vec::new();
         for raw in &self.events {
+            if raw == "repository-gate" {
+                return Err(DetectorError::EventNotForEngine {
+                    engine: engine.as_str(),
+                    expected: "a write event, never repository-gate",
+                });
+            }
             let event = Event::parse(raw)?;
             if events.contains(&event) {
                 return Err(DetectorError::DuplicateEvent(raw.clone())); // allow:clone: the duplicate's spelling is owned by the error on the failure path only
@@ -905,29 +992,24 @@ impl RawDetector {
 
 impl RawFixture {
     fn into_fixture(self, index: usize, engine: &Engine) -> Result<Fixture, DetectorError> {
-        let path_ok = !self.path.is_empty()
-            && !self.path.starts_with('/')
-            && !self.path.contains('\\')
-            && !self.path.contains(':')
-            && self.path.split('/').all(|s| !s.is_empty() && s != "..");
-        if !path_ok {
-            return Err(DetectorError::FixturePath {
-                index,
-                path: self.path,
-            });
+        let mismatch = || DetectorError::FixtureInputMismatch {
+            index,
+            engine: engine.as_str(),
+        };
+        if self.records.is_some() {
+            return Err(mismatch());
+        }
+        let path = self.path.ok_or_else(mismatch)?;
+        if !fixture_path_ok(&path) {
+            return Err(DetectorError::FixturePath { index, path });
         }
         let input = match (engine, self.input, self.siblings) {
             (Engine::LineRegex { .. }, Some(text), None) => FixtureInput::Text(text),
             (Engine::SiblingCase, None, Some(names)) => FixtureInput::Siblings(names),
-            (engine, _, _) => {
-                return Err(DetectorError::FixtureInputMismatch {
-                    index,
-                    engine: engine.as_str(),
-                });
-            }
+            (Engine::LineRegex { .. } | Engine::SiblingCase, _, _) => return Err(mismatch()),
         };
         Ok(Fixture {
-            path: FixturePath(self.path),
+            path: FixturePath(path),
             input,
             expect: Detection::parse(&self.expect)?,
         })

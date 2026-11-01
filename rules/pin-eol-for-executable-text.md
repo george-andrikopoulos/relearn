@@ -8,6 +8,30 @@ origin = "mined"
 status = { kind = "active" }
 incident = "stochos-lab (2026-07-22): with `core.autocrlf=true` and no `.gitattributes`, a fresh clone rewrote every hook script to CRLF. The shebang line then ended in a carriage return, the interpreter was not found, and the whole deterministic hook layer stopped firing -- with no error attributable to the cause. Recurred in relearn 2026-08-22 in its other form: committing the emitted tree made line endings load-bearing for `verify`, which rehashes each file's body against the hash in its own header, so a Windows checkout would have reported every generated file as hand-edited while Linux stayed green."
 published_incident = "With automatic line-ending conversion enabled and no attributes file pinning them, a fresh clone rewrote every hook script to carriage-return line endings. The shebang line then ended in a carriage return, the interpreter was not found, and an entire deterministic hook layer stopped firing — with no error attributable to the cause. The same class returned in another form when an emitted tree was committed: verification rehashes each file's body against a hash in its own header, so a checkout on the other platform would have reported every generated file as hand-edited while the first platform stayed green."
+
+[[detector]]
+name = "executable-text-eol-pinned"
+engine = "eol-attribute"
+files = ["**"]
+events = ["repository-gate"]
+action = "block"
+message = "A tracked file whose first line is a shebang has no pinned line ending, so a checkout may rewrite it to CRLF and the interpreter is then not found. Pin it at rest in .gitattributes (<glob> text eol=lf), rather than teaching anything downstream to forgive the bytes."
+
+[[detector.fixture]]
+records = ["scripts/deploy.sh\t#!/usr/bin/env bash\tunspecified\tunspecified"]
+expect = "hit"
+
+[[detector.fixture]]
+records = ["tools/run\t#!/bin/sh\tset\tcrlf"]
+expect = "hit"
+
+[[detector.fixture]]
+records = ["scripts/deploy.sh\t#!/usr/bin/env bash\tset\tlf", "README.md\t# A project\tunspecified\tunspecified"]
+expect = "clean"
+
+[[detector.fixture]]
+records = ["bin/tool\t#!/bin/sh\tunset\tunspecified"]
+expect = "clean"
 +++
 
 When a file's exact bytes are load-bearing, do not leave its line endings to whatever the

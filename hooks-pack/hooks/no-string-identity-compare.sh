@@ -11,7 +11,7 @@ name='no-string-identity-compare'
 tag='R:identity-is-not-equality-for-boxes'
 message='== against a string literal compares references. It is true for interned literals in a test and false for any string built, read or parsed at run time. Use equals, or Objects.equals where either side may be absent.'
 files_ere='((^|/)([^/]+/)*[^/]*\.java$)'
-exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
 
 fail() {
   printf '[%s] %s; the detector did not run.\n' "$name" "$1" >&2
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:identity')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=69d51047c668b4b84c51223eccd476de3c344f1d179f0f0ee31d13eff30b9ad1 rules=R:identity-is-not-equality-for-boxes -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=912de6d112037007c7dee16817b8347403c665b059067f3055db3b68929a08ec rules=R:identity-is-not-equality-for-boxes -- DO NOT EDIT; regenerate with `relearn build` -->
