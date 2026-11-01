@@ -113,7 +113,8 @@ It is the reference implementation of the error loop described in *Tuning the St
   is a `cargo test`.
 - **A detector is proved where it is defined, and installed by a person.** A rule's `[[detector]]`
   tables are its mechanical control, and the rule is their only source: `relearn build --targets
-  hooks` compiles each write-time one into a hook script, `--targets repo` compiles each
+  hooks` compiles each Claude Code one into a hook script (a whole-file `sections` one also runs
+  after an `Edit`, reading the file back, and there it only warns), `--targets repo` compiles each
   `git-pre-commit` one into a commit dispatcher a repository's own `pre-commit` calls, and nothing
   else reads them (`no_emitter_but_hooks_and_repo_reads_a_detector`), so no instruction layer ever
   quotes a pattern. A `listed-path` detector's list is machine-local, named per clone in

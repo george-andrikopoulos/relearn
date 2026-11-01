@@ -508,6 +508,8 @@ pub(super) fn gate(raw: RawDetector, name: DetectorName) -> Result<Gate, Detecto
         "eol-attribute" => {
             let e = "eol-attribute";
             unused("pattern", raw.pattern.is_some(), e)?;
+            unused("heading", raw.heading.is_some(), e)?;
+            unused("require", raw.require.is_some(), e)?;
             unused("comment", raw.comment.is_some(), e)?;
             unused("allow", raw.allow.is_some(), e)?;
             unused("lint", raw.lint.is_some(), e)?;
@@ -520,6 +522,8 @@ pub(super) fn gate(raw: RawDetector, name: DetectorName) -> Result<Gate, Detecto
         "root-documents" => {
             let e = "root-documents";
             unused("pattern", raw.pattern.is_some(), e)?;
+            unused("heading", raw.heading.is_some(), e)?;
+            unused("require", raw.require.is_some(), e)?;
             unused("comment", raw.comment.is_some(), e)?;
             unused("allow", raw.allow.is_some(), e)?;
             unused("always", raw.always.is_some(), e)?;
@@ -531,6 +535,8 @@ pub(super) fn gate(raw: RawDetector, name: DetectorName) -> Result<Gate, Detecto
         "lint-enabled" => {
             let e = "lint-enabled";
             unused("pattern", raw.pattern.is_some(), e)?;
+            unused("heading", raw.heading.is_some(), e)?;
+            unused("require", raw.require.is_some(), e)?;
             unused("comment", raw.comment.is_some(), e)?;
             unused("allow", raw.allow.is_some(), e)?;
             unused("always", raw.always.is_some(), e)?;

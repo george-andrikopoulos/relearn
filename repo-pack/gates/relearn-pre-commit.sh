@@ -40,6 +40,59 @@ verdict() {
   printf '[%s] %s: %s. %s\n%s\n%s' "$2" "$3" "$word" "$4" "$5" "$6" >&2
 }
 
+sections_judge() {
+  grep -nE -- "$2" "$1" > "$work/req.raw"
+  case $? in 0|1) ;; *) return 2 ;; esac
+  cut -d: -f1 "$work/req.raw" > "$work/req" || return 2
+  RL_LEVEL="$3" awk '
+BEGIN { lvl = ENVIRON["RL_LEVEL"] + 0; hits = 0 }
+FILENAME == ARGV[1] { ok[$1] = 1; next }
+{
+  line = $0; sub(/\r$/, "", line)
+  fence = (substr(line, 1, 3) == "```" || substr(line, 1, 3) == "~~~")
+  if (!infence && !fence) {
+    n = 0; while (n < 7 && substr(line, n + 1, 1) == "#") n++
+    c = substr(line, n + 1, 1)
+    if (n >= 1 && n <= 6 && (c == " " || c == "\t" || c == "") && n <= lvl) {
+      if (open && !sat) { print head; hits++ }
+      open = (n == lvl); sat = 0; head = FNR ": " line
+      next
+    }
+  }
+  if (fence) infence = !infence
+  if (open && (FNR in ok)) sat = 1
+}
+END { if (open && !sat) { print head; hits++ } exit (hits > 0) }
+' "$work/req" "$1" || return $?
+}
+
+# ledger-entry-names-artefact: sections for [R:features-ledger-names-its-artefact].
+d_ledger_entry_names_artefact() {
+  local name='ledger-entry-names-artefact'
+  local tag='R:features-ledger-names-its-artefact'
+  local action='block'
+  local message='A behaviour-ledger entry names no enforcing artefact. Every level-3 entry carries an Enforced by line naming the type, property test or unit test that holds it, or says NOTHING YET and goes to TODO.md. An Enforced by line placed under the next heading belongs to that entry, not this one.'
+  local files_ere='((^|/)([^/]+/)*FEATURES\.md$)'
+  local exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+  local p hits found=""
+  local require='[Ee]nforced by|NOTHING YET'
+  local level=3
+  while IFS= read -r -d '' p; do
+    in_scope "$p" "$files_ere" "$exclude_ere" || continue
+    case "$(git cat-file -t ":0:$p" 2>/dev/null)" in
+      blob) ;;
+      commit) continue ;;
+      *) disarmed "$name: git could not read the staged $p" ;;
+    esac
+    git cat-file blob ":0:$p" > "$work/blob" || disarmed "$name: git could not read the staged $p"
+    hits="$(sections_judge "$work/blob" "$require" "$level")"
+    case $? in 0) continue ;; 1) ;; *) disarmed "$name: the sections judge could not read the staged $p" ;; esac
+    found="$found$p:"$'\n'"$(printf '%s\n' "$hits" | sed 's/^/  /')"$'\n'
+  done < "$work/staged"
+  [ -n "$found" ] || return 0
+  verdict "$action" "$tag" "$name" "$message" "Staged section(s) with no line matching the requirement:" "$found"
+}
+
 # listed-file-staged: listed-path for [R:no-secrets-in-config-repo].
 d_listed_file_staged() {
   local name='listed-file-staged'
@@ -107,9 +160,10 @@ d_no_tool_attribution() {
   printf 'A deliberate exception is marked on its own line with: %s\n' 'allow:attribution' >&2
 }
 
-[ "$#" -gt 0 ] || set -- 'listed-file-staged' 'no-tool-attribution'
+[ "$#" -gt 0 ] || set -- 'ledger-entry-names-artefact' 'listed-file-staged' 'no-tool-attribution'
 for selected in "$@"; do
   case "$selected" in
+    'ledger-entry-names-artefact') d_ledger_entry_names_artefact ;;
     'listed-file-staged') d_listed_file_staged ;;
     'no-tool-attribution') d_no_tool_attribution ;;
     *) disarmed "no commit-time detector is named $selected" ;;
@@ -117,4 +171,4 @@ for selected in "$@"; do
 done
 exit "$blocked"
 
-# <!-- relearn:generated v0.1.0 sha256=11d556c6e3e969fccae858cdd336cecf5b0195f361ef1f506afa935444258a29 rules=R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=1be581078dd310636a5c0a39a59959429533579bc40c65a5f9c0add8ed783313 rules=R:features-ledger-names-its-artefact,R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->

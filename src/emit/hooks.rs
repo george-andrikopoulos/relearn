@@ -32,8 +32,8 @@ use std::fmt::Write as _;
 use super::{OutputFile, RelativePath, emittable};
 use crate::library::{Library, Validated};
 use crate::rule::{
-    Action, Detection, Detector, DetectorName, Engine, Event, FixtureInput, Pattern, Rule, RuleTag,
-    Subject, Token,
+    Action, Detection, Detector, DetectorName, Engine, Event, FixtureInput, HeadingLevel, Pattern,
+    Rule, RuleTag, Subject, Token,
 };
 
 /// The directory this emitter owns, relative to the output root.
@@ -88,9 +88,35 @@ impl HookRole {
     }
 }
 
-/// What a hook script can run: the engines a `PreToolUse` payload feeds, for
-/// a detector that runs at that event. `listed-path` reads a staged path, so a
-/// hook script for one is unconstructible rather than emitted empty.
+/// The Claude Code event a hook script is registered under. The derived
+/// order is the explicit rank the settings snippet uses: the event a tool call
+/// meets first comes first (`[R:order-by-explicit-rank]`).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum HookEvent {
+    PreToolUse,
+    PostToolUse,
+}
+
+impl HookEvent {
+    fn as_str(self) -> &'static str {
+        match self {
+            HookEvent::PreToolUse => "PreToolUse",
+            HookEvent::PostToolUse => "PostToolUse",
+        }
+    }
+}
+
+/// When a `sections` hook runs: before a `Write`, after an `Edit`, or both.
+#[derive(Clone, Copy)]
+enum SectionsAt {
+    BeforeWrite,
+    AfterEdit,
+    Both,
+}
+
+/// What a hook script can run, for a detector that runs at a Claude Code
+/// event. `listed-path` reads a staged path, so a hook script for one is
+/// unconstructible rather than emitted empty.
 enum WriteEngine<'a> {
     LineRegex {
         pattern: &'a Pattern,
@@ -98,37 +124,141 @@ enum WriteEngine<'a> {
         allow: Option<&'a Token>,
     },
     SiblingCase,
+    Sections {
+        heading: HeadingLevel,
+        require: &'a Pattern,
+        at: SectionsAt,
+    },
 }
 
 impl<'a> WriteEngine<'a> {
     fn of(d: &'a Detector) -> Option<Self> {
-        if !d.runs_at(Event::ClaudeCodePreToolUse) {
-            return None;
-        }
+        let before = d.runs_at(Event::ClaudeCodePreToolUse);
+        let after = d.runs_at(Event::ClaudeCodePostToolUse);
         match d.engine() {
             Engine::LineRegex {
                 pattern,
                 comment,
                 allow,
-            } => Some(WriteEngine::LineRegex {
+            } if before => Some(WriteEngine::LineRegex {
                 pattern,
                 comment: comment.as_ref(),
                 allow: allow.as_ref(),
             }),
-            Engine::SiblingCase => Some(WriteEngine::SiblingCase),
-            Engine::ListedPath => None,
+            Engine::SiblingCase if before => Some(WriteEngine::SiblingCase),
+            Engine::Sections { heading, require } => {
+                let at = match (before, after) {
+                    (true, true) => SectionsAt::Both,
+                    (true, false) => SectionsAt::BeforeWrite,
+                    (false, true) => SectionsAt::AfterEdit,
+                    (false, false) => return None,
+                };
+                Some(WriteEngine::Sections {
+                    heading: *heading,
+                    require,
+                    at,
+                })
+            }
+            Engine::LineRegex { .. } | Engine::SiblingCase | Engine::ListedPath => None,
         }
     }
 
-    /// The Claude Code tools this engine reads. Creating a file is only ever a
-    /// `Write`; changing text is any of the three.
+    /// The Claude Code tools this script reads, at any event. Creating a file
+    /// is only ever a `Write`; changing text is any of the three.
     fn tools(&self) -> &'static str {
         match self {
-            WriteEngine::LineRegex { .. } => "Write|Edit|MultiEdit",
-            WriteEngine::SiblingCase => "Write",
+            WriteEngine::LineRegex { .. }
+            | WriteEngine::Sections {
+                at: SectionsAt::Both,
+                ..
+            } => "Write|Edit|MultiEdit",
+            WriteEngine::SiblingCase
+            | WriteEngine::Sections {
+                at: SectionsAt::BeforeWrite,
+                ..
+            } => "Write",
+            WriteEngine::Sections {
+                at: SectionsAt::AfterEdit,
+                ..
+            } => "Edit|MultiEdit",
+        }
+    }
+
+    /// The registration: `(event, matcher)` for each event this script runs at.
+    fn registrations(&self) -> Vec<(HookEvent, &'static str)> {
+        match self {
+            WriteEngine::LineRegex { .. } => vec![(HookEvent::PreToolUse, "Write|Edit|MultiEdit")],
+            WriteEngine::SiblingCase => vec![(HookEvent::PreToolUse, "Write")],
+            WriteEngine::Sections { at, .. } => match at {
+                SectionsAt::BeforeWrite => vec![(HookEvent::PreToolUse, "Write")],
+                SectionsAt::AfterEdit => vec![(HookEvent::PostToolUse, "Edit|MultiEdit")],
+                SectionsAt::Both => vec![
+                    (HookEvent::PreToolUse, "Write"),
+                    (HookEvent::PostToolUse, "Edit|MultiEdit"),
+                ],
+            },
+        }
+    }
+
+    /// Whether this script reads a `PreToolUse` payload at all.
+    fn runs_before_a_write(&self) -> bool {
+        self.registrations()
+            .iter()
+            .any(|(event, _)| *event == HookEvent::PreToolUse)
+    }
+
+    /// The header's event line.
+    fn events_label(&self) -> String {
+        match self {
+            WriteEngine::LineRegex { .. } | WriteEngine::SiblingCase => {
+                format!("Claude Code PreToolUse, on {}", self.tools())
+            }
+            WriteEngine::Sections { at, .. } => match at {
+                SectionsAt::BeforeWrite => String::from("Claude Code PreToolUse, on Write"),
+                SectionsAt::AfterEdit => String::from(
+                    "Claude Code PostToolUse, on Edit|MultiEdit (warns only: the edit has happened)",
+                ),
+                SectionsAt::Both => String::from(
+                    "Claude Code PreToolUse on Write, and PostToolUse on Edit|MultiEdit\n\
+                     # (warns only after an edit: the edit has happened)",
+                ),
+            },
         }
     }
 }
+
+/// The `sections` judge, shared by the hook scripts and the commit
+/// dispatcher: `sections_judge <file> <require ERE> <level>` prints every
+/// section of that level with no line matching the pattern, as
+/// `<line>: <heading>`, and returns 0 clean, 1 hit, 2 could not read. `grep`
+/// is the only reader of the pattern, as for `line-regex`; `awk` reads only
+/// headings and fences, mirroring `rule::detector`'s `section_lacks`.
+pub(super) const SECTIONS_JUDGE: &str = r##"sections_judge() {
+  grep -nE -- "$2" "$1" > "$work/req.raw"
+  case $? in 0|1) ;; *) return 2 ;; esac
+  cut -d: -f1 "$work/req.raw" > "$work/req" || return 2
+  RL_LEVEL="$3" awk '
+BEGIN { lvl = ENVIRON["RL_LEVEL"] + 0; hits = 0 }
+FILENAME == ARGV[1] { ok[$1] = 1; next }
+{
+  line = $0; sub(/\r$/, "", line)
+  fence = (substr(line, 1, 3) == "```" || substr(line, 1, 3) == "~~~")
+  if (!infence && !fence) {
+    n = 0; while (n < 7 && substr(line, n + 1, 1) == "#") n++
+    c = substr(line, n + 1, 1)
+    if (n >= 1 && n <= 6 && (c == " " || c == "\t" || c == "") && n <= lvl) {
+      if (open && !sat) { print head; hits++ }
+      open = (n == lvl); sat = 0; head = FNR ": " line
+      next
+    }
+  }
+  if (fence) infence = !infence
+  if (open && (FNR in ok)) sat = 1
+}
+END { if (open && !sat) { print head; hits++ } exit (hits > 0) }
+' "$work/req" "$1" || return $?
+}
+"##;
 
 /// One hook script's inputs: the rule, the detector, and what it runs.
 type Hooked<'a> = (&'a Rule, &'a Detector, WriteEngine<'a>);
@@ -346,13 +476,13 @@ fn prologue(tag: &RuleTag, d: &Detector, engine: &WriteEngine<'_>) -> String {
         s,
         "# Detector `{name}` for [{tag}], generated by relearn from the rule file.\n\
          # Edit the rule, never this script: `relearn verify` reports a hand edit.\n\
-         # Engine: {engine}. Event: Claude Code PreToolUse, on {tools}.\n\
+         # Engine: {engine}. Event: {events}.\n\
          # Exit 2 blocks, and stderr is the reason Claude reads. Exit 0 allows.\n\
          # Any other exit is this script failing: reported, never a block.",
         name = d.name().as_str(),
         tag = tag.as_str(),
         engine = d.engine().as_str(),
-        tools = engine.tools(),
+        events = engine.events_label(),
     );
     let _ = writeln!(s, "set -uo pipefail");
     let _ = writeln!(s, "export LC_ALL=C");
@@ -405,14 +535,85 @@ case $? in 0) exit 0 ;; 1) ;; *) fail "grep could not read the exclude pattern" 
 fn verdict(d: &Detector, report: &str) -> String {
     match d.action() {
         Action::Block => format!("{{\n{report}}} >&2\nexit 2\n"),
-        Action::Warn => format!(
-            "context=\"$(\n{report})\"\n\
-             jq -n --arg c \"$context\" \
-             '{{hookSpecificOutput:{{hookEventName:\"PreToolUse\",additionalContext:$c}}}}' \
-             || fail \"jq could not build the warning\"\n\
-             exit 0\n"
-        ),
+        Action::Warn => warning("PreToolUse", report),
     }
+}
+
+/// A warning: the report as context Claude reads, and exit 0.
+fn warning(event: &str, report: &str) -> String {
+    format!(
+        "context=\"$(\n{report})\"\n\
+         jq -n --arg c \"$context\" \
+         '{{hookSpecificOutput:{{hookEventName:\"{event}\",additionalContext:$c}}}}' \
+         || fail \"jq could not build the warning\"\n\
+         exit 0\n"
+    )
+}
+
+/// The body of a `sections` script, after the prologue. Before a `Write` the
+/// content is the payload's; after an `Edit` it is the file on disk, and the
+/// verdict is a warning whatever the action, because the edit has happened.
+fn sections_body(d: &Detector, heading: HeadingLevel, require: &Pattern, at: SectionsAt) -> String {
+    let (before, after) = match at {
+        SectionsAt::BeforeWrite => (true, false),
+        SectionsAt::AfterEdit => (false, true),
+        SectionsAt::Both => (true, true),
+    };
+    let mut s = String::new();
+    let _ = writeln!(
+        s,
+        "\nrequire={}\nlevel={}",
+        sh_quote(require.as_str()),
+        heading.get()
+    );
+    s.push_str(
+        "work=\"$(mktemp -d)\" || fail \"no scratch directory\"\n\
+         trap 'rm -rf \"$work\"' EXIT\n\n",
+    );
+    s.push_str(SECTIONS_JUDGE);
+    s.push_str(
+        "\nevent=\"$(jq -r '.hook_event_name // \"\"' <<<\"$input\")\" \
+         || fail \"the payload has no readable hook_event_name\"\n\
+         case \"$event:$tool_name\" in\n",
+    );
+    if before {
+        s.push_str(
+            "  PreToolUse:Write)\n\
+             \x20   jq -j '.tool_input.content // \"\"' <<<\"$input\" > \"$work/file\" \
+             || fail \"the payload's content could not be read\"\n\
+             \x20   when=before ;;\n",
+        );
+    }
+    if after {
+        s.push_str(
+            "  PostToolUse:Edit | PostToolUse:MultiEdit)\n\
+             \x20   [ -f \"$file_path\" ] || exit 0\n\
+             \x20   cat -- \"$file_path\" > \"$work/file\" || fail \"the edited file could not be read\"\n\
+             \x20   when=after ;;\n",
+        );
+    }
+    s.push_str(
+        "  *) exit 0 ;;\nesac\n\n\
+         hits=\"$(sections_judge \"$work/file\" \"$require\" \"$level\")\"\n\
+         case $? in 0) exit 0 ;; 1) ;; *) fail \"the sections judge could not read the file\" ;; esac\n\n",
+    );
+    let report = |word: &str| {
+        format!(
+            "  printf '[%s] %s: {word}. %s\\n' \"$tag\" \"$name\" \"$message\"\n\
+             \x20 printf 'Section(s) in %s with no line matching %s:\\n%s\\n' \"$file_path\" \"$require\" \"$hits\"\n"
+        )
+    };
+    if after {
+        let post = warning("PostToolUse", &report("WARNING"));
+        if before {
+            let _ = write!(s, "if [ \"$when\" = after ]; then\n{post}fi\n");
+        } else {
+            s.push_str(&post);
+            return s;
+        }
+    }
+    s.push_str(&verdict(d, &report(verdict_word(d.action()))));
+    s
 }
 
 fn verdict_word(action: Action) -> &'static str {
@@ -506,6 +707,11 @@ done
             );
             s.push_str(&verdict(d, &report));
         }
+        WriteEngine::Sections {
+            heading,
+            require,
+            at,
+        } => s.push_str(&sections_body(d, *heading, require, *at)),
     }
     s
 }
@@ -542,7 +748,7 @@ run() {
   for sibling in "$@"; do : > "$(dirname "$target")/$sibling"; done
   local out got
   out="$(jq -nc --arg p "$target" --arg c "$text" \
-    '{tool_name:"Write",tool_input:{file_path:$p,content:$c}}' \
+    '{hook_event_name:"PreToolUse",tool_name:"Write",tool_input:{file_path:$p,content:$c}}' \
     | bash "$here/$script" 2>"$work/stderr")"
   got=$?
   local err
@@ -564,7 +770,45 @@ run() {
 
 "#,
     );
-    for (name, (_, detector, _)) in detectors {
+    let any_post = detectors
+        .values()
+        .any(|(_, d, _)| d.runs_at(Event::ClaudeCodePostToolUse));
+    if any_post {
+        s.push_str(
+            r#"# run_post <script> <expect hit|clean> <path> <text>
+# The file is written to disk first, then an Edit's PostToolUse payload names
+# it. After an edit a hit only ever warns, whatever the detector's action.
+run_post() {
+  local script="$1" expect="$2" path="$3" text="$4"
+  local case_dir="$work/$((pass + failed))"
+  local target="$case_dir/$path"
+  mkdir -p "$(dirname "$target")"
+  printf '%s' "$text" > "$target"
+  local out got
+  out="$(jq -nc --arg p "$target" \
+    '{hook_event_name:"PostToolUse",tool_name:"Edit",tool_input:{file_path:$p,old_string:"",new_string:""},tool_response:{}}' \
+    | bash "$here/$script" 2>"$work/stderr")"
+  got=$?
+  local err
+  err="$(cat "$work/stderr")"
+  local ok=no
+  case "$expect" in
+    clean) [ "$got" -eq 0 ] && [ -z "$out" ] && [ -z "$err" ] && ok=yes ;;
+    hit) [ "$got" -eq 0 ] && case "$out" in *'"PostToolUse"'*additionalContext*) true ;; *) false ;; esac && ok=yes ;;
+  esac
+  if [ "$ok" = yes ]; then
+    pass=$((pass + 1))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL  %s  %s expected %s after an edit: exit %s, stdout %s bytes, stderr %s bytes\n' \
+      "$script" "$path" "$expect" "$got" "${#out}" "${#err}"
+  fi
+}
+
+"#,
+        );
+    }
+    for (name, (_, detector, engine)) in detectors {
         let _ = writeln!(s, "# {name}");
         for fixture in detector.fixtures() {
             let expect = match fixture.expect() {
@@ -577,6 +821,18 @@ run() {
                 // A list belongs to `listed-path`, which has no hook script.
                 FixtureInput::Listed(_) => continue,
             };
+            if detector.runs_at(Event::ClaudeCodePostToolUse) {
+                let _ = writeln!(
+                    s,
+                    "run_post {} {expect} {} {}",
+                    sh_quote(&format!("{name}.sh")),
+                    sh_quote(fixture.path().as_str()),
+                    sh_quote(text),
+                );
+            }
+            if !engine.runs_before_a_write() {
+                continue;
+            }
             let _ = write!(
                 s,
                 "run {} {expect} {} {} {}",
@@ -606,23 +862,40 @@ exit 1
 
 /// The registration, grouped by matcher, inside a markdown file.
 fn settings_snippet(detectors: &BTreeMap<&str, Hooked<'_>>) -> String {
-    let mut by_matcher: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    // Keyed by `HookEvent`, whose order is the explicit rank; a string sort
+    // would put PostToolUse before PreToolUse.
+    let mut by_event: BTreeMap<HookEvent, BTreeMap<&str, Vec<&str>>> = BTreeMap::new();
     for (name, (_, _, engine)) in detectors {
-        by_matcher.entry(engine.tools()).or_default().push(name);
+        for (event, matcher) in engine.registrations() {
+            by_event
+                .entry(event)
+                .or_default()
+                .entry(matcher)
+                .or_default()
+                .push(name);
+        }
     }
-    let mut groups = Vec::new();
-    for (matcher, names) in &by_matcher {
-        let commands: Vec<String> = names
-            .iter()
-            .map(|n| {
-                format!(
-                    "          {{ \"type\": \"command\", \"command\": \"bash ~/.claude/{INSTALL_DIR}/{n}.sh\" }}"
-                )
-            })
-            .collect();
-        groups.push(format!(
-            "      {{\n        \"matcher\": \"{matcher}\",\n        \"hooks\": [\n{}\n        ]\n      }}",
-            commands.join(",\n")
+    let mut events = Vec::new();
+    for (event, by_matcher) in &by_event {
+        let mut groups = Vec::new();
+        for (matcher, names) in by_matcher {
+            let commands: Vec<String> = names
+                .iter()
+                .map(|n| {
+                    format!(
+                        "          {{ \"type\": \"command\", \"command\": \"bash ~/.claude/{INSTALL_DIR}/{n}.sh\" }}"
+                    )
+                })
+                .collect();
+            groups.push(format!(
+                "      {{\n        \"matcher\": \"{matcher}\",\n        \"hooks\": [\n{}\n        ]\n      }}",
+                commands.join(",\n")
+            ));
+        }
+        events.push(format!(
+            "    \"{}\": [\n{}\n    ]",
+            event.as_str(),
+            groups.join(",\n")
         ));
     }
     format!(
@@ -636,7 +909,7 @@ fn settings_snippet(detectors: &BTreeMap<&str, Hooked<'_>>) -> String {
          its entry with the one below rather than adding a second: one hook per \
          detector, so a block is never reported twice and a retired one is never \
          left running.\n\n\
-         ```json\n{{\n  \"hooks\": {{\n    \"PreToolUse\": [\n{}\n    ]\n  }}\n}}\n```\n",
-        groups.join(",\n")
+         ```json\n{{\n  \"hooks\": {{\n{}\n  }}\n}}\n```\n",
+        events.join(",\n")
     )
 }

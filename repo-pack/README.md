@@ -37,6 +37,7 @@ status.
 
 | Detector | Rule | Engine | Action | Install |
 |---|---|---|---|---|
+| `ledger-entry-names-artefact` | `[R:features-ledger-names-its-artefact]` | sections | block | draft |
 | `listed-file-staged` | `[R:no-secrets-in-config-repo]` | listed-path | block | draft |
 | `no-tool-attribution` | `[R:no-tool-attribution-in-public-artefacts]` | line-regex | block | draft |
 

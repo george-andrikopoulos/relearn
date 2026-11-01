@@ -76,7 +76,7 @@ pub enum DetectorError {
     )]
     Name(String),
     #[error(
-        "unknown `engine` {0:?} (expected line-regex | sibling-case | listed-path | eol-attribute | root-documents | lint-enabled)"
+        "unknown `engine` {0:?} (expected line-regex | sibling-case | listed-path | sections | eol-attribute | root-documents | lint-enabled)"
     )]
     UnknownEngine(String),
     #[error("engine `{engine}` runs at {expected}")]
@@ -121,8 +121,12 @@ pub enum DetectorError {
     NoEvents,
     #[error("event {0:?} is listed twice")]
     DuplicateEvent(String),
-    #[error("unknown event {0:?} (expected claude-code-pre-tool-use | git-pre-commit)")]
+    #[error(
+        "unknown event {0:?} (expected claude-code-pre-tool-use | claude-code-post-tool-use | git-pre-commit)"
+    )]
     UnknownEvent(String),
+    #[error("`heading` {0} must be a Markdown heading level, 1 to 6")]
+    HeadingLevel(i64),
     #[error(
         "fixture {index}: `list` entry {entry:?} must be a relative forward-slash path with no `..`"
     )]
@@ -137,7 +141,7 @@ pub enum DetectorError {
         "fixture {index}: engine `{engine}` needs {} and nothing else",
         match *engine {
             "sibling-case" => "`path` and `siblings`",
-            "line-regex" => "`path` and `input`",
+            "line-regex" | "sections" => "`path` and `input`",
             "listed-path" => "`path` and `list`",
             _ => "`records`",
         }
@@ -557,6 +561,67 @@ impl Token {
     }
 }
 
+/// A Markdown ATX heading level, 1 to 6: the `#` count that opens a section.
+/// Parsed from the file's integer wide, then range-checked, so `0` and `300`
+/// are named as out of range rather than lost in a narrower type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HeadingLevel(u8);
+
+impl HeadingLevel {
+    fn parse(raw: i64) -> Result<Self, DetectorError> {
+        match u8::try_from(raw) {
+            Ok(level @ 1..=6) => Ok(HeadingLevel(level)),
+            _ => Err(DetectorError::HeadingLevel(raw)),
+        }
+    }
+
+    /// The level, 1 to 6.
+    #[must_use]
+    pub fn get(self) -> u8 {
+        self.0
+    }
+}
+
+/// The level of an ATX heading line (CR already removed): one to six `#` and
+/// then a space, a tab or the end of the line. `None` for any other line. The
+/// generated `awk` judge reads the same shape.
+fn heading_of(line: &str) -> Option<u8> {
+    let hashes = line.bytes().take_while(|&b| b == b'#').count();
+    let after = line.as_bytes().get(hashes);
+    let level = u8::try_from(hashes).ok().filter(|n| (1..=6).contains(n))?;
+    matches!(after, None | Some(b' ' | b'\t')).then_some(level)
+}
+
+/// Whether some section opened by a heading of `level` has no line matching
+/// `require`. A section runs to the next heading of that level or shallower;
+/// a deeper heading is part of it. A heading inside a fenced block (a line
+/// starting with three backticks or three tildes) opens nothing. The heading
+/// line itself never satisfies its section.
+fn section_lacks(text: &str, level: HeadingLevel, require: &Regex) -> bool {
+    let mut in_fence = false;
+    let mut open: Option<bool> = None;
+    let mut lacking = false;
+    for line in text.split('\n') {
+        let bare = line.strip_suffix('\r').unwrap_or(line);
+        let fence = bare.starts_with("```") || bare.starts_with("~~~");
+        if !in_fence
+            && !fence
+            && let Some(n) = heading_of(bare).filter(|n| *n <= level.get())
+        {
+            lacking |= open == Some(false);
+            open = (n == level.get()).then_some(false);
+            continue;
+        }
+        if fence {
+            in_fence = !in_fence;
+        }
+        if let Some(satisfied) = open.as_mut() {
+            *satisfied |= require.is_match(line.as_bytes());
+        }
+    }
+    lacking || open == Some(false)
+}
+
 /// What the detector looks for, once the path is in scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Engine {
@@ -575,6 +640,14 @@ pub enum Engine {
     /// from the path a clone's `git config --local relearn.<name>.list` names,
     /// and a fixture carries a synthetic one. Reads paths, never text.
     ListedPath,
+    /// A **whole file**: every section opened by a heading of `heading` must
+    /// contain a line matching `require` ([`section_lacks`]). It needs the
+    /// whole text, so at write time it reads a `Write`'s content before, and
+    /// an edited file from disk after (`claude-code-post-tool-use`).
+    Sections {
+        heading: HeadingLevel,
+        require: Pattern,
+    },
 }
 
 impl Engine {
@@ -585,13 +658,15 @@ impl Engine {
             Engine::LineRegex { .. } => "line-regex",
             Engine::SiblingCase => "sibling-case",
             Engine::ListedPath => "listed-path",
+            Engine::Sections { .. } => "sections",
         }
     }
 
-    /// The globs this engine excludes without being told.
+    /// The globs this engine excludes without being told: a content engine
+    /// excludes [`SELF_EXCLUDES`].
     fn implicit_excludes(&self) -> Vec<Glob> {
         match self {
-            Engine::LineRegex { .. } => SELF_EXCLUDES
+            Engine::LineRegex { .. } | Engine::Sections { .. } => SELF_EXCLUDES
                 .iter()
                 .map(|g| Glob(String::from(*g)))
                 .collect(),
@@ -601,14 +676,19 @@ impl Engine {
 
     /// Whether this engine can read what `event` hands it. `sibling-case`
     /// lists a directory on disk, which a commit does not change; `listed-path`
-    /// guards what enters history, which a write does not do.
+    /// guards what enters history, which a write does not do; after a tool
+    /// call only a whole-file engine has anything an earlier event lacked.
     fn runs_at(&self, event: Event) -> bool {
         match (self, event) {
-            (Engine::LineRegex { .. }, _)
+            (Engine::Sections { .. }, _)
+            | (Engine::LineRegex { .. }, Event::ClaudeCodePreToolUse | Event::GitPreCommit)
             | (Engine::SiblingCase, Event::ClaudeCodePreToolUse)
             | (Engine::ListedPath, Event::GitPreCommit) => true,
-            (Engine::SiblingCase, Event::GitPreCommit)
-            | (Engine::ListedPath, Event::ClaudeCodePreToolUse) => false,
+            (Engine::LineRegex { .. }, Event::ClaudeCodePostToolUse)
+            | (Engine::SiblingCase, Event::GitPreCommit | Event::ClaudeCodePostToolUse)
+            | (Engine::ListedPath, Event::ClaudeCodePreToolUse | Event::ClaudeCodePostToolUse) => {
+                false
+            }
         }
     }
 
@@ -618,6 +698,9 @@ impl Engine {
             Engine::LineRegex { .. } => "claude-code-pre-tool-use or git-pre-commit",
             Engine::SiblingCase => "claude-code-pre-tool-use only",
             Engine::ListedPath => "git-pre-commit only",
+            Engine::Sections { .. } => {
+                "claude-code-pre-tool-use, claude-code-post-tool-use or git-pre-commit"
+            }
         }
     }
 }
@@ -628,6 +711,10 @@ impl Engine {
 pub enum Event {
     /// Claude Code `PreToolUse`, on the file tools the engine reads.
     ClaudeCodePreToolUse,
+    /// Claude Code `PostToolUse` on `Edit` and `MultiEdit`: the edited file,
+    /// read back from disk. The edit has happened, so a hit here only ever
+    /// warns, whatever the detector's action.
+    ClaudeCodePostToolUse,
     /// A repository's own `pre-commit`, through the generated dispatcher: the
     /// staged paths, and for `line-regex` the staged content, read from the
     /// index rather than the working tree.
@@ -639,6 +726,7 @@ impl Event {
     pub fn as_str(self) -> &'static str {
         match self {
             Event::ClaudeCodePreToolUse => "claude-code-pre-tool-use",
+            Event::ClaudeCodePostToolUse => "claude-code-post-tool-use",
             Event::GitPreCommit => "git-pre-commit",
         }
     }
@@ -646,6 +734,7 @@ impl Event {
     fn parse(s: &str) -> Result<Self, DetectorError> {
         match s {
             "claude-code-pre-tool-use" => Ok(Event::ClaudeCodePreToolUse),
+            "claude-code-post-tool-use" => Ok(Event::ClaudeCodePostToolUse),
             "git-pre-commit" => Ok(Event::GitPreCommit),
             other => Err(DetectorError::UnknownEvent(other.to_owned())),
         }
@@ -805,6 +894,14 @@ impl Detector {
         self.events.contains(&event)
     }
 
+    /// Whether the `hooks` target compiles this detector to a script: it runs
+    /// at a Claude Code event, before a tool call or after one. The controls
+    /// map, `lint` and the pack's README all ask this one question.
+    #[must_use]
+    pub fn has_hook_script(&self) -> bool {
+        self.runs_at(Event::ClaudeCodePreToolUse) || self.runs_at(Event::ClaudeCodePostToolUse)
+    }
+
     #[must_use]
     pub fn action(&self) -> Action {
         self.action
@@ -851,6 +948,9 @@ impl Detector {
                         .any(|s| s.eq_ignore_ascii_case(base))
             }
             Engine::ListedPath => subject.listed.contains(&path),
+            Engine::Sections { heading, require } => {
+                section_lacks(subject.text, *heading, &require.compiled)
+            }
         };
         if hit {
             Detection::Hit
@@ -869,6 +969,8 @@ pub(crate) struct RawDetector {
     pattern: Option<String>,
     comment: Option<String>,
     allow: Option<String>,
+    heading: Option<i64>,
+    require: Option<String>,
     always: Option<Vec<String>>,
     lint: Option<String>,
     groups: Option<Vec<String>>,
@@ -951,7 +1053,49 @@ impl RawDetector {
                 });
             }
         }
+        if self.engine != "sections" {
+            for (field, present) in [
+                ("heading", self.heading.is_some()),
+                ("require", self.require.is_some()),
+            ] {
+                if present {
+                    let engine = match self.engine.as_str() {
+                        "line-regex" => "line-regex",
+                        "sibling-case" => "sibling-case",
+                        "listed-path" => "listed-path",
+                        other => return Err(DetectorError::UnknownEngine(other.to_owned())),
+                    };
+                    return Err(DetectorError::FieldNotUsed { engine, field });
+                }
+            }
+        }
         let engine = match self.engine.as_str() {
+            "sections" => {
+                for (field, present) in [
+                    ("pattern", self.pattern.is_some()),
+                    ("comment", self.comment.is_some()),
+                    ("allow", self.allow.is_some()),
+                ] {
+                    if present {
+                        return Err(DetectorError::FieldNotUsed {
+                            engine: "sections",
+                            field,
+                        });
+                    }
+                }
+                let heading = self.heading.ok_or(DetectorError::FieldRequired {
+                    engine: "sections",
+                    field: "heading",
+                })?;
+                let require = self.require.ok_or(DetectorError::FieldRequired {
+                    engine: "sections",
+                    field: "require",
+                })?;
+                Engine::Sections {
+                    heading: HeadingLevel::parse(heading)?,
+                    require: Pattern::parse(require)?,
+                }
+            }
             "line-regex" => {
                 let pattern = self.pattern.ok_or(DetectorError::FieldRequired {
                     engine: "line-regex",
@@ -1073,7 +1217,9 @@ impl RawFixture {
             return Err(DetectorError::FixturePath { index, path });
         }
         let input = match (engine, self.input, self.siblings, self.list) {
-            (Engine::LineRegex { .. }, Some(text), None, None) => FixtureInput::Text(text),
+            (Engine::LineRegex { .. } | Engine::Sections { .. }, Some(text), None, None) => {
+                FixtureInput::Text(text)
+            }
             (Engine::SiblingCase, None, Some(names), None) => FixtureInput::Siblings(names),
             (Engine::ListedPath, None, None, Some(list)) => {
                 if let Some(bad) = list.iter().find(|entry| !fixture_path_ok(entry)) {
@@ -1084,7 +1230,15 @@ impl RawFixture {
                 }
                 FixtureInput::Listed(list)
             }
-            (Engine::LineRegex { .. } | Engine::SiblingCase | Engine::ListedPath, _, _, _) => {
+            (
+                Engine::LineRegex { .. }
+                | Engine::SiblingCase
+                | Engine::ListedPath
+                | Engine::Sections { .. },
+                _,
+                _,
+                _,
+            ) => {
                 return Err(mismatch());
             }
         };

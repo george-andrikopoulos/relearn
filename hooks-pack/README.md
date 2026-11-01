@@ -3,7 +3,9 @@
 Some rules in this repository carry a **detector**: a mechanical check precise enough to
 run on every write, with fixtures that prove it fires where it should and stays quiet where
 it should not. `relearn` compiles each one into a bash script that Claude Code runs before
-a `Write`, `Edit` or `MultiEdit`. This folder is that emission, committed, so it can be
+a `Write`, `Edit` or `MultiEdit` — or, for a whole-file `sections` detector, before a
+`Write` and **after** an `Edit` or `MultiEdit`, when it reads the edited file back from disk
+and can only warn, because the edit has already happened. This folder is that emission, committed, so it can be
 installed on a machine that has no Rust toolchain.
 
 ```
@@ -16,6 +18,7 @@ hooks-pack/
 
 | Script | Rule | Action | Runs on | Install |
 |---|---|---|---|---|
+| `ledger-entry-names-artefact.sh` | `[R:features-ledger-names-its-artefact]` | block before a Write; warn after an Edit | Write (PreToolUse); Edit, MultiEdit (PostToolUse) | draft |
 | `no-anyhow-in-lib.sh` | `[R:no-anyhow-in-libraries]` | block | Write, Edit, MultiEdit | yes |
 | `no-case-collision.sh` | `[R:case-collision]` | block | Write | yes |
 | `no-constructed-target-path.sh` | `[R:xplat-fixtures]` | block | Write, Edit, MultiEdit | draft |

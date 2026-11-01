@@ -152,6 +152,46 @@ if [ -n "$trees" ]; then
   tree_case 'pass-by-value-lint-on.sh' 'pass-by-value-lint-on' hit block
   tree_case 'pass-by-value-lint-on.sh' 'pass-by-value-lint-on' clean block
 fi
+# ledger-entry-names-artefact (commit time)
+commit_case 'ledger-entry-names-artefact' hit block 'FEATURES.md' '# Features
+
+## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+**Enforced by:** `widget::parse` tests.
+
+### Gizmos render
+What: a gizmo renders in colour.
+' none
+commit_case 'ledger-entry-names-artefact' hit block 'docs/FEATURES.md' '## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+
+### Widgets parse twice
+What: the same widget twice.
+**Enforced by:** `widget::parse` tests.
+' none
+commit_case 'ledger-entry-names-artefact' clean block 'FEATURES.md' '# Features
+
+## Parsing
+
+### Widgets parse
+What: a widget is parsed once.
+#### Detail
+**Enforced by:** `widget::parse` tests.
+
+### Gizmos render
+What: a gizmo renders in colour.
+NOTHING YET, exposed; carried in TODO.md.
+
+```text
+### not an entry
+```
+' none
+commit_case 'ledger-entry-names-artefact' clean block 'README.md' '### An entry with nothing
+' none
 # listed-file-staged (commit time)
 commit_case 'listed-file-staged' hit block 'config/local-secrets.toml' '' given 'config/local-secrets.toml' 'machine.env'
 commit_case 'listed-file-staged' hit block 'machine.env' '' given 'config/local-secrets.toml' 'machine.env'
@@ -175,4 +215,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) gate case(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=bec5632e21ddc76919903077e9cfaa6b044107df5744147a990416fbc0a6b56f rules=R:borrow-in-signatures,R:five-files-no-more,R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=75ee2ffbc9dca69ef410fc5bef02ddce6ce22a4901288dc1e8b2b966712585e1 rules=R:borrow-in-signatures,R:features-ledger-names-its-artefact,R:five-files-no-more,R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->

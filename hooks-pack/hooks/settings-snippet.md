@@ -11,6 +11,7 @@ Where a hand-written hook with the same name is registered today, replace its en
       {
         "matcher": "Write",
         "hooks": [
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/ledger-entry-names-artefact.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-case-collision.sh" }
         ]
       },
@@ -32,9 +33,17 @@ Where a hand-written hook with the same name is registered today, replace its en
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-unwrap-in-src.sh" }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/ledger-entry-names-artefact.sh" }
+        ]
+      }
     ]
   }
 }
 ```
 
-<!-- relearn:generated v0.1.0 sha256=8df2cc0e7454b99509e1e098191e4ea0e697d785de5bfe43ee7a5404191cbf73 rules=R:case-collision,R:errors-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=1a6b0cecb13010973c6bd1f87bb25136aee9428975d5005610263f1317da4fe0 rules=R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

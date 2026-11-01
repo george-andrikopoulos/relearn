@@ -195,6 +195,10 @@ fn detector_tables(d: &Detector) -> String {
             }
         }
         Engine::SiblingCase | Engine::ListedPath => {}
+        Engine::Sections { heading, require } => {
+            out.push_str(&format!("heading = {}\n", heading.get()));
+            out.push_str(&kv_code("require", require.as_str()));
+        }
     }
     out.push_str(&kv_list(
         "files",

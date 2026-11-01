@@ -19,7 +19,7 @@ use serde::Deserialize;
 
 use crate::emit::hooks::{HOOKS_DIR, INSTALL_DIR, PACK_DIR};
 use crate::library::{Library, Validated};
-use crate::rule::{Control, ControlError, ControlKind, Controls, Event, RuleTag, RuleTagError};
+use crate::rule::{Control, ControlError, ControlKind, Controls, RuleTag, RuleTagError};
 
 /// Why a mapping file could not be read.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -647,7 +647,7 @@ impl ControlMap {
     pub fn with_detectors(mut self, library: &Library<Validated>) -> Result<Self, MapError> {
         for rule in library.rules() {
             for detector in rule.detectors() {
-                if !detector.runs_at(Event::ClaudeCodePreToolUse) {
+                if !detector.has_hook_script() {
                     continue;
                 }
                 let name = detector.name().as_str();

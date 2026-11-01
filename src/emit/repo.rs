@@ -38,12 +38,12 @@
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
-use super::hooks::{HookRole, ere_literal};
+use super::hooks::{HookRole, SECTIONS_JUDGE, ere_literal};
 use super::{OutputFile, RelativePath, emittable};
 use crate::library::{Library, Validated};
 use crate::rule::{
-    Action, Detection, Detector, Engine, Event, FixtureInput, Gate, GateEngine, Glob, Pattern,
-    Rule, RuleTag, Token,
+    Action, Detection, Detector, Engine, Event, FixtureInput, Gate, GateEngine, Glob, HeadingLevel,
+    Pattern, Rule, RuleTag, Token,
 };
 
 /// The directory this emitter owns, relative to the output root.
@@ -59,7 +59,7 @@ pub const RUNNER: &str = "test-gates";
 pub const DISPATCHER: &str = "relearn-pre-commit";
 
 /// What the dispatcher can run over the index: staged content for
-/// `line-regex`, a staged path for `listed-path`. `sibling-case` lists a
+/// `line-regex` and `sections`, a staged path for `listed-path`. `sibling-case` lists a
 /// directory, which a commit does not change, so a commit function for one is
 /// unconstructible rather than emitted empty.
 enum CommitEngine<'a> {
@@ -69,6 +69,10 @@ enum CommitEngine<'a> {
         allow: Option<&'a Token>,
     },
     ListedPath,
+    Sections {
+        heading: HeadingLevel,
+        require: &'a Pattern,
+    },
 }
 
 impl<'a> CommitEngine<'a> {
@@ -87,6 +91,10 @@ impl<'a> CommitEngine<'a> {
                 allow: allow.as_ref(),
             }),
             Engine::ListedPath => Some(CommitEngine::ListedPath),
+            Engine::Sections { heading, require } => Some(CommitEngine::Sections {
+                heading: *heading,
+                require,
+            }),
             Engine::SiblingCase => None,
         }
     }
@@ -225,6 +233,13 @@ verdict() {
 }
 "#,
     );
+    if committed
+        .values()
+        .any(|(_, _, e)| matches!(e, CommitEngine::Sections { .. }))
+    {
+        s.push('\n');
+        s.push_str(SECTIONS_JUDGE);
+    }
     for (name, (rule, detector, engine)) in committed {
         s.push('\n');
         s.push_str(&commit_function(name, rule.tag(), detector, engine));
@@ -349,6 +364,27 @@ END { if (bad != "") { print "line(s)" bad > "/dev/stderr"; exit 3 } }
   done < "$work/staged"
   [ -n "$found" ] || return 0
   verdict "$action" "$tag" "$name" "$message" "Staged path(s) on this clone's list:" "$found"
+"#,
+            );
+        }
+        CommitEngine::Sections { heading, require } => {
+            let _ = writeln!(s, "  local require={}", sh_quote(require.as_str()));
+            let _ = writeln!(s, "  local level={}", heading.get());
+            s.push_str(
+                r#"  while IFS= read -r -d '' p; do
+    in_scope "$p" "$files_ere" "$exclude_ere" || continue
+    case "$(git cat-file -t ":0:$p" 2>/dev/null)" in
+      blob) ;;
+      commit) continue ;;
+      *) disarmed "$name: git could not read the staged $p" ;;
+    esac
+    git cat-file blob ":0:$p" > "$work/blob" || disarmed "$name: git could not read the staged $p"
+    hits="$(sections_judge "$work/blob" "$require" "$level")"
+    case $? in 0) continue ;; 1) ;; *) disarmed "$name: the sections judge could not read the staged $p" ;; esac
+    found="$found$p:"$'\n'"$(printf '%s\n' "$hits" | sed 's/^/  /')"$'\n'
+  done < "$work/staged"
+  [ -n "$found" ] || return 0
+  verdict "$action" "$tag" "$name" "$message" "Staged section(s) with no line matching the requirement:" "$found"
 "#,
             );
         }

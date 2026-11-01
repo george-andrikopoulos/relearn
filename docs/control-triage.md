@@ -226,6 +226,11 @@ The disposition of every row above is in ARCHITECTURE.md (`Proposed 2026-10-31: 
 engines`). Which rows have a drafted gate is listed in `repo-pack/README.md`'s table, which a
 test reads, and in `hooks-pack/README.md` once the commit-time event lands.
 
+**Note, 2026-11-01: whole-file engine built.** `sections` exists, at `claude-code-pre-tool-use`
+on `Write`, the new `claude-code-post-tool-use` on `Edit`/`MultiEdit` (warn only) and
+`git-pre-commit`. `R:features-ledger-names-its-artefact` carries it (`ledger-entry-names-artefact`,
+block, status still `active`).
+
 **Note, 2026-11-01: commit-time event built.** `git-pre-commit` exists, with the engine
 `listed-path`. `R:no-secrets-in-config-repo` now carries a commit-time detector
 (`listed-file-staged`, block, status still `active`). Commit-time detectors are listed in
