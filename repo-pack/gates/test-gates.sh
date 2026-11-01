@@ -89,6 +89,15 @@ if [ -n "$trees" ]; then
   tree_case 'executable-text-eol-pinned.sh' 'executable-text-eol-pinned' hit block
   tree_case 'executable-text-eol-pinned.sh' 'executable-text-eol-pinned' clean block
 fi
+# five-root-documents
+judge_case 'five-root-documents.sh' hit $'README.md' $'CLAUDE.md' $'ARCHITECTURE.md' $'FEATURES.md' $'TODO.md' $'NOTES.md'
+judge_case 'five-root-documents.sh' hit $'README.md' $'DESIGN.md' $'src/main.rs'
+judge_case 'five-root-documents.sh' clean $'README.md' $'CLAUDE.md' $'ARCHITECTURE.md' $'FEATURES.md' $'TODO.md' $'AGENTS.md' $'docs/guide.md' $'Cargo.toml'
+judge_case 'five-root-documents.sh' clean $'src/lib.rs' $'docs/NOTES.md'
+if [ -n "$trees" ]; then
+  tree_case 'five-root-documents.sh' 'five-root-documents' hit warn
+  tree_case 'five-root-documents.sh' 'five-root-documents' clean warn
+fi
 
 if [ "$failed" -eq 0 ]; then
   echo "PASS: $pass gate case(s) agree with the generated scripts"
@@ -97,4 +106,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) gate case(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=e03a2dfe71e9c13e5988f848efddd62b23398929de5cc860529128f4a54b6a14 rules=R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=7307fac6cb39bf7219802c4cdf2c5cebc1f43893c78bd040c3b04d2370fa71f0 rules=R:five-files-no-more,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->
