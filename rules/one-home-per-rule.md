@@ -7,6 +7,28 @@ created = "2026-09-19"
 origin = "mined"
 status = { kind = "active" }
 incident = "2026-07-22, the elevation of a configuration directory to a governed repository. The same instruction layer was found to exist in three places at once: the live directory, a second checkout kept \"for reference\", and a backup tree. 1.85 GB was deleted and six memory files quarantined before one copy could be called the source. Nothing had announced the fork, because nothing could: each copy was individually well-formed, and the only evidence of duplication was that a correction applied to one of them did not show up in a session reading another. Recorded as \"P2, one home per rule\" in a framework document, cited by tag in six places since, and defined nowhere -- the rule governing the library was the one rule the library did not contain. Written down 2026-09-19 after the class recurred in a new shape that the original framing would not have caught: a transcript miner held a hand-written list of WHICH RULES EXIST beside the corpus that defines them, drifted to 23 rows against 84 with nothing failing, and five rules a deterministic hook already held were invisible to the quarterly review that decides what gets retired. The second home was not a copy of the rules; it was a copy of the INDEX, which is why reading either one looked correct."
+
+[[detector]]
+name = "one-home-paragraph"
+engine = "duplicate-paragraph"
+min_bytes = 160
+files = ["**/*.md"]
+exclude = ["**/skills/**/SKILL.md", "**/.claude/rules/**", "**/.cursor/rules/**", "**/.github/copilot-instructions.md", "**/AGENTS.md"]
+events = ["repository-gate"]
+action = "warn"
+message = "The same paragraph is an original in two files, so a change to it must be made twice. Keep one, and make the other a reference to it or a generated copy. A generated copy is not a second home; relearn's own emission paths are excluded for that reason."
+
+[[detector.fixture]]
+records = ["docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.", "README.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once."]
+expect = "hit"
+
+[[detector.fixture]]
+records = ["docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.", "docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.", "README.md\tSee docs/deploy.md for the release checklist, which is kept in that one file and nowhere else, so this document links to it rather than copying the steps out.", "README.md\tLicensed under the terms in LICENSE.", "docs/deploy.md\tLicensed under the terms in LICENSE."]
+expect = "clean"
+
+[[detector.fixture]]
+records = ["docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.", "skills/release/SKILL.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once."]
+expect = "clean"
 +++
 
 Every rule, fact or definition has exactly one home, and every other place that needs it holds a **reference or a generated copy**, never a second original.

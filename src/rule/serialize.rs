@@ -253,6 +253,9 @@ fn gate_tables(g: &Gate) -> String {
             }
             out.push_str(&kv("default", default.as_str()));
         }
+        GateEngine::DuplicateParagraph { min_bytes } => {
+            out.push_str(&format!("min_bytes = {}\n", min_bytes.get()));
+        }
     }
     out.push_str(&kv_list(
         "files",

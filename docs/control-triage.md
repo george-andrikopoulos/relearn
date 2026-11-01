@@ -226,6 +226,10 @@ The disposition of every row above is in ARCHITECTURE.md (`Proposed 2026-10-31: 
 engines`). Which rows have a drafted gate is listed in `repo-pack/README.md`'s table, which a
 test reads, and in `hooks-pack/README.md` once the commit-time event lands.
 
+**Note, 2026-11-01: duplicate-paragraph built.** The fourth repository-gate engine exists.
+`R:one-home-per-rule` carries it (`one-home-paragraph`, warn, status still `active`). It catches a
+verbatim copy only; the index duplicated as a list, and the paraphrased copy, stay with prose.
+
 **Note, 2026-11-01: whole-file engine built.** `sections` exists, at `claude-code-pre-tool-use`
 on `Write`, the new `claude-code-post-tool-use` on `Edit`/`MultiEdit` (warn only) and
 `git-pre-commit`. `R:features-ledger-names-its-artefact` carries it (`ledger-entry-names-artefact`,

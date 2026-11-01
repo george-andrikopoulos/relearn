@@ -143,6 +143,14 @@ if [ -n "$trees" ]; then
   tree_case 'five-root-documents.sh' 'five-root-documents' hit warn
   tree_case 'five-root-documents.sh' 'five-root-documents' clean warn
 fi
+# one-home-paragraph
+judge_case 'one-home-paragraph.sh' hit $'docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.' $'README.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.'
+judge_case 'one-home-paragraph.sh' clean $'docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.' $'docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.' $'README.md\tSee docs/deploy.md for the release checklist, which is kept in that one file and nowhere else, so this document links to it rather than copying the steps out.' $'README.md\tLicensed under the terms in LICENSE.' $'docs/deploy.md\tLicensed under the terms in LICENSE.'
+judge_case 'one-home-paragraph.sh' clean $'docs/deploy.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.' $'skills/release/SKILL.md\tThe release checklist lives in one place only, and every other document that needs it links there instead of restating the steps, so a change to the checklist is made exactly once.'
+if [ -n "$trees" ]; then
+  tree_case 'one-home-paragraph.sh' 'one-home-paragraph' hit warn
+  tree_case 'one-home-paragraph.sh' 'one-home-paragraph' clean warn
+fi
 # pass-by-value-lint-on
 judge_case 'pass-by-value-lint-on.sh' hit $'Cargo.toml\tunsafe_code\tforbid'
 judge_case 'pass-by-value-lint-on.sh' hit $'Cargo.toml\tclippy::pedantic\twarn' $'src/lib.rs\tclippy::needless_pass_by_value\tallow'
@@ -215,4 +223,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) gate case(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=75ee2ffbc9dca69ef410fc5bef02ddce6ce22a4901288dc1e8b2b966712585e1 rules=R:borrow-in-signatures,R:features-ledger-names-its-artefact,R:five-files-no-more,R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=d1e3cdd1c115ed6950581cb218199bbd55412f71495556056fdab438b5b3c3db rules=R:borrow-in-signatures,R:features-ledger-names-its-artefact,R:five-files-no-more,R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts,R:one-home-per-rule,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->

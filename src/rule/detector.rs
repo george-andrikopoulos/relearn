@@ -29,7 +29,9 @@ use serde::Deserialize;
 
 mod gate;
 
-pub use gate::{Gate, GateEngine, GateFixture, LintDefault, LintLevel, LintName, RecordProblem};
+pub use gate::{
+    Gate, GateEngine, GateFixture, LintDefault, LintLevel, LintName, MinBytes, RecordProblem,
+};
 
 /// What a detector concluded about one write.
 ///
@@ -76,7 +78,7 @@ pub enum DetectorError {
     )]
     Name(String),
     #[error(
-        "unknown `engine` {0:?} (expected line-regex | sibling-case | listed-path | sections | eol-attribute | root-documents | lint-enabled)"
+        "unknown `engine` {0:?} (expected line-regex | sibling-case | listed-path | sections | eol-attribute | root-documents | lint-enabled | duplicate-paragraph)"
     )]
     UnknownEngine(String),
     #[error("engine `{engine}` runs at {expected}")]
@@ -127,6 +129,8 @@ pub enum DetectorError {
     UnknownEvent(String),
     #[error("`heading` {0} must be a Markdown heading level, 1 to 6")]
     HeadingLevel(i64),
+    #[error("`min_bytes` {0} must be from 1 to 100000")]
+    MinBytes(i64),
     #[error(
         "fixture {index}: `list` entry {entry:?} must be a relative forward-slash path with no `..`"
     )]
@@ -975,6 +979,7 @@ pub(crate) struct RawDetector {
     lint: Option<String>,
     groups: Option<Vec<String>>,
     default: Option<String>,
+    min_bytes: Option<i64>,
     files: Vec<String>,
     #[serde(default)]
     exclude: Vec<String>,
@@ -1032,7 +1037,7 @@ impl RawDetector {
     pub(crate) fn into_parsed(self) -> Result<Parsed, DetectorError> {
         let name = DetectorName::parse(self.name.clone())?; // allow:clone: the gate path below consumes the raw table whole, so the name is taken by value first
         match self.engine.as_str() {
-            "eol-attribute" | "root-documents" | "lint-enabled" => {
+            "eol-attribute" | "root-documents" | "lint-enabled" | "duplicate-paragraph" => {
                 gate::gate(self, name).map(Parsed::Gate)
             }
             _ => self.into_detector(name).map(Parsed::Detector),
@@ -1045,6 +1050,7 @@ impl RawDetector {
             ("lint", self.lint.is_some()),
             ("groups", self.groups.is_some()),
             ("default", self.default.is_some()),
+            ("min_bytes", self.min_bytes.is_some()),
         ] {
             if present {
                 return Err(DetectorError::FieldNotUsed {

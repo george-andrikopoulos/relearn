@@ -466,6 +466,13 @@ fn script(tag: &RuleTag, g: &Gate) -> String {
             let _ = writeln!(s, "export RL_GROUPS={}", sh_quote(&groups.join(" ")));
             let _ = writeln!(s, "export RL_DEFAULT={}", sh_quote(default.as_str()));
         }
+        GateEngine::DuplicateParagraph { min_bytes } => {
+            let _ = writeln!(
+                s,
+                "export RL_MIN={}",
+                sh_quote(&min_bytes.get().to_string())
+            );
+        }
     }
     s.push('\n');
     s.push_str(&judge(g.engine()));
@@ -574,6 +581,30 @@ END {
   exit 0
 }"#,
         ),
+        // A finding names two files and how many paragraphs they share, never
+        // the paragraph: it can be long, and the files are there to read.
+        GateEngine::DuplicateParagraph { .. } => (
+            2,
+            r#"  min = ENVIRON["RL_MIN"] + 0
+}
+$0 == "" { next }
+NF != 2 { bad = 1; next }
+$1 !~ files { next }
+excl != "" && $1 ~ excl { next }
+length($2) < min { next }
+!($2 in first) { first[$2] = $1; next }
+first[$2] != $1 && !(($2, $1) in seen) {
+  seen[$2, $1] = 1
+  shared[first[$2] " and " $1]++
+  hits++
+}
+END {
+  if (bad) exit 3
+  for (pair in shared) print pair ": " shared[pair] " shared paragraph(s)" | "sort"
+  close("sort")
+  exit (hits > 0)
+}"#,
+        ),
     };
     format!(
         "# Judge: {fields} field(s) per record on stdin. 0 clean, 1 hit, 3 unreadable.\n\
@@ -661,6 +692,35 @@ toml && (table == "[lints.clippy]" || table == "[workspace.lints.clippy]" || tab
   n = split(inner, parts, ",")
   for (i = 1; i <= n; i++) { x = parts[i]; gsub(/[ \t]/, "", x); if (x != "") print p "\t" x "\t" level }
 }
+' "$p"
+    done < "$work/kept"
+  )
+}
+"#
+        }
+        GateEngine::DuplicateParagraph { .. } => {
+            r#"# Collect: every tracked file in scope, as paragraphs. A paragraph is a run
+# of non-blank lines joined by one space, with CR removed and every run of
+# whitespace made one space. A file `grep` reads as binary is skipped.
+collect() {
+  (
+    cd "$1" || exit 1
+    git ls-files -z | tr '\0' '\n' > "$work/paths.nl" || exit 1
+    grep -E -- "$RL_FILES" "$work/paths.nl" > "$work/scoped" || true
+    if [ -n "$RL_EXCLUDE" ]; then
+      grep -vE -- "$RL_EXCLUDE" "$work/scoped" > "$work/kept" || true
+    else
+      cp "$work/scoped" "$work/kept"
+    fi
+    while IFS= read -r p; do
+      [ -f "$p" ] || continue
+      grep -qI '' "$p" || continue
+      RL_PATH="$p" awk '
+BEGIN { p = ENVIRON["RL_PATH"] }
+{ gsub(/[ \t\r\f\v]+/, " "); sub(/^ /, ""); sub(/ $/, "") }
+$0 == "" { if (para != "") print p "\t" para; para = ""; next }
+{ para = (para == "") ? $0 : para " " $0 }
+END { if (para != "") print p "\t" para }
 ' "$p"
     done < "$work/kept"
   )

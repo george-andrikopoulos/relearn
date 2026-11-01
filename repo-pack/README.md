@@ -21,6 +21,7 @@ repo-pack/
 |---|---|---|---|---|
 | `executable-text-eol-pinned.sh` | `[R:pin-eol-for-executable-text]` | eol-attribute | block | draft |
 | `five-root-documents.sh` | `[R:five-files-no-more]` | root-documents | warn | draft |
+| `one-home-paragraph.sh` | `[R:one-home-per-rule]` | duplicate-paragraph | warn | draft |
 | `pass-by-value-lint-on.sh` | `[R:borrow-in-signatures]` | lint-enabled | block | draft |
 
 That table is hand-written. `tests/repo_gates.rs` reads it back against the scripts. It

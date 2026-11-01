@@ -46,8 +46,8 @@ pub use def::{Recurrence, Rule};
 pub use detector::{
     Action, Detection, Detector, DetectorError, DetectorName, Engine, Event, Fixture, FixtureInput,
     FixturePath, Gate, GateEngine, GateFixture, Glob, GlobProblem, HeadingLevel, LintDefault,
-    LintLevel, LintName, PathScope, Pattern, PatternProblem, RecordProblem, SELF_EXCLUDES, Subject,
-    Token,
+    LintLevel, LintName, MinBytes, PathScope, Pattern, PatternProblem, RecordProblem,
+    SELF_EXCLUDES, Subject, Token,
 };
 pub use home::{DomainName, Federation, Home, OrgName, ProjectPath};
 pub use origin::{

@@ -15,6 +15,7 @@
 //! a spawned process anywhere in the crate, which is why the collect stage is
 //! bash in the pack and never Rust.
 
+use std::collections::HashMap;
 use std::fmt;
 
 use super::{
@@ -129,6 +130,32 @@ impl LintLevel {
     }
 }
 
+/// The shortest paragraph `duplicate-paragraph` reads, in **bytes**: the
+/// generated `awk` runs under `LC_ALL=C`, where `length` counts bytes, so a
+/// floor in characters would let the two judges disagree on non-ASCII text.
+/// Parsed wide from the file's integer, then range-checked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MinBytes(u32);
+
+impl MinBytes {
+    /// The largest floor a rule may set: a paragraph longer than this is a
+    /// document, and a floor above it would read nothing.
+    const MAX: u32 = 100_000;
+
+    pub(super) fn parse(raw: i64) -> Result<Self, DetectorError> {
+        match u32::try_from(raw) {
+            Ok(n @ 1..=Self::MAX) => Ok(MinBytes(n)),
+            _ => Err(DetectorError::MinBytes(raw)),
+        }
+    }
+
+    /// The floor, in bytes.
+    #[must_use]
+    pub fn get(self) -> u32 {
+        self.0
+    }
+}
+
 /// What a gate looks for in a checkout.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GateEngine {
@@ -151,6 +178,11 @@ pub enum GateEngine {
         groups: Vec<LintName>,
         default: LintDefault,
     },
+    /// One paragraph, at least `min_bytes` long, in two different files the
+    /// scope admits. A paragraph is a run of non-blank lines, joined, with
+    /// every run of whitespace made one space and none at either end.
+    /// Records: `path`, `paragraph`.
+    DuplicateParagraph { min_bytes: MinBytes },
 }
 
 impl GateEngine {
@@ -161,6 +193,7 @@ impl GateEngine {
             GateEngine::EolAttribute { .. } => "eol-attribute",
             GateEngine::RootDocuments => "root-documents",
             GateEngine::LintEnabled { .. } => "lint-enabled",
+            GateEngine::DuplicateParagraph { .. } => "duplicate-paragraph",
         }
     }
 
@@ -171,6 +204,7 @@ impl GateEngine {
             GateEngine::EolAttribute { .. } => &["path", "first_line", "text", "eol"],
             GateEngine::RootDocuments => &["path"],
             GateEngine::LintEnabled { .. } => &["source", "lint", "level"],
+            GateEngine::DuplicateParagraph { .. } => &["path", "paragraph"],
         }
     }
 }
@@ -227,14 +261,19 @@ enum Record {
         lint: LintName,
         level: LintLevel,
     },
+    Paragraph {
+        path: String,
+        text: String,
+    },
 }
 
 impl Record {
     fn path(&self) -> &str {
         match self {
-            Record::Eol { path, .. } | Record::Path(path) | Record::Lint { source: path, .. } => {
-                path
-            }
+            Record::Eol { path, .. }
+            | Record::Path(path)
+            | Record::Lint { source: path, .. }
+            | Record::Paragraph { path, .. } => path,
         }
     }
 
@@ -253,6 +292,7 @@ impl Record {
                 lint,
                 level,
             } => vec![source, lint.as_str(), level.as_str()],
+            Record::Paragraph { path, text } => vec![path, text],
         }
     }
 
@@ -271,6 +311,7 @@ impl Record {
                 lint,
                 level,
             } => format!("{source}\t{}\t{}", lint.as_str(), level.as_str()),
+            Record::Paragraph { path, text } => format!("{path}\t{text}"),
         }
     }
 }
@@ -293,6 +334,10 @@ pub enum RecordProblem {
     Lint(String),
     #[error("level {0:?} is not allow | expect | warn | deny | forbid")]
     Level(String),
+    #[error(
+        "paragraph is not whitespace-normalised: it must be non-empty, with single spaces and none at either end"
+    )]
+    NotNormalised,
 }
 
 impl GateEngine {
@@ -328,6 +373,15 @@ impl GateEngine {
                 level: LintLevel::parse(parts[2])
                     .ok_or_else(|| RecordProblem::Level(parts[2].to_owned()))?,
             },
+            GateEngine::DuplicateParagraph { .. } => {
+                if parts[1].split(' ').any(str::is_empty) {
+                    return Err(RecordProblem::NotNormalised);
+                }
+                Record::Paragraph {
+                    path: parts[0].to_owned(),
+                    text: parts[1].to_owned(),
+                }
+            }
         })
     }
 }
@@ -445,7 +499,7 @@ impl Gate {
                         || (eol.is_value("crlf") && !shebang);
                     load_bearing && !pinned
                 }
-                Record::Path(_) | Record::Lint { .. } => false,
+                Record::Path(_) | Record::Lint { .. } | Record::Paragraph { .. } => false,
             }),
             GateEngine::RootDocuments => in_scope.into_iter().any(|r| !r.path().contains('/')),
             GateEngine::LintEnabled {
@@ -477,6 +531,21 @@ impl Gate {
                 };
                 let enabled = !named.1 && (named.0 || grouped.0 || by_default);
                 !enabled
+            }
+            GateEngine::DuplicateParagraph { min_bytes } => {
+                // The first path each long-enough paragraph was seen under; a
+                // hit is the same text under a different path.
+                let floor = usize::try_from(min_bytes.get()).unwrap_or(usize::MAX);
+                let mut first: HashMap<&str, &str> = HashMap::new();
+                in_scope.into_iter().any(|r| match r {
+                    Record::Paragraph { path, text } if text.len() >= floor => {
+                        *first.entry(text.as_str()).or_insert(path.as_str()) != path.as_str()
+                    }
+                    Record::Paragraph { .. }
+                    | Record::Eol { .. }
+                    | Record::Path(_)
+                    | Record::Lint { .. } => false,
+                })
             }
         };
         if hit {
@@ -515,6 +584,7 @@ pub(super) fn gate(raw: RawDetector, name: DetectorName) -> Result<Gate, Detecto
             unused("lint", raw.lint.is_some(), e)?;
             unused("groups", raw.groups.is_some(), e)?;
             unused("default", raw.default.is_some(), e)?;
+            unused("min_bytes", raw.min_bytes.is_some(), e)?;
             GateEngine::EolAttribute {
                 always: super::globs(raw.always.unwrap_or_default())?,
             }
@@ -530,6 +600,7 @@ pub(super) fn gate(raw: RawDetector, name: DetectorName) -> Result<Gate, Detecto
             unused("lint", raw.lint.is_some(), e)?;
             unused("groups", raw.groups.is_some(), e)?;
             unused("default", raw.default.is_some(), e)?;
+            unused("min_bytes", raw.min_bytes.is_some(), e)?;
             GateEngine::RootDocuments
         }
         "lint-enabled" => {
@@ -540,6 +611,7 @@ pub(super) fn gate(raw: RawDetector, name: DetectorName) -> Result<Gate, Detecto
             unused("comment", raw.comment.is_some(), e)?;
             unused("allow", raw.allow.is_some(), e)?;
             unused("always", raw.always.is_some(), e)?;
+            unused("min_bytes", raw.min_bytes.is_some(), e)?;
             let lint = raw.lint.as_deref().ok_or(DetectorError::FieldRequired {
                 engine: e,
                 field: "lint",
@@ -557,6 +629,25 @@ pub(super) fn gate(raw: RawDetector, name: DetectorName) -> Result<Gate, Detecto
                     .map(|g| LintName::parse(g))
                     .collect::<Result<_, _>>()?,
                 default: LintDefault::parse(default)?,
+            }
+        }
+        "duplicate-paragraph" => {
+            let e = "duplicate-paragraph";
+            unused("pattern", raw.pattern.is_some(), e)?;
+            unused("heading", raw.heading.is_some(), e)?;
+            unused("require", raw.require.is_some(), e)?;
+            unused("comment", raw.comment.is_some(), e)?;
+            unused("allow", raw.allow.is_some(), e)?;
+            unused("always", raw.always.is_some(), e)?;
+            unused("lint", raw.lint.is_some(), e)?;
+            unused("groups", raw.groups.is_some(), e)?;
+            unused("default", raw.default.is_some(), e)?;
+            let min_bytes = raw.min_bytes.ok_or(DetectorError::FieldRequired {
+                engine: e,
+                field: "min_bytes",
+            })?;
+            GateEngine::DuplicateParagraph {
+                min_bytes: MinBytes::parse(min_bytes)?,
             }
         }
         other => return Err(DetectorError::UnknownEngine(other.to_owned())),
