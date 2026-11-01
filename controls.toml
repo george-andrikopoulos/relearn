@@ -82,11 +82,6 @@ control = "hook:no-self-matching-pkill"
 root = "stochos-lab"
 path = "hooks/no-self-matching-pkill.sh"
 
-[[control]]
-control = "hook:tdd-gate"
-root = "stochos-lab"
-path = "hooks/tdd-gate.sh"
-
 # --- design-architecture-tool -----------------------------------------------
 #
 # The three tests named by function alone are searched for across the whole

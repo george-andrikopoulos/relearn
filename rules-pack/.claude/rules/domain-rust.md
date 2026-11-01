@@ -27,6 +27,8 @@ The cost is rarely the single allocation. It is that an owned parameter propagat
 
 ## Design by writing the types first, before any logic [R:design-types-first]
 
+> Has recurred 2 time(s) since it was written; most recently 2026-11-01.
+
 Sketch the types until the design falls out, then write the logic. The type-level sketch is the executable specification a test-first red phase is reaching for, and it is the stronger one: a test samples points of the behaviour space, a type constrains the whole space and the compiler proves it everywhere, at compile time, for as long as the code exists. When the types are right much of the implementation writes itself, and many wrong implementations stop compiling. In Rust this ordering supersedes any test-first default -- tests are not removed, they are demoted to the layer where they are the right tool: property tests for behavioural laws the types cannot encode, unit tests as regression pins for past bugs. Apply each guarantee at the strongest layer that can hold it, and when reviewing, ask first not "does it pass" but "which of these guarantees could move up a layer?"
 
 ## Error enums carry the values that identify the failure [R:errors-name-what-failed]
@@ -227,4 +229,4 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=98363b8e50c56b0ab42a659f870d39e8158196daca84170349be46aeb8632ad9 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=259e282ad6f3ec4cc491daee48dbcc1e4ef0bfe88fc7495049f35c1c2402d2f2 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

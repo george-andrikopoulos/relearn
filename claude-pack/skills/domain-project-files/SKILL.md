@@ -1,6 +1,6 @@
 ---
 name: domain-project-files
-description: "Engineering discipline for working in project-files. Covers: claude md recreates the project; decisions log records rejected alternatives; features ledger names its artefact; five files no more; definition of done every change"
+description: "Engineering discipline for working in project-files. Covers: claude md recreates the project; decisions log records rejected alternatives; definition of done every change; features ledger names its artefact; five files no more"
 ---
 
 # domain: project-files rules
@@ -26,8 +26,6 @@ Anonymous structure accumulates as sediment. Given a module boundary with no rec
 Record the decision that surprised you most, not the one that was easiest to write down. This is the same discipline R:claude-md-recreates-the-project applies to the charter: what a future reader cannot reconstruct is exactly what must be written.
 
 ## The definition of done runs on every change, and skips are declared [R:definition-of-done-every-change]
-
-> Partly enforced by hook:tdd-gate; checks 2 to 5 entirely -- the regression pass, the contract, the charter and the open-work list -- plus check 1 in every language but Rust, and check 1 wherever the enforcing artefact is a TYPE rather than a test file, which under a types-first discipline is the common case is held by this instruction alone.
 
 A change is not done until five checks pass, in order:
 
@@ -71,4 +69,4 @@ The two failure classes the set exists to kill are staleness and unenforced guar
 
 Do not duplicate domain rules into the project layer. Reference them. A rule stated in two places forks and rots, and the copy is always the one someone reads.
 
-<!-- relearn:generated v0.1.0 sha256=d89e6684c6a998149efaac22bdbfb81d1cafedb2ef9ce2463d9ec64e1796e167 rules=R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:features-ledger-names-its-artefact,R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=c839510c1edea869feb674dc3c25fa00aee5715caafc7480a9a975e0f61d6a18 rules=R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:features-ledger-names-its-artefact,R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->

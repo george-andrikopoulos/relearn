@@ -1,6 +1,6 @@
 ---
 name: domain-rust
-description: "Engineering discipline for working in rust. Covers: borrow in signatures; design types first; errors name what failed; module visibility is deliberate; must use on consequential returns; newtype liberally; no let underscore on a local; parse dont validate; parse wide then range check; seal closed trait sets; typestate builder for required fields; typestate for protocols; verify the abstraction compiled away; xplat fixtures; async all the way; justify every clone; private fields only; no anyhow in libraries; no unwrap in production"
+description: "Engineering discipline for working in rust. Covers: design types first; borrow in signatures; errors name what failed; module visibility is deliberate; must use on consequential returns; newtype liberally; no let underscore on a local; parse dont validate; parse wide then range check; seal closed trait sets; typestate builder for required fields; typestate for protocols; verify the abstraction compiled away; xplat fixtures; async all the way; justify every clone; private fields only; no anyhow in libraries; no unwrap in production"
 ---
 
 # domain: rust rules
@@ -26,6 +26,8 @@ Own the parameter exactly where the function stores it. There, `impl Into<String
 The cost is rarely the single allocation. It is that an owned parameter propagates: the caller clones to satisfy it, its caller clones to satisfy that, and a signature chosen without thought becomes a column of clones that each look locally necessary. R:justify-every-clone is where those clones surface; this rule is how they are never created.
 
 ## Design by writing the types first, before any logic [R:design-types-first]
+
+> Has recurred 2 time(s) since it was written; most recently 2026-11-01.
 
 Sketch the types until the design falls out, then write the logic. The type-level sketch is the executable specification a test-first red phase is reaching for, and it is the stronger one: a test samples points of the behaviour space, a type constrains the whole space and the compiler proves it everywhere, at compile time, for as long as the code exists. When the types are right much of the implementation writes itself, and many wrong implementations stop compiling. In Rust this ordering supersedes any test-first default -- tests are not removed, they are demoted to the layer where they are the right tool: property tests for behavioural laws the types cannot encode, unit tests as regression pins for past bugs. Apply each guarantee at the strongest layer that can hold it, and when reviewing, ask first not "does it pass" but "which of these guarantees could move up a layer?"
 
@@ -227,4 +229,4 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=4b7a1e9b8607662f877f20f4b0315f427c2362bdd28d36339f6a1d856b4a9c7b rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=2dd1a10fe979ada1d7d1accbcf94808b7364b6f06ec880f75ffe50daec0cc006 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

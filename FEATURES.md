@@ -1157,7 +1157,7 @@ strengthening what is already at Layer 1:
 | `async-all-the-way` | `active` | `partial` | `hook:no-block-on-in-async` |
 | `justify-every-clone` | `active` | `partial` | `hook:no-clone-without-comment` |
 | `private-fields-only` | `active` | `partial` | `hook:no-pub-fields` |
-| `definition-of-done-every-change` | `active` | `partial` | `hook:tdd-gate` |
+| `definition-of-done-every-change` | `active` | `partial` | `hook:tdd-gate` — **reverted to `active` 2026-11-01, see below** |
 | `no-unwrap-in-production` | `graduated` (one hook) | `graduated` (two) | `+ hook:no-expect-empty-msg` |
 
 **`partial`, not `graduated`, and that is the whole point.** Not one of those hooks claims
@@ -1175,6 +1175,18 @@ A rule for `hook:tdd-gate` was proposed and not written: reading the hook showed
 the standing `rust-typedd` override that types precede tests in all Rust work. A new rule
 there would have been a second home for one half of an existing rule **and** a contradiction
 with a loaded discipline. It became the fourth status repair instead.
+
+**Corrected 2026-11-01: that reading was wrong, and the hook is retired.** `tdd-gate.sh` never
+checked that the enforcing artefact ships with the code. It allowed a `src/**.rs` edit when *any*
+test file was dirty in git — never the one covering the edit — and its own header states its
+purpose as red-green-refactor: no source edit before a failing test. That is test-first, the
+ordering `[R:design-types-first]` overrides, and it can never see a type, which under types-first
+is the usual enforcing artefact. Crediting it as a control is what put a test-first hook on the
+record behind a rule that never asks for test-first, and the hook then won twice in one day
+against the loaded rule (both recorded as recurrences of `[R:design-types-first]`). George
+retired it; `[R:definition-of-done-every-change]` is `active` again, held by prose alone, which
+is the honest status: nothing mechanical holds check 1, because a check that could would have to
+see types. The table row above is kept as the record of what was done on 2026-09-19.
 
 **Two advisory hooks were deliberately not counted.** `fan-out-advisory` and
 `session-wiring-check` warn and do not block, so `[R:delegate-a-fan-out]` and
