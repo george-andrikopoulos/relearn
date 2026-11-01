@@ -14,7 +14,7 @@ engine = "line-regex"
 pattern = '^[Cc]o-[Aa]uthored-[Bb]y: .*([Cc]laude|anthropic\.com)|^Claude-Session: |Generated with \[?Claude Code'
 allow = "allow:attribution"
 files = ["**"]
-events = ["claude-code-pre-tool-use"]
+events = ["claude-code-pre-tool-use", "git-pre-commit"]
 action = "block"
 message = "This line is tool attribution: a co-author trailer, a session link or a generated-with banner. It travels with whatever the file becomes, a commit message, a PR body or a published page. Remove it. A document that quotes the form as an example marks the line with the override token."
 

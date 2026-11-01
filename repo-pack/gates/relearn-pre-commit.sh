@@ -77,13 +77,44 @@ END { if (bad != "") { print "line(s)" bad > "/dev/stderr"; exit 3 } }
   verdict "$action" "$tag" "$name" "$message" "Staged path(s) on this clone's list:" "$found"
 }
 
-[ "$#" -gt 0 ] || set -- 'listed-file-staged'
+# no-tool-attribution: line-regex for [R:no-tool-attribution-in-public-artefacts].
+d_no_tool_attribution() {
+  local name='no-tool-attribution'
+  local tag='R:no-tool-attribution-in-public-artefacts'
+  local action='block'
+  local message='This line is tool attribution: a co-author trailer, a session link or a generated-with banner. It travels with whatever the file becomes, a commit message, a PR body or a published page. Remove it. A document that quotes the form as an example marks the line with the override token.'
+  local files_ere='((^|/).*$)'
+  local exclude_ere='((^|/)([^/]+/)*rules/[^/]*\.md$)|((^|/)([^/]+/)*hooks-pack/.*$)|((^|/)([^/]+/)*repo-pack/.*$)|((^|/)([^/]+/)*hooks/relearn/.*$)'
+  local p hits found=""
+  local pattern='^[Cc]o-[Aa]uthored-[Bb]y: .*([Cc]laude|anthropic\.com)|^Claude-Session: |Generated with \[?Claude Code'
+  while IFS= read -r -d '' p; do
+    in_scope "$p" "$files_ere" "$exclude_ere" || continue
+    case "$(git cat-file -t ":0:$p" 2>/dev/null)" in
+      blob) ;;
+      commit) continue ;;
+      *) disarmed "$name: git could not read the staged $p" ;;
+    esac
+    git cat-file blob ":0:$p" > "$work/blob" || disarmed "$name: git could not read the staged $p"
+    hits="$(grep -anE -- "$pattern" "$work/blob")"
+    case $? in 0) ;; 1) continue ;; *) disarmed "$name: grep could not read the pattern" ;; esac
+    # A line carrying 'allow:attribution' is a deliberate, marked exception.
+    hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:attribution')"
+    [ -n "$hits" ] || continue
+    found="$found$p:"$'\n'"$(printf '%s\n' "$hits" | sed 's/^/  /')"$'\n'
+  done < "$work/staged"
+  [ -n "$found" ] || return 0
+  verdict "$action" "$tag" "$name" "$message" "Offending staged line(s):" "$found"
+  printf 'A deliberate exception is marked on its own line with: %s\n' 'allow:attribution' >&2
+}
+
+[ "$#" -gt 0 ] || set -- 'listed-file-staged' 'no-tool-attribution'
 for selected in "$@"; do
   case "$selected" in
     'listed-file-staged') d_listed_file_staged ;;
+    'no-tool-attribution') d_no_tool_attribution ;;
     *) disarmed "no commit-time detector is named $selected" ;;
   esac
 done
 exit "$blocked"
 
-# <!-- relearn:generated v0.1.0 sha256=6c24af6eec4f4fc5569d198176a1cdb08b1e8556fac7a12c9a8ef4bf77b68832 rules=R:no-secrets-in-config-repo -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=11d556c6e3e969fccae858cdd336cecf5b0195f361ef1f506afa935444258a29 rules=R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -159,6 +159,14 @@ commit_case 'listed-file-staged' clean block 'config/shared.toml' '' given 'conf
 commit_case 'listed-file-staged' clean block 'nested/machine.env' '' given 'config/local-secrets.toml' 'machine.env'
 commit_case 'listed-file-staged' disarmed block 'config/local-secrets.toml' '' none
 commit_case 'listed-file-staged' disarmed block 'config/local-secrets.toml' '' given '../outside'
+# no-tool-attribution (commit time)
+commit_case 'no-tool-attribution' hit block 'msg.txt' 'Co-Authored-By: Claude <noreply@anthropic.com>' none
+commit_case 'no-tool-attribution' hit block 'pr-body.md' 'Claude-Session: https://claude.ai/code/session_0000' none
+commit_case 'no-tool-attribution' hit block 'README.md' 'Generated with [Claude Code](https://claude.com/claude-code)' none
+commit_case 'no-tool-attribution' clean block 'msg.txt' 'Co-Authored-By: A Person <person@example.com>' none
+commit_case 'no-tool-attribution' clean block 'docs/policy.md' 'Count the trailer with git log and a trailers format, not by grepping the message.' none
+commit_case 'no-tool-attribution' clean block 'docs/policy.md' 'Co-Authored-By: Claude <noreply@anthropic.com> <!-- allow:attribution -->' none
+commit_case 'no-tool-attribution' hit block 'hooks/test-detectors.sh' 'Generated with [Claude Code](https://claude.com/claude-code)' none
 
 if [ "$failed" -eq 0 ]; then
   echo "PASS: $pass gate case(s) agree with the generated scripts"
@@ -167,4 +175,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) gate case(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=d15422e5c059a9c8e9114fe6167a70c399298a2347f614a5ffa4ab622bdd0615 rules=R:borrow-in-signatures,R:five-files-no-more,R:no-secrets-in-config-repo,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=bec5632e21ddc76919903077e9cfaa6b044107df5744147a990416fbc0a6b56f rules=R:borrow-in-signatures,R:five-files-no-more,R:no-secrets-in-config-repo,R:no-tool-attribution-in-public-artefacts,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->

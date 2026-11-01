@@ -38,6 +38,7 @@ status.
 | Detector | Rule | Engine | Action | Install |
 |---|---|---|---|---|
 | `listed-file-staged` | `[R:no-secrets-in-config-repo]` | listed-path | block | draft |
+| `no-tool-attribution` | `[R:no-tool-attribution-in-public-artefacts]` | line-regex | block | draft |
 
 That table is hand-written too. `tests/pre_commit.rs` reads it back against the corpus: every
 detector the dispatcher runs is listed, with the rule it belongs to. Every row is `draft`
