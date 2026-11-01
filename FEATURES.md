@@ -957,6 +957,18 @@ a CRLF checkout yields `+++\r`, matches no delimiter, and the gate would find no
 the platform it was written on (`[R:xplat-fixtures]`) + a count assertion, because a gate that
 finds nothing passes and that is the failure this whole file is about (`[R:wired-artifact]`).
 
+**A sample that copies a real rule file matches it (added 2026-11-01).** A document listed in
+`COPIES` shows a copy of a named rule file, and every sample in it carrying that rule's tag must
+parse to the same rule as the file, which is the source. Without it the copy is a second original
+that nothing reads: `docs/worked-example.md` copies `rules/order-by-explicit-rank.md`, was
+identical when the `one-home-paragraph` gate first flagged it, and would have stayed silent the
+day it stopped being. The document says at its own site which file is the source.
+**Enforced by:** `tests/doc_samples.rs::a_sample_that_copies_a_rule_file_matches_it`. Probed
+2026-11-01: one changed word in the document's copy of the title failed it, naming the line.
+**Scope:** the rule-file sample only. The emitted blocks the same document shows as "actual
+`relearn build` output" are not compared with a fresh build. `docs/worked-example-two-installs.md`
+is excluded by design: its samples are one rule at successive revisions.
+
 **Verified by probe, not asserted:** `origin` was deleted from the README sample, the gate failed
 naming `README.md:150` and the parser's `missing field origin`, and it passed again on restore.
 
