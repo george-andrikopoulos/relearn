@@ -209,6 +209,138 @@ The two are independent facts — a graduated rule that has also recurred carrie
 | 2026-10-31 | **The reader is a subcommand, `relearn loads`, not a `lint` flag; SHADOWED shares `LayerSlug` with `DUPLICATE_LAYER` but not its type** | **Why a subcommand.** Its input is a set of log files and a date window, and its question is about runtime, not the corpus. `lint` takes neither and runs in the push gate, which must not depend on a machine-local log. It exits like `budget` (0 clean, 1 findings, 2 unchecked) and reuses `loadset::Outcome`, so "no load in the window" is not a pass. **Why not one type with `DUPLICATE_LAYER`.** That finding is two paths loaded in one session start, carrying the paths. SHADOWED is one home from two location classes across a window, carrying the classes, which is what the action depends on (refresh or remove the account copy, or the personal one). Forcing one shape would put an empty path list in one and a meaningless window in the other. The home is the shared part, and both carry `LayerSlug`. **STALE without a marker** is reported with `found: None`, because `build` always writes one, so an unmarked copy is a hand edit or a foreign file. **Expected hashes** come from the same emitters `build` runs and `fsio::content_hash`, the function `render_with_header` stamps with. **Rejected:** a `lint --loads` flag (the gate dependency); counting an unresolved load toward SHADOWED (it says nothing about where a copy lives). |
 
 | 2026-10-31 | **`check`'s self-exclusion sweep skips a detector's own generated script and the fixture runner by identity (`HookRole` from `emit::hooks::emit_with_roles`), not by a wider implicit glob** | **Why.** The implicit excludes cover the pack's committed location and the install directory, but the sweep reads emitted files at their path relative to the output root (`hooks/<name>.sh`), where neither applies. Two drafts carried a hand exclude to survive it. The emitter is the only function that names those files, so it can say which file is which. **Rejected:** a blanket `**/hooks/*.sh` implicit exclude, refused on 2026-10-30 because it also stops a detector reading a real repository's hook scripts at runtime; matching the sweep to the committed location (`hooks-pack/hooks/`), which would hide the self-match behind the implicit exclude rather than answer it, and would sweep a path nothing installs from. **Scope of the skip:** a detector skips only its own script and the runner. Another detector's script is still swept, because it carries a different pattern and nothing makes it contain this one's. |
+| 2026-10-31 | **Proposed, not approved: three new detector capabilities (a repository gate, a `git-pre-commit` event, a whole-file engine) and a disposition for every rule the triage could not draft. Nothing is built and no rule format changes until George answers** | The full proposal, with one disposition per rule, the four decisions and their rejected alternatives, and the questions for George, is the subsection below, "Proposed 2026-10-31: detector engines". |
+
+### Proposed 2026-10-31: detector engines
+
+**Status: proposed.** Nothing below is built and no rule or status has changed. The input is
+`docs/control-triage.md`'s table "Needs an engine relearn does not have". Each rule gets exactly
+one disposition:
+
+- **NEW-EVENT / NEW-ENGINE**: a capability relearn would build.
+- **ADOPT-EXISTING**: a working control already exists. relearn resolves it through
+  `controls.toml` rather than reimplementing it (`[R:search-before-you-build]`).
+- **CONFIGURE-LINTER**: the consuming project's linter does the detection, and relearn
+  checks only that the lint is switched on.
+- **DEFER**: no realistic control at present.
+
+#### Dispositions
+
+| Rule | Home | Disposition | Control, signature and fixtures |
+|---|---|---|---|
+| `R:pin-eol-for-executable-text` | global | **NEW-ENGINE** `eol-attribute` (repository gate) | Signature: a tracked path whose first line is a shebang, or which matches a declared hashed-path glob, while `git check-attr eol` reports `unspecified`. Fixtures are records (`path`, `first_line`, `eol`), plus one synthetic tree each for hit and clean under `tests/gates/eol-attribute/`. |
+| `R:one-home-per-rule` | global | **NEW-ENGINE** `duplicate-paragraph` (repository gate), `warn` | Signature: the same paragraph, whitespace-normalised and at least a declared length, in two tracked files under the declared globs. Fixtures are records (`path`, `paragraph`). Hit: one paragraph in two files. Clean: a paraphrase, or a short line such as a licence header below the length floor. It stays `warn` because boilerplate makes a realistic share of hits legitimate. |
+| `R:price-every-dependency` | global | **ADOPT-EXISTING** | `test:tests/dependencies.rs` (relearn). Proposed `partial`. Uncovered: every repository but this one, and a dependency refused, which leaves no artefact. |
+| `R:reconcile-wiring-at-start` | global | **ADOPT-EXISTING** | `gate:scripts/verify-wiring.sh` (stochos-lab), invoked by `hooks/session-wiring-check.sh`. Proposed `partial`. Uncovered: the drill that proves the alarm fires, and any machine but the one the hook runs on. |
+| `R:employer-identity-not-in-public-artefacts` | domain-disclosure | **ADOPT-EXISTING** | `gate:scripts/no-banned-names.sh` (relearn, `.githooks/pre-push`). Proposed `partial`. Uncovered: role titles and names not on the list, and any repository without the gate. |
+| `R:names-travel-with-the-quote` | domain-disclosure | **ADOPT-EXISTING** | `test:tests/contribution.rs::every_authored_field_that_travels_is_offered_to_the_scan` (the `contribute` scan), plus the same gate for this repository. Proposed `partial`. Uncovered: identifiers not on the list. |
+| `R:features-ledger-names-its-artefact` | domain-project-files | **NEW-ENGINE** `sections` (whole-file) | Signature: a heading at a declared level with no line matching a declared pattern (`^\*\*Enforced by:`) before the next heading at that level. Fixtures are whole texts. `tests/ledger.rs` is adjacent, not the same control: it checks that a row which *has* an `Enforced by:` line names an artefact, in this repository only. |
+| `R:five-files-no-more` | domain-project-files | **NEW-ENGINE** `root-documents` (repository gate) | Signature: a tracked `*.md` at the repository root outside a declared allowed set. Fixtures are records (a list of root paths). |
+| `R:borrow-in-signatures` | domain-rust | **CONFIGURE-LINTER** `lint-enabled` (repository gate) | The check: clippy `needless_pass_by_value` (pedantic) is set to `warn` or `deny`, by name or through `clippy::pedantic`, and `ptr_arg` (style, on by default) is not `allow`ed. It reads `[lints.clippy]` or `[workspace.lints.clippy]` in `Cargo.toml`, and crate-root `#![warn]` and `#![deny]` attributes. Fixtures are records (`source`, `lint`, `level`). |
+| `R:module-visibility-is-deliberate` | domain-rust | **CONFIGURE-LINTER** `lint-enabled` | rustc `unreachable_pub` (allow-by-default) at `warn` or `deny`. |
+| `R:must-use-on-consequential-returns` | domain-rust | **CONFIGURE-LINTER** `lint-enabled` | clippy `must_use_candidate` (pedantic) at `warn` or `deny`. |
+| `R:equality-is-one-contract` | domain-java | **CONFIGURE-LINTER** `lint-enabled` (build file) | Error Prone's `EqualsHashCode` is an ERROR by default, so the check is that the build applies Error Prone and does not pass `-Xep:EqualsHashCode:OFF`. Approximate: it reads `build.gradle`, `build.gradle.kts` and `pom.xml` by pattern (Q5). |
+| `R:no-reference-to-internals-escapes` | domain-java | **CONFIGURE-LINTER** `lint-enabled` (build file) | SpotBugs `EI_EXPOSE_REP` and `EI_EXPOSE_REP2` are on whenever SpotBugs runs, so the check is that the plugin is applied and no exclude filter names either pattern. Equally approximate (Q5). |
+| `R:no-secrets-in-config-repo` | project-stochos-lab | **NEW-EVENT** `git-pre-commit` with **NEW-ENGINE** `listed-path` | Signature: a staged path matching a glob on a machine-local list. Fixtures are synthetic (`path`, `list`), never the real list. stochos-lab's whitelist `.gitignore` is adjacent: it stops an untracked file being added by accident, but not `git add -f`. |
+| `R:verify-tracked-after-move` | project-stochos-lab | **ADOPT-EXISTING**, held at RESOLVED_NOT_WIRED | `gate:scripts/verify-deploy.sh` (stochos-lab) exists, but read on 2026-10-31 nothing runs it automatically. Its `pre-push` says so in a comment. Mapped, `relearn controls` will report it RESOLVED_NOT_WIRED, so it is not proposed as `partial` until something invokes it (Q1). |
+
+No rule is DEFER. The two Java rows come closest, and Q5 asks whether to defer them instead.
+
+#### Decision 1: `git-pre-commit`
+
+**What it reads.** Staged paths come from `git diff --cached --name-only -z --diff-filter=ACMR`,
+and staged content from `git show ":<path>"`. That is the index, not the working tree, so a
+file fixed on disk but not re-staged still blocks. Any `line-regex` detector may opt in with
+`events = ["claude-code-pre-tool-use", "git-pre-commit"]`, and the same pattern then runs over
+staged content.
+
+**How it installs.** The pack ships a generated dispatcher, `relearn-pre-commit.sh`. A
+repository's own `pre-commit` calls it with one line. relearn never sets `core.hooksPath` and
+never writes `.git/hooks/`.
+
+**The machine-local list.** It is read from a path set per clone with
+`git config --local relearn.listedPaths <file>`. That setting lives in `.git/config`, is never
+committed, and is fixed at install.
+
+**Rejected:**
+- the dispatcher *as* `core.hooksPath`, which would take over this repository's
+  `.githooks/pre-push`;
+- writing `.git/hooks/pre-commit`, which overwrites whatever is there;
+- the `pre-commit` framework, a Python dependency for a bash dispatch;
+- an environment variable for the list path, which a GUI git client does not inherit;
+- a committed list path, because the list names what it guards.
+
+#### Decision 2: the whole-file engine (`sections`)
+
+**The predicate** is per section: a heading level, and a line pattern every section must
+contain.
+
+**Where it runs:**
+- **PreToolUse on `Write`**, where `tool_input.content` is the whole file, so it can block.
+- **PostToolUse on `Edit` and `MultiEdit`**, reading the resulting file from disk. PostToolUse
+  cannot block (exit 2 only shows stderr to the model), so there it is `warn`-shaped.
+- **`git-pre-commit`**, over staged content, where it can block.
+
+**Why Edit does not run at PreToolUse.** An `Edit` payload holds only the fragment.
+Reconstructing the resulting file would mean reimplementing Claude Code's edit semantics in
+`jq`, and `jq` 1.6's string `index` returns byte offsets on multibyte text.
+
+**Rejected:**
+- reconstructing the edit at PreToolUse, for the reasons above;
+- arbitrary multi-line regex, because no portable shell tool reads a multi-line pattern the
+  way the `regex` crate does (`grep -P` is absent on macOS), so it would break the
+  shared-dialect invariant. Structure is therefore expressed as sections, judged in `awk`
+  and mirrored in Rust.
+
+#### Decision 3: the repository gate
+
+**Shape.** One bash script per gate detector, emitted into a pack and called by a consuming
+repository's own `check.sh`-style gate with the repository root as its argument. It exits 0
+when clean, 1 on a finding, and 2 when disarmed (not a git checkout, or `git` missing).
+
+**Two stages.** A *collect* stage runs `git ls-files`, `git check-attr`, `head -n 1` and reads
+`Cargo.toml`, and emits records. A *judge* stage reads records. Rust holds the same judge per
+engine, so fixtures stay records evaluated **at parse**, as today.
+
+**Fixtures.** The generated runner feeds those records to each script's judge (`--judge`). It
+also builds one synthetic tree per engine under `tests/gates/<engine>/{hit,clean}/`, runs
+`git init` in a temporary directory, and runs the whole script, so the collect stage is
+exercised on the production path.
+
+**Rejected:**
+- a `relearn gate` subcommand: it would have to spawn `git`, which `tests/solo_mode.rs`
+  forbids, and it would put the relearn binary in every consuming repository;
+- reimplementing gitattributes matching in Rust: git is the authority, and a second
+  implementation drifts.
+
+#### Decision 4: priority
+
+| Order | What | Rules it unlocks | Why here |
+|---|---|---|---|
+| 1 | ADOPT-EXISTING mappings in `controls.toml` | 5 (one held at not-wired) | No engine; costs an entry each. |
+| 2 | Repository gate, with `eol-attribute`, `root-documents` and `lint-enabled` | 7 | Holds the highest-ranked buildable rule (`R:pin-eol-for-executable-text`, global) and unlocks the most rules. |
+| 3 | `git-pre-commit` with `listed-path` | 1, plus commit-time for every opted-in `line-regex` detector | A project-homed rule, but the event widens every existing detector. |
+| 4 | `sections` (whole-file) | 1, plus `R:decisions-log-records-rejected-alternatives` from the warn list | Domain-homed; needs decision 1 for its blocking half on Edit. |
+| 5 | `duplicate-paragraph` | 1 | Global, but the noisiest signature, so `warn` and built last. |
+
+#### Questions for George
+
+1. **ADOPT-EXISTING.** Do you approve the five mappings? Making any of those rules `partial` is
+   your decision. `R:verify-tracked-after-move`'s control runs on nothing automatic: map it as
+   not-wired, or wire `verify-deploy.sh` into stochos-lab's `pre-push` first?
+2. **Packaging.** A new sibling pack, `repo-pack/` (the gates and the pre-commit dispatcher,
+   installed into repositories rather than `~/.claude`), following the `load-log-pack/`
+   precedent, or a directory inside `hooks-pack/`?
+3. **A missing machine-local list.** Should the dispatcher fail closed (block the commit and name
+   the `git config` key), or warn? The proposal is fail-closed, because the detector is only
+   present where you installed it.
+4. **Whole-file on `Edit`.** Is `warn` at PostToolUse acceptable, with blocking only on `Write`
+   and at commit?
+5. **Java CONFIGURE-LINTER.** Build-file pattern checks are approximate (Gradle's DSL is code).
+   Build them as `warn` now, or DEFER the two Java rows until a Java repository is to hand to
+   test against?
+6. **Order.** Is the priority above right?
+7. **Optional Part 4** reads stochos-lab. Its path is `~/.claude` itself, read only. Confirm.
 
 ## Rationale moved from CLAUDE.md (2026-10-31)
 

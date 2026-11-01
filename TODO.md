@@ -130,6 +130,11 @@ tool warns. ARCHITECTURE.md's decisions log has both entries; FEATURES.md has *L
 - [ ] **The remaining MECHANICAL rules are not drafted.** `docs/control-triage.md` lists them in two groups: those needing an engine relearn does not have (a type-aware linter, a cross-file or repository gate, a hashed term list, a commit-time event), and line-local warn-grade ones that need a sample of real code before drafting. Four in the first group already have a working control elsewhere (`tests/dependencies.rs`, `scripts/no-banned-names.sh`, stochos-lab's `verify-wiring.sh` and `verify-deploy.sh`) and may be `partial` candidates; that is George's call.
 - [x] **The implicit self-excludes miss the pack's scripts at the paths the sweep reads.** *Closed 2026-10-31 by identity: the sweep skips a detector's own script and the runner by `HookRole`, and both hand excludes are gone (decisions log).* `check` sweeps emitted files at their path relative to the output root (`hooks/<name>.sh`, `hooks/test-detectors.sh`), where `**/hooks-pack/**` and `**/hooks/relearn/**` do not apply. A detector scoped to `**` or `**/*.sh` therefore fires on the runner's hit fixtures, or on its own pattern text, and needs a hand-written exclude (two drafts carry one). Either extend the implicit excludes to the pack's own emitted paths or match the sweep to the committed location; decide which, with a test.
 
+## Detector engines (2026-10-31)
+
+- [x] **The self-exclusion sweep skips by identity** (Part 1; decisions log).
+- [!] **Engines for the rules the triage could not draft: proposed, waiting for George.** One disposition per rule, the decisions on `git-pre-commit`, the whole-file engine, the repository gate and build order, and seven questions are in ARCHITECTURE.md, "Proposed 2026-10-31: detector engines". Nothing is built and no rule changes until he answers.
+
 ## Probes — measuring whether a rule's prose does anything (2026-10-30)
 
 - [x] **Design recorded** in the ARCHITECTURE decisions log (2026-10-30, proposed). It covers the `[probe]` schema with `trace`, `diff` and `run`, the runner in `scripts/`, two isolated arms, Wilson and Newcombe, and the cost controls. The rejected alternatives are recorded with it.
