@@ -13,7 +13,8 @@
 //!   showed a checker must read: the session's events in order ([`Checker::Trace`]),
 //!   the final workspace against the fixture ([`Checker::Diff`]), or the result of
 //!   running what was written ([`Checker::Run`]). A model-judged rubric is named
-//!   and refused as not built, the way `git-pre-commit` is for detectors.
+//!   and refused as not built, the way `git-pre-commit` was for detectors
+//!   until 2026-11-01.
 //! * Every pattern compiles, so a probe that could never match is a parse error.
 //! * A `diff` clause naming a detector names one of **this rule's** detectors.
 //! * The task is authored text. Nothing here reads `incident`, and no emitter

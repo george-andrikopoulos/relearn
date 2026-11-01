@@ -226,6 +226,12 @@ The disposition of every row above is in ARCHITECTURE.md (`Proposed 2026-10-31: 
 engines`). Which rows have a drafted gate is listed in `repo-pack/README.md`'s table, which a
 test reads, and in `hooks-pack/README.md` once the commit-time event lands.
 
+**Note, 2026-11-01: commit-time event built.** `git-pre-commit` exists, with the engine
+`listed-path`. `R:no-secrets-in-config-repo` now carries a commit-time detector
+(`listed-file-staged`, block, status still `active`). Commit-time detectors are listed in
+`repo-pack/README.md`'s commit-time table, not in `hooks-pack/README.md` as the note above
+expected: a commit-time detector is compiled into the repo pack's dispatcher, not into a hook.
+
 Four of these already have a working control somewhere (`tests/dependencies.rs`,
 `scripts/no-banned-names.sh`, stochos-lab's `verify-wiring.sh` and `verify-deploy.sh`), so
 those rules may be candidates for `partial`. That is noted for George's review and not

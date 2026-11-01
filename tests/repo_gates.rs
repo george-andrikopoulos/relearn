@@ -552,7 +552,7 @@ fn the_repo_pack_readme_lists_every_gate_script_its_rule_and_install_state() {
                 .into_owned()
         })
         .filter_map(|n| n.strip_suffix(".sh").map(str::to_owned))
-        .filter(|n| n != "test-gates")
+        .filter(|n| n != repo::RUNNER && n != repo::DISPATCHER)
         .collect();
     scripts.sort();
     let mut listed: Vec<&str> = rows.iter().map(|(s, _, _)| s.as_str()).collect();

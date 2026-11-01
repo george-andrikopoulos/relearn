@@ -23,7 +23,7 @@ use std::fmt;
 use crate::emit::HomeSlug;
 use crate::library::{Library, Validated};
 use crate::resolve::ControlMap;
-use crate::rule::{ControlKind, Date, Home, ProseCoverage, Rule, RuleTag, ScopeTag, Status};
+use crate::rule::{ControlKind, Date, Event, Home, ProseCoverage, Rule, RuleTag, ScopeTag, Status};
 
 /// How much a finding matters. Ordered so `Error > Warning > Info`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -500,9 +500,12 @@ fn graduation_candidates(library: &Library<Validated>) -> Vec<Finding> {
             ProseCoverage::None => continue,
         }
         let named = named_hooks(rule);
+        // A hook is a write-time detector; a commit-only one has no script to
+        // name as `hook:`, and is not proposed here, as a gate is not.
         let hooks: Vec<String> = rule
             .detectors()
             .iter()
+            .filter(|d| d.runs_at(Event::ClaudeCodePreToolUse))
             .map(|d| d.name().as_str())
             .filter(|name| !named.contains(name))
             .map(|name| format!("hook:{name}"))

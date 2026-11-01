@@ -194,7 +194,7 @@ fn detector_tables(d: &Detector) -> String {
                 out.push_str(&kv("allow", allow.as_str()));
             }
         }
-        Engine::SiblingCase => {}
+        Engine::SiblingCase | Engine::ListedPath => {}
     }
     out.push_str(&kv_list(
         "files",
@@ -216,6 +216,9 @@ fn detector_tables(d: &Detector) -> String {
             FixtureInput::Text(text) => out.push_str(&kv_code("input", text)),
             FixtureInput::Siblings(names) => {
                 out.push_str(&kv_list("siblings", names.iter().map(String::as_str)));
+            }
+            FixtureInput::Listed(list) => {
+                out.push_str(&kv_list("list", list.iter().map(String::as_str)));
             }
         }
         out.push_str(&kv("expect", fixture.expect().as_str()));

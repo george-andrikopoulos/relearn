@@ -615,8 +615,8 @@ fn gate_fixture(
     index: usize,
     engine: &GateEngine,
 ) -> Result<GateFixture, DetectorError> {
-    let records = match (raw.path, raw.input, raw.siblings, raw.records) {
-        (None, None, None, Some(records)) => records,
+    let records = match (raw.path, raw.input, raw.siblings, raw.list, raw.records) {
+        (None, None, None, None, Some(records)) => records,
         _ => {
             return Err(DetectorError::FixtureInputMismatch {
                 index,

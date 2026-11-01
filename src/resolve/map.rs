@@ -19,7 +19,7 @@ use serde::Deserialize;
 
 use crate::emit::hooks::{HOOKS_DIR, INSTALL_DIR, PACK_DIR};
 use crate::library::{Library, Validated};
-use crate::rule::{Control, ControlError, ControlKind, Controls, RuleTag, RuleTagError};
+use crate::rule::{Control, ControlError, ControlKind, Controls, Event, RuleTag, RuleTagError};
 
 /// Why a mapping file could not be read.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -633,8 +633,10 @@ impl ControlMap {
             .collect()
     }
 
-    /// This map plus one entry per `[[detector]]` in the corpus, each locating
-    /// `hook:<name>` at the generated script in this repository's pack.
+    /// This map plus one entry per write-time `[[detector]]` in the corpus,
+    /// each locating `hook:<name>` at the generated script in this repository's
+    /// pack. A commit-only detector has no hook script, so it locates nothing
+    /// here.
     ///
     /// A detector is the hook's one home (`[R:one-home-per-rule]`), so a map
     /// entry for the same control is refused rather than preferred: two
@@ -645,6 +647,9 @@ impl ControlMap {
     pub fn with_detectors(mut self, library: &Library<Validated>) -> Result<Self, MapError> {
         for rule in library.rules() {
             for detector in rule.detectors() {
+                if !detector.runs_at(Event::ClaudeCodePreToolUse) {
+                    continue;
+                }
                 let name = detector.name().as_str();
                 let control = format!("hook:{name}");
                 let id = ControlId::parse(&control)?;

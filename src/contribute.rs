@@ -241,6 +241,10 @@ fn detector_texts(detector: &Detector) -> impl Iterator<Item = (&'static str, &s
                     .iter()
                     .map(|n| ("detector.fixture.siblings", n.as_str()))
                     .collect(),
+                FixtureInput::Listed(list) => list
+                    .iter()
+                    .map(|e| ("detector.fixture.list", e.as_str()))
+                    .collect(),
             };
             std::iter::once(("detector.fixture.path", f.path().as_str())).chain(input)
         }),

@@ -6,11 +6,15 @@ a lint is switched on anywhere in the manifest. A rule that carries a gate `[[de
 (event `repository-gate`) is compiled by `relearn` into a bash script here. A repository's
 own gate (a `pre-push` hook, a `check.sh` stage, a CI job) calls it.
 
+A rule whose `[[detector]]` lists the `git-pre-commit` event is compiled into one more
+script here, the commit dispatcher, which a repository's own `pre-commit` hook calls.
+
 ```
 repo-pack/
 └── gates/
-    ├── <name>.sh        one per gate
-    └── test-gates.sh    every fixture through the scripts above
+    ├── <name>.sh               one per gate
+    ├── relearn-pre-commit.sh   every commit-time detector
+    └── test-gates.sh           every fixture through the scripts above
 ```
 
 | Script | Rule | Engine | Action | Install |
@@ -28,6 +32,39 @@ with the rule's status.
 fixtures pass, but whether it covers the rule is the graduation review's call, and the
 fixtures cannot answer that. A row reads `yes` once the rule names `gate:<name>` in its
 status.
+
+## Commit-time detectors
+
+| Detector | Rule | Engine | Action | Install |
+|---|---|---|---|---|
+| `listed-file-staged` | `[R:no-secrets-in-config-repo]` | listed-path | block | draft |
+
+That table is hand-written too. `tests/pre_commit.rs` reads it back against the corpus: every
+detector the dispatcher runs is listed, with the rule it belongs to. Every row is `draft`
+until the graduation review decides otherwise, as for a gate.
+
+```bash
+bash gates/relearn-pre-commit.sh [name ...]   # 0 clean, 1 blocked, 2 could not check
+```
+
+Call it from the repository's own `pre-commit`, naming the detectors that repository wants;
+with no name, every detector in the dispatcher runs. It reads the **index**, never the
+working tree: the staged paths, and for a `line-regex` detector each staged file's content.
+A file fixed on disk but not re-staged still blocks.
+
+A `listed-path` detector blocks a staged path that is **exactly** one of the entries on a
+list that lives only on this machine. Nothing here names the list. Each clone points at it
+once:
+
+```bash
+git config --local relearn.<name>.list <file>
+```
+
+The file holds one repository-relative, forward-slash path per line. Blank lines and lines
+starting with `#` are skipped. With no list configured, a list that cannot be read, or a line
+that is not such a path, the dispatcher exits 2 and the commit stops: a guard that cannot
+see its list has not checked anything. It reports the line number of a bad entry, never the
+entry.
 
 ## Running a gate
 
@@ -57,9 +94,18 @@ relearn installs nothing. Copy `gates/<name>.sh` for each `yes` row into the con
 repository, keeping the file and its generated marker intact, and call it from that
 repository's gate. `test-gates.sh` is not a gate and is never copied.
 
+For the commit dispatcher, copy `gates/relearn-pre-commit.sh` and add one line to the
+repository's own `pre-commit` (wherever its hooks live, `.git/hooks` or a `core.hooksPath`
+directory). relearn never writes a hook and never sets `core.hooksPath`:
+
+```bash
+bash path/to/relearn-pre-commit.sh listed-file-staged || exit 1
+```
+
 ## Requirements
 
-`bash`, `git`, `awk`, `grep`, `sed`, `tr`, `xargs`, `mktemp`. No `jq`, no network. Exercised
+`bash`, `git` (2.32 or later for `eol-attribute`, 2.18 or later for the dispatcher's
+`git config --type=path`), `awk`, `grep`, `sed`, `tr`, `xargs`, `mktemp`. No `jq`, no network. Exercised
 on Windows (Git Bash). Linux has not been run yet, and `TODO.md` carries that.
 
 ## Never edit a script
@@ -76,3 +122,7 @@ bash repo-pack/gates/test-gates.sh --trees tests/gates
 `--trees` builds a throwaway checkout per gate from `tests/gates/<name>/hit` and `clean`,
 then runs the whole script, collect stage included. A dotfile is stored there as
 `dot-<name>`, so this repository never reads a fixture's `.gitattributes` as its own.
+The runner always stages every commit-time fixture in a throwaway repository, with a
+synthetic list where the fixture carries one, and runs the dispatcher over it. For each
+`listed-path` detector it also checks that no list, and a list holding `../outside`, both
+exit 2.

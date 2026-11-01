@@ -32,7 +32,8 @@ use std::fmt::Write as _;
 use super::{OutputFile, RelativePath, emittable};
 use crate::library::{Library, Validated};
 use crate::rule::{
-    Action, Detection, Detector, DetectorName, Engine, Event, FixtureInput, Rule, RuleTag, Subject,
+    Action, Detection, Detector, DetectorName, Engine, Event, FixtureInput, Pattern, Rule, RuleTag,
+    Subject, Token,
 };
 
 /// The directory this emitter owns, relative to the output root.
@@ -62,6 +63,9 @@ pub enum HookRole {
     Runner,
     /// `settings-snippet.md`, names and commands only.
     Snippet,
+    /// The repo pack's `relearn-pre-commit.sh`, which quotes every
+    /// commit-time detector and no other.
+    Dispatcher,
 }
 
 impl HookRole {
@@ -78,12 +82,58 @@ impl HookRole {
         match self {
             HookRole::Script(name) => name == detector.name(),
             HookRole::Runner => true,
+            HookRole::Dispatcher => detector.runs_at(Event::GitPreCommit),
             HookRole::Snippet => false,
         }
     }
 }
 
-/// Emit the hook pack. A library with no detector produces no file.
+/// What a hook script can run: the engines a `PreToolUse` payload feeds, for
+/// a detector that runs at that event. `listed-path` reads a staged path, so a
+/// hook script for one is unconstructible rather than emitted empty.
+enum WriteEngine<'a> {
+    LineRegex {
+        pattern: &'a Pattern,
+        comment: Option<&'a Token>,
+        allow: Option<&'a Token>,
+    },
+    SiblingCase,
+}
+
+impl<'a> WriteEngine<'a> {
+    fn of(d: &'a Detector) -> Option<Self> {
+        if !d.runs_at(Event::ClaudeCodePreToolUse) {
+            return None;
+        }
+        match d.engine() {
+            Engine::LineRegex {
+                pattern,
+                comment,
+                allow,
+            } => Some(WriteEngine::LineRegex {
+                pattern,
+                comment: comment.as_ref(),
+                allow: allow.as_ref(),
+            }),
+            Engine::SiblingCase => Some(WriteEngine::SiblingCase),
+            Engine::ListedPath => None,
+        }
+    }
+
+    /// The Claude Code tools this engine reads. Creating a file is only ever a
+    /// `Write`; changing text is any of the three.
+    fn tools(&self) -> &'static str {
+        match self {
+            WriteEngine::LineRegex { .. } => "Write|Edit|MultiEdit",
+            WriteEngine::SiblingCase => "Write",
+        }
+    }
+}
+
+/// One hook script's inputs: the rule, the detector, and what it runs.
+type Hooked<'a> = (&'a Rule, &'a Detector, WriteEngine<'a>);
+
+/// Emit the hook pack. A library with no write-time detector produces no file.
 #[must_use]
 pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
     emit_with_roles(library)
@@ -97,10 +147,12 @@ pub fn emit(library: &Library<Validated>) -> Vec<OutputFile> {
 #[must_use]
 pub fn emit_with_roles(library: &Library<Validated>) -> Vec<(OutputFile, HookRole)> {
     // By name: the name is the file, so this is the order a reader lists them.
-    let mut detectors: BTreeMap<&str, (&Rule, &Detector)> = BTreeMap::new();
+    let mut detectors: BTreeMap<&str, Hooked<'_>> = BTreeMap::new();
     for rule in emittable(library) {
         for detector in rule.detectors() {
-            detectors.insert(detector.name().as_str(), (rule, detector));
+            if let Some(engine) = WriteEngine::of(detector) {
+                detectors.insert(detector.name().as_str(), (rule, detector, engine));
+            }
         }
     }
     if detectors.is_empty() {
@@ -108,19 +160,22 @@ pub fn emit_with_roles(library: &Library<Validated>) -> Vec<(OutputFile, HookRol
     }
 
     let mut files = Vec::with_capacity(detectors.len() + 2);
-    for (name, (rule, detector)) in &detectors {
+    for (name, (rule, detector, engine)) in &detectors {
         let file = format!("{name}.sh");
         files.push((
             OutputFile::script(
                 RelativePath::from_segments(&[HOOKS_DIR, &file]),
-                script(rule.tag(), detector),
+                script(rule.tag(), detector, engine),
                 vec![rule.tag().clone()], // allow:clone: the OutputFile owns its provenance, outliving the &Library borrow
             ),
             HookRole::Script(detector.name().clone()), // allow:clone: the role names its detector beyond the &Library borrow
         ));
     }
 
-    let mut sources: Vec<RuleTag> = detectors.values().map(|(r, _)| r.tag().clone()).collect(); // allow:clone: same
+    let mut sources: Vec<RuleTag> = detectors
+        .values()
+        .map(|(r, _, _)| r.tag().clone())
+        .collect(); // allow:clone: same
     sources.sort_by(|a, b| a.as_str().cmp(b.as_str()));
     sources.dedup();
     let runner = format!("{RUNNER}.sh");
@@ -271,7 +326,7 @@ fn sh_quote(s: &str) -> String {
 }
 
 /// Escape a literal prefix for use inside an ERE.
-fn ere_literal(s: &str) -> String {
+pub(super) fn ere_literal(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         if ".[]()*+?{}|^$\\".contains(c) {
@@ -282,33 +337,22 @@ fn ere_literal(s: &str) -> String {
     out
 }
 
-/// The Claude Code tools an engine reads. Creating a file is only ever a
-/// `Write`; changing text is any of the three.
-fn tools(engine: &Engine) -> &'static str {
-    match engine {
-        Engine::LineRegex { .. } => "Write|Edit|MultiEdit",
-        Engine::SiblingCase => "Write",
-    }
-}
-
 /// The prologue every script shares: identity, the dependency check, the tool
 /// filter, the path, and the scope.
-fn prologue(tag: &RuleTag, d: &Detector) -> String {
+fn prologue(tag: &RuleTag, d: &Detector, engine: &WriteEngine<'_>) -> String {
     let mut s = String::new();
-    let events: Vec<&str> = d.events().iter().map(|e| event_label(*e)).collect();
     let _ = writeln!(s, "#!/usr/bin/env bash");
     let _ = writeln!(
         s,
         "# Detector `{name}` for [{tag}], generated by relearn from the rule file.\n\
          # Edit the rule, never this script: `relearn verify` reports a hand edit.\n\
-         # Engine: {engine}. Event: {events}, on {tools}.\n\
+         # Engine: {engine}. Event: Claude Code PreToolUse, on {tools}.\n\
          # Exit 2 blocks, and stderr is the reason Claude reads. Exit 0 allows.\n\
          # Any other exit is this script failing: reported, never a block.",
         name = d.name().as_str(),
         tag = tag.as_str(),
         engine = d.engine().as_str(),
-        events = events.join(", "),
-        tools = tools(d.engine()),
+        tools = engine.tools(),
     );
     let _ = writeln!(s, "set -uo pipefail");
     let _ = writeln!(s, "export LC_ALL=C");
@@ -335,7 +379,7 @@ tool_name="$(jq -r '.tool_name // ""' <<<"$input")" || fail "the payload is not 
     let _ = writeln!(
         s,
         "case \"$tool_name\" in {}) ;; *) exit 0 ;; esac",
-        tools(d.engine())
+        engine.tools()
     );
     s.push_str(
         r#"file_path="$(jq -r '.tool_input.file_path // ""' <<<"$input")" || fail "the payload has no readable file_path"
@@ -355,12 +399,6 @@ case $? in 0) exit 0 ;; 1) ;; *) fail "grep could not read the exclude pattern" 
         );
     }
     s
-}
-
-fn event_label(event: Event) -> &'static str {
-    match event {
-        Event::ClaudeCodePreToolUse => "Claude Code PreToolUse",
-    }
 }
 
 /// The verdict: how a hit leaves the script.
@@ -385,11 +423,11 @@ fn verdict_word(action: Action) -> &'static str {
 }
 
 /// One detector's script.
-fn script(tag: &RuleTag, d: &Detector) -> String {
-    let mut s = prologue(tag, d);
+fn script(tag: &RuleTag, d: &Detector, engine: &WriteEngine<'_>) -> String {
+    let mut s = prologue(tag, d, engine);
     let word = verdict_word(d.action());
-    match d.engine() {
-        Engine::LineRegex {
+    match engine {
+        WriteEngine::LineRegex {
             pattern,
             comment,
             allow,
@@ -440,7 +478,7 @@ case $? in 0) ;; 1) exit 0 ;; *) fail "grep could not read the pattern" ;; esac
             }
             s.push_str(&verdict(d, &report));
         }
-        Engine::SiblingCase => {
+        WriteEngine::SiblingCase => {
             s.push_str(
                 r#"
 dir="$(dirname -- "$file_path")"
@@ -473,7 +511,7 @@ done
 }
 
 /// The fixture runner: every fixture of every detector, through the scripts.
-fn test_runner(detectors: &BTreeMap<&str, (&Rule, &Detector)>) -> String {
+fn test_runner(detectors: &BTreeMap<&str, Hooked<'_>>) -> String {
     let mut s = String::from(
         r#"#!/usr/bin/env bash
 # Every detector fixture, piped through the generated scripts beside this file.
@@ -526,7 +564,7 @@ run() {
 
 "#,
     );
-    for (name, (_, detector)) in detectors {
+    for (name, (_, detector, _)) in detectors {
         let _ = writeln!(s, "# {name}");
         for fixture in detector.fixtures() {
             let expect = match fixture.expect() {
@@ -536,6 +574,8 @@ run() {
             let (text, siblings) = match fixture.input() {
                 FixtureInput::Text(text) => (text.as_str(), Vec::new()),
                 FixtureInput::Siblings(names) => ("", names.iter().map(|n| sh_quote(n)).collect()),
+                // A list belongs to `listed-path`, which has no hook script.
+                FixtureInput::Listed(_) => continue,
             };
             let _ = write!(
                 s,
@@ -565,13 +605,10 @@ exit 1
 }
 
 /// The registration, grouped by matcher, inside a markdown file.
-fn settings_snippet(detectors: &BTreeMap<&str, (&Rule, &Detector)>) -> String {
+fn settings_snippet(detectors: &BTreeMap<&str, Hooked<'_>>) -> String {
     let mut by_matcher: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    for (name, (_, detector)) in detectors {
-        by_matcher
-            .entry(tools(detector.engine()))
-            .or_default()
-            .push(name);
+    for (name, (_, _, engine)) in detectors {
+        by_matcher.entry(engine.tools()).or_default().push(name);
     }
     let mut groups = Vec::new();
     for (matcher, names) in &by_matcher {

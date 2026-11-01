@@ -153,14 +153,16 @@ fn patterns_outside_the_shared_dialect_are_refused() {
 }
 
 #[test]
-fn a_named_but_unbuilt_event_is_refused_by_name() {
+fn an_unknown_event_is_refused_by_name() {
+    // `git-pre-commit` was refused here as named and not built until
+    // 2026-11-01; tests/pre_commit.rs now holds what it accepts.
     let d = doc(&unwrap_detector("").replace(
         "events = [\"claude-code-pre-tool-use\"]",
-        "events = [\"git-pre-commit\"]",
+        "events = [\"git-post-merge\"]",
     ));
     assert_eq!(
         detector_error(&d),
-        DetectorError::EventNotBuilt("git-pre-commit".to_owned())
+        DetectorError::UnknownEvent("git-post-merge".to_owned())
     );
 }
 

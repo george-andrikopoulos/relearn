@@ -76,7 +76,7 @@ pub enum DetectorError {
     )]
     Name(String),
     #[error(
-        "unknown `engine` {0:?} (expected line-regex | sibling-case | eol-attribute | root-documents | lint-enabled)"
+        "unknown `engine` {0:?} (expected line-regex | sibling-case | listed-path | eol-attribute | root-documents | lint-enabled)"
     )]
     UnknownEngine(String),
     #[error("engine `{engine}` runs at {expected}")]
@@ -121,10 +121,12 @@ pub enum DetectorError {
     NoEvents,
     #[error("event {0:?} is listed twice")]
     DuplicateEvent(String),
-    #[error("unknown event {0:?} (expected claude-code-pre-tool-use)")]
+    #[error("unknown event {0:?} (expected claude-code-pre-tool-use | git-pre-commit)")]
     UnknownEvent(String),
-    #[error("event {0:?} is named in the design and not built yet")]
-    EventNotBuilt(String),
+    #[error(
+        "fixture {index}: `list` entry {entry:?} must be a relative forward-slash path with no `..`"
+    )]
+    ListEntry { index: usize, entry: String },
     #[error("unknown `action` {0:?} (expected block | warn)")]
     UnknownAction(String),
     #[error("unknown fixture `expect` {0:?} (expected hit | clean)")]
@@ -136,6 +138,7 @@ pub enum DetectorError {
         match *engine {
             "sibling-case" => "`path` and `siblings`",
             "line-regex" => "`path` and `input`",
+            "listed-path" => "`path` and `list`",
             _ => "`records`",
         }
     )]
@@ -567,6 +570,11 @@ pub enum Engine {
     /// A `Write` creates a file whose name differs from an existing sibling's
     /// only by ASCII case. Reads names, never text.
     SiblingCase,
+    /// A staged path is **exactly** one of the entries on a machine-local
+    /// list. The list is never in the rule: the generated dispatcher reads it
+    /// from the path a clone's `git config --local relearn.<name>.list` names,
+    /// and a fixture carries a synthetic one. Reads paths, never text.
+    ListedPath,
 }
 
 impl Engine {
@@ -576,6 +584,7 @@ impl Engine {
         match self {
             Engine::LineRegex { .. } => "line-regex",
             Engine::SiblingCase => "sibling-case",
+            Engine::ListedPath => "listed-path",
         }
     }
 
@@ -586,7 +595,29 @@ impl Engine {
                 .iter()
                 .map(|g| Glob(String::from(*g)))
                 .collect(),
-            Engine::SiblingCase => Vec::new(),
+            Engine::SiblingCase | Engine::ListedPath => Vec::new(),
+        }
+    }
+
+    /// Whether this engine can read what `event` hands it. `sibling-case`
+    /// lists a directory on disk, which a commit does not change; `listed-path`
+    /// guards what enters history, which a write does not do.
+    fn runs_at(&self, event: Event) -> bool {
+        match (self, event) {
+            (Engine::LineRegex { .. }, _)
+            | (Engine::SiblingCase, Event::ClaudeCodePreToolUse)
+            | (Engine::ListedPath, Event::GitPreCommit) => true,
+            (Engine::SiblingCase, Event::GitPreCommit)
+            | (Engine::ListedPath, Event::ClaudeCodePreToolUse) => false,
+        }
+    }
+
+    /// The events this engine accepts, for the refusal when one is not.
+    fn accepted_events(&self) -> &'static str {
+        match self {
+            Engine::LineRegex { .. } => "claude-code-pre-tool-use or git-pre-commit",
+            Engine::SiblingCase => "claude-code-pre-tool-use only",
+            Engine::ListedPath => "git-pre-commit only",
         }
     }
 }
@@ -597,6 +628,10 @@ impl Engine {
 pub enum Event {
     /// Claude Code `PreToolUse`, on the file tools the engine reads.
     ClaudeCodePreToolUse,
+    /// A repository's own `pre-commit`, through the generated dispatcher: the
+    /// staged paths, and for `line-regex` the staged content, read from the
+    /// index rather than the working tree.
+    GitPreCommit,
 }
 
 impl Event {
@@ -604,13 +639,14 @@ impl Event {
     pub fn as_str(self) -> &'static str {
         match self {
             Event::ClaudeCodePreToolUse => "claude-code-pre-tool-use",
+            Event::GitPreCommit => "git-pre-commit",
         }
     }
 
     fn parse(s: &str) -> Result<Self, DetectorError> {
         match s {
             "claude-code-pre-tool-use" => Ok(Event::ClaudeCodePreToolUse),
-            "git-pre-commit" => Err(DetectorError::EventNotBuilt(s.to_owned())),
+            "git-pre-commit" => Ok(Event::GitPreCommit),
             other => Err(DetectorError::UnknownEvent(other.to_owned())),
         }
     }
@@ -662,6 +698,9 @@ pub enum FixtureInput {
     Text(String),
     /// The names already in the target's directory, for `sibling-case`.
     Siblings(Vec<String>),
+    /// A synthetic machine-local list, for `listed-path`: relative
+    /// forward-slash paths, one entry each. Never the real list.
+    Listed(Vec<String>),
 }
 
 /// One synthetic write and the verdict it must produce.
@@ -692,27 +731,38 @@ impl Fixture {
         match &self.input {
             FixtureInput::Text(text) => Subject::new(&self.path.0, text, &[]),
             FixtureInput::Siblings(names) => Subject::new(&self.path.0, "", names),
+            FixtureInput::Listed(list) => Subject::new(&self.path.0, "", &[]).with_listed(list),
         }
     }
 }
 
-/// One write, as a detector sees it.
+/// One write or one staged path, as a detector sees it.
 #[derive(Debug, Clone, Copy)]
 pub struct Subject<'a> {
     path: &'a str,
     text: &'a str,
     siblings: &'a [String],
+    listed: &'a [String],
 }
 
 impl<'a> Subject<'a> {
-    /// A write of `text` to `path`, beside `siblings` (names, not paths).
+    /// A write of `text` to `path`, beside `siblings` (names, not paths),
+    /// with no machine-local list: `listed-path` is clean on it.
     #[must_use]
     pub fn new(path: &'a str, text: &'a str, siblings: &'a [String]) -> Self {
         Subject {
             path,
             text,
             siblings,
+            listed: &[],
         }
+    }
+
+    /// The same subject, judged against `listed`, the entries of a
+    /// machine-local list.
+    #[must_use]
+    pub fn with_listed(self, listed: &'a [String]) -> Self {
+        Subject { listed, ..self }
     }
 }
 
@@ -747,6 +797,12 @@ impl Detector {
     #[must_use]
     pub fn events(&self) -> &[Event] {
         &self.events
+    }
+
+    /// Whether this detector runs at `event`: which emitters compile it.
+    #[must_use]
+    pub fn runs_at(&self, event: Event) -> bool {
+        self.events.contains(&event)
     }
 
     #[must_use]
@@ -794,6 +850,7 @@ impl Detector {
                         .iter()
                         .any(|s| s.eq_ignore_ascii_case(base))
             }
+            Engine::ListedPath => subject.listed.contains(&path),
         };
         if hit {
             Detection::Hit
@@ -832,6 +889,7 @@ struct RawFixture {
     path: Option<String>,
     input: Option<String>,
     siblings: Option<Vec<String>>,
+    list: Option<Vec<String>>,
     records: Option<Vec<String>>,
     expect: String,
 }
@@ -908,7 +966,12 @@ impl RawDetector {
                     allow: self.allow.map(|a| Token::parse(a, "allow")).transpose()?,
                 }
             }
-            "sibling-case" => {
+            "sibling-case" | "listed-path" => {
+                let engine = if self.engine == "sibling-case" {
+                    Engine::SiblingCase
+                } else {
+                    Engine::ListedPath
+                };
                 for (field, present) in [
                     ("pattern", self.pattern.is_some()),
                     ("comment", self.comment.is_some()),
@@ -916,12 +979,12 @@ impl RawDetector {
                 ] {
                     if present {
                         return Err(DetectorError::FieldNotUsed {
-                            engine: "sibling-case",
+                            engine: engine.as_str(),
                             field,
                         });
                     }
                 }
-                Engine::SiblingCase
+                engine
             }
             other => return Err(DetectorError::UnknownEngine(other.to_owned())),
         };
@@ -940,6 +1003,12 @@ impl RawDetector {
                 });
             }
             let event = Event::parse(raw)?;
+            if !engine.runs_at(event) {
+                return Err(DetectorError::EventNotForEngine {
+                    engine: engine.as_str(),
+                    expected: engine.accepted_events(),
+                });
+            }
             if events.contains(&event) {
                 return Err(DetectorError::DuplicateEvent(raw.clone())); // allow:clone: the duplicate's spelling is owned by the error on the failure path only
             }
@@ -1003,10 +1072,21 @@ impl RawFixture {
         if !fixture_path_ok(&path) {
             return Err(DetectorError::FixturePath { index, path });
         }
-        let input = match (engine, self.input, self.siblings) {
-            (Engine::LineRegex { .. }, Some(text), None) => FixtureInput::Text(text),
-            (Engine::SiblingCase, None, Some(names)) => FixtureInput::Siblings(names),
-            (Engine::LineRegex { .. } | Engine::SiblingCase, _, _) => return Err(mismatch()),
+        let input = match (engine, self.input, self.siblings, self.list) {
+            (Engine::LineRegex { .. }, Some(text), None, None) => FixtureInput::Text(text),
+            (Engine::SiblingCase, None, Some(names), None) => FixtureInput::Siblings(names),
+            (Engine::ListedPath, None, None, Some(list)) => {
+                if let Some(bad) = list.iter().find(|entry| !fixture_path_ok(entry)) {
+                    return Err(DetectorError::ListEntry {
+                        index,
+                        entry: bad.clone(), // allow:clone: owned by the error on the failure path only
+                    });
+                }
+                FixtureInput::Listed(list)
+            }
+            (Engine::LineRegex { .. } | Engine::SiblingCase | Engine::ListedPath, _, _, _) => {
+                return Err(mismatch());
+            }
         };
         Ok(Fixture {
             path: FixturePath(path),

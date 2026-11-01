@@ -364,7 +364,12 @@ fn the_hooks_pack_readme_marks_a_detector_installable_only_once_its_rule_names_i
                     .collect()
             })
             .unwrap_or_default();
-        for detector in rule.detectors() {
+        // A commit-only detector has no hook script; repo-pack's README lists it.
+        for detector in rule
+            .detectors()
+            .iter()
+            .filter(|d| d.runs_at(relearn::rule::Event::ClaudeCodePreToolUse))
+        {
             let name = detector.name().as_str();
             let expected = if named.contains(&name) {
                 "yes"
