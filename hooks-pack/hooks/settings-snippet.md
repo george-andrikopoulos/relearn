@@ -19,12 +19,15 @@ Where a hand-written hook with the same name is registered today, replace its en
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-anyhow-in-lib.sh" },
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-block-on-in-async.sh" },
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-clone-without-comment.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-constructed-target-path.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-count-in-heading.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-embedded-local-llm.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-expect-empty-msg.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-free-validator.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-let-underscore-local.sh" },
+          { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-pub-fields.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-public-repo-create.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-serializable-domain-type.sh" },
           { "type": "command", "command": "bash ~/.claude/hooks/relearn/no-string-error.sh" },
@@ -46,4 +49,4 @@ Where a hand-written hook with the same name is registered today, replace its en
 }
 ```
 
-<!-- relearn:generated v0.1.0 sha256=1a6b0cecb13010973c6bd1f87bb25136aee9428975d5005610263f1317da4fe0 rules=R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=a3019b2775ea36f53867e238a5383144577a3ed1633e81761b89e3fd1c690270 rules=R:async-all-the-way,R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:justify-every-clone,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:private-fields-only,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

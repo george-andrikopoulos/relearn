@@ -8,6 +8,58 @@ origin = "codified"
 status = { kind = "partial", by = "hook:no-pub-fields", uncovered = "the second half of the rule -- that construction goes through a constructor enforcing the invariant -- which a field being private does not give you, and any Rust file outside a `src/` tree", date = "2026-09-19" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from Pattern 6 and the General Coding Rules of ~/.claude/CLAUDE.md, which state it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 published_incident = "Codified from standing practice rather than mined from a failure. It surfaced in an audit of an emitted instruction artefact against the hand-written pattern list it was supposed to replace: ten practices were stated in that one hand-maintained layer and had no rule in the library, so they reached a single assistant and travelled to no other tool — which is the failure the library exists to prevent, arriving in the library's own contents. The practice: a public field is a second constructor that checks nothing. Every guarantee the smart constructor establishes is void the moment a caller can write the field directly, and the type's name goes on claiming it — the same defect as a validator some call sites skip, moved down to the field where it is harder to see."
+
+[[detector]]
+name = "no-pub-fields"
+engine = "line-regex"
+pattern = '^[[:space:]]*pub[[:space:]]+[a-z_][a-zA-Z0-9_]*[[:space:]]*:'
+comment = "//"
+allow = "allow:pub-field"
+files = ["src/**/*.rs"]
+exclude = ["**/tests/**", "**/benches/**", "**/examples/**", "**/tests.rs", "**/*_test.rs", "**/*_tests.rs", "**/*test_*.rs"]
+events = ["claude-code-pre-tool-use"]
+action = "block"
+message = "A pub field lets a caller build a value the constructor would have refused. Make the field private and give the type a smart constructor and a getter. A field that truly must be public is marked on its line."
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = '    pub port: u16,'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = '    port: u16,'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'pub fn port(&self) -> u16 { self.port }'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'pub struct Port(u16);'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'pub const MAX_PORT: u16 = 65535;'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = '    pub port: u16, // allow:pub-field'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = '    // pub port: u16,'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/wire_test.rs"
+input = '    pub port: u16,'
+expect = "clean"
 +++
 
 Domain types have private fields. The only way to construct one is a smart constructor that enforces the invariant and returns a `Result`; the only way to read one is an accessor.

@@ -8,6 +8,53 @@ origin = "codified"
 status = { kind = "partial", by = "hook:no-block-on-in-async", uncovered = "every other way a runtime thread is blocked inside async -- synchronous file and network I/O, a std::sync lock held across an await, a long CPU section never handed to spawn_blocking -- and any Rust file outside a `src/` tree", date = "2026-09-19" }
 incident = "Codification-dated, not single-incident: ported 2026-08-24 from the General Coding Rules of ~/.claude/CLAUDE.md, which state it in prose. Surfaced when the emitted Copilot artefact was audited against that pattern list and ten practices were found to have no rule in this library -- so they reached Claude through the always-on boot index and reached no other assistant at all. A practice that lives in one vendor's instruction layer only is the vendor lock this tool exists to remove."
 published_incident = "Codified from standing practice rather than mined from a failure. It surfaced in an audit of an emitted instruction artefact against the hand-written pattern list it was supposed to replace: ten practices were stated in that one hand-maintained layer and had no rule in the library, so they reached a single assistant and travelled to no other tool — which is the failure the library exists to prevent, arriving in the library's own contents. The practice: a blocking call inside asynchronous code does not delay one task, it removes a worker from the pool and delays every task that would have run there. The victims are unrelated to the code that blocked, so the symptom is unexplained tail latency somewhere else entirely and is close to unattributable afterwards."
+
+[[detector]]
+name = "no-block-on-in-async"
+engine = "line-regex"
+pattern = '\bblock_on[[:space:]]*\('
+comment = "//"
+allow = "allow:block-on"
+files = ["src/**/*.rs"]
+exclude = ["**/tests/**", "**/benches/**", "**/examples/**", "**/tests.rs", "**/*_test.rs", "**/*_tests.rs", "**/*test_*.rs"]
+events = ["claude-code-pre-tool-use"]
+action = "block"
+message = "block_on inside async code stalls every task on the thread. Await the future, or move blocking work to spawn_blocking and await its handle. Top-of-stack glue that builds a runtime in a sync main is marked on its line."
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'let v = rt.block_on(fetch());'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'let v = block_on(fetch());'
+expect = "hit"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'let v = fetch().await;'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = 'let v = my_block_on(fetch());'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/main.rs"
+input = 'rt.block_on(async_main()) // allow:block-on'
+expect = "clean"
+
+[[detector.fixture]]
+path = "src/lib.rs"
+input = '// never call block_on( here'
+expect = "clean"
+
+[[detector.fixture]]
+path = "benches/load.rs"
+input = 'rt.block_on(run());'
+expect = "clean"
 +++
 
 No `block_on` inside async code. An async runtime multiplexes many tasks onto few threads, so a blocking call does not delay one task -- it removes a worker from the pool for the duration and delays every task that would have run there. The victims are unrelated to the code that blocked, which is why the symptom is unexplained tail latency somewhere else entirely, and why it is close to unattributable after the fact.
