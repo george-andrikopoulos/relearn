@@ -98,6 +98,15 @@ if [ -n "$trees" ]; then
   tree_case 'five-root-documents.sh' 'five-root-documents' hit warn
   tree_case 'five-root-documents.sh' 'five-root-documents' clean warn
 fi
+# pass-by-value-lint-on
+judge_case 'pass-by-value-lint-on.sh' hit $'Cargo.toml\tunsafe_code\tforbid'
+judge_case 'pass-by-value-lint-on.sh' hit $'Cargo.toml\tclippy::pedantic\twarn' $'src/lib.rs\tclippy::needless_pass_by_value\tallow'
+judge_case 'pass-by-value-lint-on.sh' clean $'Cargo.toml\tclippy::pedantic\twarn'
+judge_case 'pass-by-value-lint-on.sh' clean $'src/main.rs\tclippy::needless_pass_by_value\tdeny'
+if [ -n "$trees" ]; then
+  tree_case 'pass-by-value-lint-on.sh' 'pass-by-value-lint-on' hit block
+  tree_case 'pass-by-value-lint-on.sh' 'pass-by-value-lint-on' clean block
+fi
 
 if [ "$failed" -eq 0 ]; then
   echo "PASS: $pass gate case(s) agree with the generated scripts"
@@ -106,4 +115,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) gate case(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=7307fac6cb39bf7219802c4cdf2c5cebc1f43893c78bd040c3b04d2370fa71f0 rules=R:five-files-no-more,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=47d668322db1ef56bfce0793715a72dd5ebd421a1c286cc6c92035750c5795c7 rules=R:borrow-in-signatures,R:five-files-no-more,R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->

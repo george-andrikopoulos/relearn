@@ -1387,6 +1387,8 @@ probed on 2026-10-27. **Configuration-dependent** like the hook's gates.
 
 **Pilots, each status unchanged.** `executable-text-eol-pinned` on `[R:pin-eol-for-executable-text]` (block). Further pilots are listed in `repo-pack/README.md`'s table, which a test reads; this entry does not count them (`[R:doc-currency]`).
 
+**What `lint-enabled` cannot see.** A level passed on the command line (`cargo clippy -- -W ...`), a `[lints]` table using dotted keys (`clippy.pedantic = "warn"`), a crate-root attribute spread across lines, and `[workspace] lints.workspace = true` inheritance (read as the workspace table, wherever it is in scope). Probed 2026-11-01: with the crate-root attribute parser disabled, the hit tree, whose `Cargo.toml` turns pedantic on and whose `src/lib.rs` allows the lint, passed and failed the runner.
+
 **Scope (`[R:measure-the-claim-not-a-subset]`).** The scripts have run on Windows under Git Bash with git 2.53 only. Linux and macOS are not run (`[R:xplat-fixtures]`), and TODO.md carries the command. **Compatibility cost, observed 2026-11-01:** a relearn built before this change refuses the corpus (`unknown field records`), so a machine whose installed binary is older cannot read the library until it is rebuilt.
 
 ### Probes: a rule's error class replayed with its layer and without it (added 2026-10-30)
