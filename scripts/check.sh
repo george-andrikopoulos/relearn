@@ -71,12 +71,22 @@ stage lint cargo run --quiet -- lint --deny error
 stage money-self-test bash scripts/no-float-money.sh --self-test
 stage money-scan bash scripts/no-float-money.sh
 stage pack-sync-self-test bash scripts/pack-sync-reminder.sh --self-test
+# The loader constants `relearn budget` assumes, re-read from the installed
+# Claude Code, so an upgrade that changes them fails the next push instead of
+# going unnoticed. The self-test is hermetic; the real read needs an install,
+# and a machine without one is told it was not checked rather than passed.
+stage loader-constants-self-test bash scripts/loader-constants.sh --self-test
+if claude_bin=$(bash scripts/loader-constants.sh --find); then
+    stage loader-constants bash scripts/loader-constants.sh --binary "$claude_bin"
+else
+    echo "== loader-constants: no Claude Code install found on this machine — UNCHECKED, not a pass"
+fi
 # Every probe checker over its committed held and violated cases. No model call:
 # a checker that cannot say `violated` about a known-bad session measures nothing.
 stage probe-self-test bash scripts/probe-run.sh --self-test
 
 if [ "${#failed[@]}" -eq 0 ]; then
-    echo "PASS: rustfmt, clippy, test, verify x7, hook fixtures, load-log fixtures, gate fixtures, eol gate, lint, money-scan, pack-sync, probe self-test, load budget"
+    echo "PASS: rustfmt, clippy, test, verify x7, hook fixtures, load-log fixtures, gate fixtures, eol gate, lint, money-scan, pack-sync, loader constants, probe self-test, load budget"
     exit 0
 fi
 echo "FAIL: ${failed[*]}"

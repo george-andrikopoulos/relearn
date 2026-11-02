@@ -160,7 +160,8 @@ cargo fmt --check
 
 # The local gate: every stage hosted CI used to run (fmt, clippy, test, the three
 # verifies, lint --deny error, the money scan), plus the pack-sync reminder's
-# self-test, the hook-pack fixtures, the probe self-test and the load budget. Run by
+# self-test, the loader-constants check, the hook-pack fixtures, the probe self-test
+# and the load budget. Run by
 # .githooks/pre-push on every push. Ends with one PASS/FAIL line.
 bash scripts/check.sh
 
@@ -172,10 +173,18 @@ bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `
 bash scripts/no-float-money.sh [ROOT ...]   # 0 clean / 1 hit / 2 disarmed
 bash scripts/no-float-money.sh --self-test  # the detector's own probe, both directions
 
-# Nothing refreshes the claude.ai account copies of the skills; they are synced by hand
-# in Cowork. After its gates pass, .githooks/pre-push hands this script the pushed refs,
-# and it prints one line when a pushed commit touches claude-pack/. It never refuses.
-bash scripts/pack-sync-reminder.sh --self-test   # fires on a pack push, silent otherwise
+# Nothing refreshes the claude.ai account copies of the skills (synced by hand in Cowork)
+# or the user-level domain layers (copied by hand into ~/.claude/rules/). After its gates
+# pass, .githooks/pre-push hands this script the pushed refs, and it prints one line per
+# pack — claude-pack/, rules-pack/ — that a pushed commit touches. It never refuses.
+bash scripts/pack-sync-reminder.sh --self-test   # each pack's line on its push, silent otherwise
+
+# The loader constants `relearn budget` assumes (src/loadset.rs), re-read from the
+# installed Claude Code by the formula's shape. scripts/check.sh runs both; with no
+# install found it prints UNCHECKED rather than passing.
+bash scripts/loader-constants.sh --binary "$(bash scripts/loader-constants.sh --find)"
+#   0 match / 1 a constant moved (named) / 2 formula not found exactly once
+bash scripts/loader-constants.sh --self-test
 
 # Author a rule. Scaffolds the front matter only — the body and the incident are
 # the rule, and it refuses to write over anything, including the same tag.

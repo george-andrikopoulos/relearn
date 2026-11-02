@@ -511,7 +511,7 @@ fn verdict(
         Artefact::TestFile { file } => match look(file) {
             None => not_supplied(root),
             Some(Found::File(text)) => {
-                if scan::has_running_test(&scan::rust_lines(text)) {
+                if scan::has_running_test(&scan::RustCode::strip(text).lines()) {
                     Verdict::ResolvedAndWired(Wired::HoldsTests)
                 } else {
                     Verdict::ResolvedNotWired(NotWired::NoTests)
@@ -550,7 +550,7 @@ fn not_supplied(root: &RootName) -> Verdict {
 fn test_function<'t>(files: impl IntoIterator<Item = (&'t str, &'t str)>, name: &str) -> Verdict {
     let mut best: Option<(TestMark, &str)> = None;
     for (path, text) in files {
-        let Some(mark) = scan::rust_fn(&scan::rust_lines(text), name) else {
+        let Some(mark) = scan::rust_fn(&scan::RustCode::strip(text).lines(), name) else {
             continue;
         };
         let rank = |m: TestMark| match m {

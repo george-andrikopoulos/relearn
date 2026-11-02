@@ -199,14 +199,16 @@ the body, and any edit makes the next regeneration a conflict and is silently re
 Add front-matter (applyTo:) only if the agreed path is a path-scoped *.instructions.md
 file, and only that one key.
 
-STEP 4 — Report the final path, the line count (expected: 2464), and confirm that no
+STEP 4 — Report the final path, the line count (expected: 2500), and confirm that no
 other file was created or modified.
 ```
 
 The expected line count belongs in the prompt because it is the one check the person
-pasting it can make without reading the file: 2464 for this pack. A single-home build is
-shorter — 633 for `global` alone, 225 for `domain-rust` alone — so correct the number if
-you narrowed the set (see *Seven rules are about other repositories*, below).
+pasting it can make without reading the file: 2500 for this pack. A single-home build is
+shorter — 669 for `global` alone, 227 for `domain-rust` alone — so correct the number if
+you narrowed the set (see *Seven rules are about other repositories*, below). Every figure
+in this paragraph and in the prompt is read back by `tests/pack_counts.rs`, the single-home
+ones by building that home alone.
 
 ## Confirming it loaded
 

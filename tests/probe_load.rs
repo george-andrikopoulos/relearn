@@ -7,13 +7,17 @@
 
 use proptest::prelude::*;
 use relearn::probe::{
-    Count, Delivery, Load, LoadEvidence, LoadRate, Recommendation, SkillName, parse_results,
-    recommend, render, tally,
+    ArmEvidence, Count, Delivery, Load, LoadEvidence, LoadRate, Recommendation, SkillName,
+    parse_results, recommend, render, tally,
 };
 use relearn::rule::RuleTag;
 
 fn count(v: u32, n: u32) -> Count {
     Count::new(v, n).expect("valid count")
+}
+
+fn scored(v: u32, n: u32) -> ArmEvidence {
+    count(v, n).into()
 }
 
 fn rate(loaded: u32, sessions: u32) -> LoadRate {
@@ -28,12 +32,12 @@ fn a_skill_never_opened_is_a_load_failure_not_a_graduation() {
     // opened the skill, so the rule's text never reached the model.
     let evidence = LoadEvidence::new(rate(0, 10), None);
     assert_eq!(
-        recommend(Some(count(10, 10)), Some(count(10, 10)), Some(evidence)),
+        recommend(scored(10, 10), scored(10, 10), Some(evidence)),
         Recommendation::LoadFailure
     );
     // Without the split, the same arms read as the prose failing.
     assert_eq!(
-        recommend(Some(count(10, 10)), Some(count(10, 10)), None),
+        recommend(scored(10, 10), scored(10, 10), None),
         Recommendation::GraduateNow
     );
 }
@@ -42,7 +46,7 @@ fn a_skill_never_opened_is_a_load_failure_not_a_graduation() {
 fn a_rarely_opened_skill_that_held_whenever_opened_is_a_load_failure() {
     let evidence = LoadEvidence::new(rate(1, 12), Some(count(0, 1)));
     assert_eq!(
-        recommend(Some(count(8, 12)), Some(count(7, 12)), Some(evidence)),
+        recommend(scored(8, 12), scored(7, 12), Some(evidence)),
         Recommendation::LoadFailure
     );
 }
@@ -53,7 +57,7 @@ fn a_rarely_opened_skill_that_failed_when_opened_is_still_a_prose_failure() {
     // delivery would deliver prose that does not hold.
     let evidence = LoadEvidence::new(rate(2, 12), Some(count(2, 2)));
     assert_eq!(
-        recommend(Some(count(8, 12)), Some(count(9, 12)), Some(evidence)),
+        recommend(scored(8, 12), scored(9, 12), Some(evidence)),
         Recommendation::GraduateNow
     );
 }
@@ -62,7 +66,7 @@ fn a_rarely_opened_skill_that_failed_when_opened_is_still_a_prose_failure() {
 fn a_well_opened_skill_is_judged_on_its_arms_as_before() {
     let evidence = LoadEvidence::new(rate(9, 10), Some(count(9, 9)));
     assert_eq!(
-        recommend(Some(count(9, 10)), Some(count(9, 10)), Some(evidence)),
+        recommend(scored(9, 10), scored(9, 10), Some(evidence)),
         Recommendation::GraduateNow
     );
 }
@@ -71,7 +75,7 @@ fn a_well_opened_skill_is_judged_on_its_arms_as_before() {
 fn a_measurable_reduction_is_kept_even_when_load_is_low() {
     let evidence = LoadEvidence::new(rate(1, 12), Some(count(0, 1)));
     assert_eq!(
-        recommend(Some(count(12, 12)), Some(count(1, 12)), Some(evidence)),
+        recommend(scored(12, 12), scored(1, 12), Some(evidence)),
         Recommendation::Keep
     );
 }
@@ -80,7 +84,7 @@ fn a_measurable_reduction_is_kept_even_when_load_is_low() {
 fn a_silent_without_arm_stays_non_discriminating_whatever_the_load() {
     let evidence = LoadEvidence::new(rate(0, 10), None);
     assert_eq!(
-        recommend(Some(count(0, 10)), Some(count(0, 10)), Some(evidence)),
+        recommend(scored(0, 10), scored(0, 10), Some(evidence)),
         Recommendation::NonDiscriminating
     );
 }
@@ -234,7 +238,7 @@ proptest! {
         let with = count(wi.min(30), 30);
         let evidence = LoadEvidence::new(r, Count::new(0, loaded));
         prop_assert_ne!(
-            recommend(Some(without), Some(with), Some(evidence)),
+            recommend(without.into(), with.into(), Some(evidence)),
             Recommendation::LoadFailure
         );
     }
