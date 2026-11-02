@@ -1063,7 +1063,7 @@ fn declared(known: &[String]) -> String {
 
 /// Parse the command line, dispatch, and turn the outcome into a process exit.
 /// Diagnostics go to stderr; the success summary goes to stdout.
-#[must_use]
+#[must_use = "the exit code is the command's verdict; return it from main"]
 pub fn run() -> ExitCode {
     let cli = Cli::parse();
     match dispatch(cli.command) {

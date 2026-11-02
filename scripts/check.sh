@@ -42,7 +42,10 @@ stage() {
 stage rustfmt cargo fmt --check
 stage clippy cargo clippy --all-targets -- -D warnings
 stage test cargo test
-stage verify cargo run --quiet -- verify
+# The project layer is named for the --out directory unless a layer is given, so a
+# clone or worktree not called `relearn` would read this repository's own layer as
+# an orphan. Found by the first Linux run (2026-11-02), from a clone named otherwise.
+stage verify cargo run --quiet -- verify --rules-layer project=relearn
 stage verify-copilot-pack cargo run --quiet -- verify --targets copilot --out copilot-pack
 stage verify-claude-pack cargo run --quiet -- verify --targets claude --out claude-pack
 stage verify-hooks-pack cargo run --quiet -- verify --targets hooks --out hooks-pack
