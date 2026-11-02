@@ -33,6 +33,8 @@ Sketch the types until the design falls out, then write the logic. The type-leve
 
 ## Error enums carry the values that identify the failure [R:errors-name-what-failed]
 
+> Partly enforced by hook:no-string-error; field-less variants, variants omitting the identifying value, and a catch-all named Unknown(String), which a line cannot tell from a variant carrying the unrecognised value is held by this instruction alone.
+
 Every distinct failure is a variant of a `thiserror` enum, and every variant carries the values that identify the instance:
 
 ```rust
@@ -101,6 +103,8 @@ Library crates return typed error enums (thiserror), so a Result says exactly wh
 
 ## Do not silence an unused local with let _ =; use it, report it, or delete it [R:no-let-underscore-on-a-local]
 
+> Partly enforced by hook:no-let-underscore-local; underscore-prefixed bindings is held by this instruction alone.
+
 The compiler's unused-binding warning is a reader. It says that a value you went to the trouble of computing reaches nothing. `let _ = x;` exists to switch that reader off, and on a local it almost always switches it off at the moment it was right.
 
 It takes two shapes, and both compile clean under `-D warnings` while reading to a reviewer as a decision someone made:
@@ -121,6 +125,8 @@ Failure-mode check, whenever you are about to write `let _ = name;`: *what was t
 No unwrap() in production code. Use expect() only with a meaningful panic message that names the resource and the invariant, or return the error with `?` and let the caller decide how to surface it. This rule has graduated: the no-unwrap-in-src hook now enforces it deterministically at write time, so the instruction layer no longer has to.
 
 ## Parse, don't validate [R:parse-dont-validate]
+
+> Partly enforced by hook:no-free-validator; re-checking parsed data at interior call sites is held by this instruction alone.
 
 Transform raw input into a rich domain type at the outermost boundary, producing a witness newtype whose existence proves the check happened. Interior code takes the witness and never re-checks -- one perimeter, one check, enforced everywhere after by the compiler. R:parse-wide-then-range-check sharpens this: the boundary must be able to see the illegal value in order to name it.
 
@@ -190,6 +196,8 @@ This is R:verify-through-production-path applied to code generation: a claim mea
 
 ## A test fixture must work on every OS the repository runs on [R:xplat-fixtures]
 
+> Partly enforced by hook:no-constructed-target-path; uncanonicalised path comparison, stray CRs in another tool's output, and interpreter stubs is held by this instruction alone.
+
 A test that passes only on the machine that wrote it is a latent lie, and it is a
 particularly expensive one: it does not fail, it certifies. Where a repository is worked
 on from more than one operating system, every fixture that spawns a process, locates a
@@ -229,4 +237,4 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=259e282ad6f3ec4cc491daee48dbcc1e4ef0bfe88fc7495049f35c1c2402d2f2 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=b90d6d64aac8b873365828d3ebba66c530d80eb8bc62cf29bcb11a408e82d806 rules=R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

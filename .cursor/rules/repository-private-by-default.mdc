@@ -6,6 +6,8 @@ alwaysApply: false
 
 # A repository is created private; going public is an explicit decision [R:repository-private-by-default]
 
+> Partly enforced by hook:no-public-repo-create; a create typed at a shell prompt, through the web UI or through the REST API -- the hook reads written files, not commands is held by this instruction alone.
+
 A new repository is created **private**. Going public is a decision somebody takes, states and can point at.
 
 **The asymmetry is the whole argument.** Making a private repository public is reversible in the only sense that matters least — the button flips back, and the clones, forks, mirrors and archived crawls do not. Making a public repository private does not unpublish it. So the two defaults are not symmetric choices with different odds; one of them has an undo and the other has not.
@@ -18,4 +20,4 @@ A new repository is created **private**. Going public is a decision somebody tak
 
 Failure-mode check, at creation: *did I choose this visibility, or accept it?*
 
-<!-- relearn:generated v0.1.0 sha256=135adad1c4723a31c4af508d108228864232ede73ed4bc76c627209dfb38fde6 rules=R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=d9e7892a4942c8cd17a4cf8a4bc3ff057f19c1ef94088d531c0e61f222223247 rules=R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->

@@ -5,7 +5,7 @@ error_class = "Committing machine-local, secret-bearing files (credentials, a pe
 home = { kind = "project", path = "stochos-lab" }
 created = "2026-08-13"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "gate:listed-file-staged", uncovered = "a secret inside a tracked, whitelisted file, a secret-bearing file not on the machine-local list, and a commit made with --no-verify", date = "2026-11-02" }
 incident = "stochos-lab operating model, tagged [R:no-secrets-in-config-repo] there. The config repo versions shareable wiring (e.g. hook registration) but must never commit settings.json, settings.local.json, or .credentials.json: the permission allowlist is machine-local and secret-bearing. The wiring is versioned separately from the secrets so the shareable half can be tracked without dragging the secret half into history."
 
 [[detector]]

@@ -42,7 +42,10 @@ stage() {
 stage rustfmt cargo fmt --check
 stage clippy cargo clippy --all-targets -- -D warnings
 stage test cargo test
-stage verify cargo run --quiet -- verify
+# The project layer is named for the --out directory unless a layer is given, so a
+# clone or worktree not called `relearn` would read this repository's own layer as
+# an orphan. Found by the first Linux run (2026-11-02), from a clone named otherwise.
+stage verify cargo run --quiet -- verify --rules-layer project=relearn
 stage verify-copilot-pack cargo run --quiet -- verify --targets copilot --out copilot-pack
 stage verify-claude-pack cargo run --quiet -- verify --targets claude --out claude-pack
 stage verify-hooks-pack cargo run --quiet -- verify --targets hooks --out hooks-pack
@@ -67,6 +70,9 @@ stage repo-pack-fixtures bash repo-pack/gates/test-gates.sh --trees tests/gates
 # This repository's own checkout through the eol gate. It found five unpinned
 # shell fixtures the day it was built (2026-11-01).
 stage eol-gate bash repo-pack/gates/executable-text-eol-pinned.sh .
+# This repository's root through the root-documents gate: the five files and
+# nothing else (`[R:five-files-no-more]`, partial since 2026-11-02).
+stage root-documents-gate bash repo-pack/gates/five-root-documents.sh .
 stage lint cargo run --quiet -- lint --deny error
 stage money-self-test bash scripts/no-float-money.sh --self-test
 stage money-scan bash scripts/no-float-money.sh
@@ -86,7 +92,7 @@ fi
 stage probe-self-test bash scripts/probe-run.sh --self-test
 
 if [ "${#failed[@]}" -eq 0 ]; then
-    echo "PASS: rustfmt, clippy, test, verify x7, hook fixtures, load-log fixtures, gate fixtures, eol gate, lint, money-scan, pack-sync, loader constants, probe self-test, load budget"
+    echo "PASS: rustfmt, clippy, test, verify x7, hook fixtures, load-log fixtures, gate fixtures, eol gate, root-documents gate, lint, money-scan, pack-sync, loader constants, probe self-test, load budget"
     exit 0
 fi
 echo "FAIL: ${failed[*]}"

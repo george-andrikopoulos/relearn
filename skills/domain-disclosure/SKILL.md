@@ -7,6 +7,8 @@ description: "Engineering discipline for working in disclosure. Covers: report t
 
 ## An employer name, internal product name or role title never reaches a public artefact [R:employer-identity-not-in-public-artefacts]
 
+> Partly enforced by gate:scripts/no-banned-names.sh; role titles and names not on the list, and any repository without the gate is held by this instruction alone.
+
 An employer's name, an internal product name and a role title never reach an artefact with a public audience.
 
 **The artefact is wider than the file.** A repository publishes its history, not its working tree: branch names, commit messages, commit *trees*, tags, issue text and release notes all travel, and a name removed from `main` today is still in the clone somebody took last month. Fix the working tree if you like, but the honest question is what the history contains.
@@ -22,6 +24,8 @@ An employer's name, an internal product name and a role title never reach an art
 Failure-mode check, before any artefact becomes public: *does the history contain it, and which repository's detector covers the destination?* If the answer to the second is the repository the text came from, nothing covers where it is going.
 
 ## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
+
+> Partly enforced by test:every_authored_field_that_travels_is_offered_to_the_scan; identifiers not on the list is held by this instruction alone.
 
 Before an incident, a log line, a trace or a path leaves the repository that holds it,
 scan the destination with the source's own detector -- not the destination's.
@@ -56,6 +60,8 @@ to rest in a second artefact, where it is committed, pushed, indexed and mirrore
 identifier, different surface, and the fixes do not substitute for one another.
 
 ## Tool attribution is off by decision and verified, never off by assumption [R:no-tool-attribution-in-public-artefacts]
+
+> Partly enforced by hook:no-tool-attribution; trailers passed inline to git commit, the tool's own attribution setting, document metadata, and history already pushed is held by this instruction alone.
 
 Attribution a tool inserts on your behalf is **off by decision and verified**, never off by assumption.
 
@@ -111,6 +117,8 @@ printing it, but writing it down somewhere with a wider audience.
 
 ## A repository is created private; going public is an explicit decision [R:repository-private-by-default]
 
+> Partly enforced by hook:no-public-repo-create; a create typed at a shell prompt, through the web UI or through the REST API -- the hook reads written files, not commands is held by this instruction alone.
+
 A new repository is created **private**. Going public is a decision somebody takes, states and can point at.
 
 **The asymmetry is the whole argument.** Making a private repository public is reversible in the only sense that matters least — the button flips back, and the clones, forks, mirrors and archived crawls do not. Making a public repository private does not unpublish it. So the two defaults are not symmetric choices with different odds; one of them has an undo and the other has not.
@@ -123,4 +131,4 @@ A new repository is created **private**. Going public is a decision somebody tak
 
 Failure-mode check, at creation: *did I choose this visibility, or accept it?*
 
-<!-- relearn:generated v0.1.0 sha256=82483409b62eeb8d1d2b3caf4cadb0c85cef541ee372f9029beee5c648c78d0c rules=R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=9be1944263d795047236fca011559e9ef8d7925a6c35b053abb78c10e092ec79 rules=R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default -- DO NOT EDIT; regenerate with `relearn build` -->

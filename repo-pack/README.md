@@ -19,8 +19,8 @@ repo-pack/
 
 | Script | Rule | Engine | Action | Install |
 |---|---|---|---|---|
-| `executable-text-eol-pinned.sh` | `[R:pin-eol-for-executable-text]` | eol-attribute | block | draft |
-| `five-root-documents.sh` | `[R:five-files-no-more]` | root-documents | warn | draft |
+| `executable-text-eol-pinned.sh` | `[R:pin-eol-for-executable-text]` | eol-attribute | block | yes |
+| `five-root-documents.sh` | `[R:five-files-no-more]` | root-documents | warn | yes |
 | `one-home-paragraph.sh` | `[R:one-home-per-rule]` | duplicate-paragraph | warn | draft |
 | `pass-by-value-lint-on.sh` | `[R:borrow-in-signatures]` | lint-enabled | block | draft |
 
@@ -39,7 +39,7 @@ status.
 | Detector | Rule | Engine | Action | Install |
 |---|---|---|---|---|
 | `ledger-entry-names-artefact` | `[R:features-ledger-names-its-artefact]` | sections | block | draft |
-| `listed-file-staged` | `[R:no-secrets-in-config-repo]` | listed-path | block | draft |
+| `listed-file-staged` | `[R:no-secrets-in-config-repo]` | listed-path | block | yes |
 | `no-tool-attribution` | `[R:no-tool-attribution-in-public-artefacts]` | line-regex | block | draft |
 
 That table is hand-written too. `tests/pre_commit.rs` reads it back against the corpus: every

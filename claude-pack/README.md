@@ -103,9 +103,9 @@ the body. Do not reformat, reflow, re-order, summarise, rewrite in your own word
 two layers into one file, or split one across several. Create no other files.
 
 STEP 4 — Report each destination path and its line count, and confirm that no existing
-file was modified or replaced. Expected line counts: global 674, domain-project-files 72,
-domain-disclosure 126, domain-rust 232, domain-low-latency 753, domain-java 535,
-domain-agent-tooling 52, project-relearn 16, project-stochos-lab 22,
+file was modified or replaced. Expected line counts: global 684, domain-project-files 74,
+domain-disclosure 134, domain-rust 240, domain-low-latency 753, domain-java 535,
+domain-agent-tooling 52, project-relearn 16, project-stochos-lab 24,
 project-design-architecture-tool 95.
 ```
 

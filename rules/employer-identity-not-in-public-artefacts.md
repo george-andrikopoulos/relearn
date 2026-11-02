@@ -5,7 +5,7 @@ error_class = "An employer's name, an internal product name or a role title reac
 home = { kind = "domain", name = "disclosure" }
 created = "2026-09-20"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "gate:scripts/no-banned-names.sh", uncovered = "role titles and names not on the list, and any repository without the gate", date = "2026-11-02" }
 incident = "2026-09-05, and the reason this is a rule rather than a habit. An audit of a repository intended for publication found an employer-owned product name in the working tree and in 77 of its 106 commit trees. A sweep six weeks earlier had recorded an all-clear for exactly that question, and the all-clear was believed precisely because it was written down. The standing policy -- never an employer name, an internal product name or a role title in a public artefact -- existed the whole time, in a skill that loads only when a particular vault workflow loads, so it was absent from every session that did not touch that vault. An organisation-level disclosure policy homed behind a conditional load is a policy that applies on the days nobody needed it. The working tree was fixable in an afternoon; the 77 commit trees were not, because history is what publication actually distributes and a later deletion does not reach a clone."
 +++
 

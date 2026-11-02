@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Pin the line endings of text a machine executes or hashes [R:pin-eol-for-executable-text]
 
+> Partly enforced by gate:executable-text-eol-pinned; executable text with no shebang outside the declared globs, and every repository that does not run the gate is held by this instruction alone.
+
 When a file's exact bytes are load-bearing, do not leave its line endings to whatever the
 checkout decides. Two kinds of file qualify: text a machine executes, where a stray
 carriage return on the shebang means the interpreter is not found; and generated text
@@ -30,4 +32,4 @@ This is the at-rest half of a pair. Its sibling governs bytes in flight -- what 
 tool emits into a pipe at runtime, which no file attribute can reach, so that fix belongs
 at the consuming end instead. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=1873873ca5f567e42e466ea846e63aa3f08f7b080cd732276d2cdaff328fa7b4 rules=R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=bef40f3bf0bef6be37b121ed72515f8b10b4061e5a5dba6eeb67d0612b0dfdae rules=R:pin-eol-for-executable-text -- DO NOT EDIT; regenerate with `relearn build` -->

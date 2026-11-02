@@ -358,6 +358,8 @@ Ask before writing such a push: *if my copy is the stale one, what does this des
 
 ## Never route judgment work to a weak model, and never embed a sub-tier local LLM [R:no-weak-model-for-judgment]
 
+> Partly enforced by hook:no-embedded-local-llm; routing judgment to a cheaper hosted tier, and local runtimes the pattern does not name is held by this instruction alone.
+
 Work that needs judgment goes to a capable model. Do not embed a sub-tier local LLM (a 7B/13B behind Ollama, llama.cpp or similar) in a tool as a convenient, API-key-free fallback: a meaningfully dumber model degrades the tool it is wedged into, everywhere and silently, and the output looks like ordinary tool output rather than like a downgrade. When a tool needs intelligence, delegate to the capable model through the existing subscription -- the MCP server is the abstraction boundary and clients are peers. Note that the cost argument usually offered for the local model is the price-tier fallacy R:measure-cost-per-task names; but this rule is not an economic one and does not dissolve if the sums come out favourably. Mechanical, tool-restricted passes are a different matter and may be scoped tightly; the floor applies to work where the answer is a judgement.
 
 ## One home per rule; every other copy is a reference or is generated [R:one-home-per-rule]
@@ -377,6 +379,8 @@ Failure-mode check, before adding any list, table, registry or inventory: *does 
 `[R:doc-currency]` is the downstream half -- when the source moves, the descriptions of it move in the same change. This rule is upstream of that: it asks why a second description existed to go stale.
 
 ## Pin the line endings of text a machine executes or hashes [R:pin-eol-for-executable-text]
+
+> Partly enforced by gate:executable-text-eol-pinned; executable text with no shebang outside the declared globs, and every repository that does not run the gate is held by this instruction alone.
 
 When a file's exact bytes are load-bearing, do not leave its line endings to whatever the
 checkout decides. Two kinds of file qualify: text a machine executes, where a stray
@@ -411,6 +415,8 @@ When a class of mistake can be designed out, design it out, rather than adding a
 **A convention followed everywhere is not construction.** When correctness needs two actions paired at every call site -- advance a counter then emit, acquire then release, validate then store -- and a new call site could do one without the other and still compile, the pairing is held by memory, however consistently it has been followed so far. Fold the pair into one function that does both, and make the unpaired half unreachable from outside it. Test: *could the next call site I write omit half of this and still compile?* If it could, the words "by construction" do not apply, and a comment using them is a guarantee with no reader (R:guarantee-needs-a-reader).
 
 ## Every dependency is priced in the decisions log, and so is every dependency refused [R:price-every-dependency]
+
+> Partly enforced by test:tests/dependencies.rs; every repository but this one, and a dependency refused, which leaves no artefact is held by this instruction alone.
 
 Every dependency gets an entry in the decisions log: what it is for, why this one, and
 what was refused. The refused list includes **writing it yourself**, with a rough size,
@@ -463,6 +469,8 @@ half is the one that goes missing. There the human reader is the only detector, 
 gate covering the first half must never be read as covering the second.
 
 ## Reconcile declared against active wiring on a schedule the guard cannot break [R:reconcile-wiring-at-start]
+
+> Partly enforced by hook:session-wiring-check; the drill that proves the alarm fires, and any machine but the one the hook runs on is held by this instruction alone.
 
 The entry condition is **declared is not active**. It is not "the wiring is unversioned". A tracked control goes dark just as quietly as an untracked one: a commented-out entry, a moved path, a lost executable bit. Version control yields a diff, but a diff does not tell you a guard is inert *now*, and nobody diffs a file they have no reason to suspect. Being unversioned is an aggravating factor -- no diff, no revert, no attribution -- never the qualifier.
 
@@ -525,6 +533,8 @@ Plan code, scaffold code and reference implementations are **unreviewed input**.
 Failure-mode check, before approving: *what did I compare this against, and could that thing itself be wrong?* If the answer is the plan, the specification or the ticket, the contract has not been consulted yet.
 
 ## After restructuring, verify references as a distinct pass [R:revision-integrity]
+
+> Partly enforced by hook:no-count-in-heading; antecedents, cross-references, counts in body text, and terms used before their definition is held by this instruction alone.
 
 Editing a structured artefact silently breaks references that the previous version made true. The edit raises no error, and rereading does not catch it: the author restores the deleted context from memory and reads a coherent passage that is not on the page.
 
@@ -712,6 +722,8 @@ enough to choose either.
 
 ## An employer name, internal product name or role title never reaches a public artefact [R:employer-identity-not-in-public-artefacts]
 
+> Partly enforced by gate:scripts/no-banned-names.sh; role titles and names not on the list, and any repository without the gate is held by this instruction alone.
+
 An employer's name, an internal product name and a role title never reach an artefact with a public audience.
 
 **The artefact is wider than the file.** A repository publishes its history, not its working tree: branch names, commit messages, commit *trees*, tags, issue text and release notes all travel, and a name removed from `main` today is still in the clone somebody took last month. Fix the working tree if you like, but the honest question is what the history contains.
@@ -727,6 +739,8 @@ An employer's name, an internal product name and a role title never reach an art
 Failure-mode check, before any artefact becomes public: *does the history contain it, and which repository's detector covers the destination?* If the answer to the second is the repository the text came from, nothing covers where it is going.
 
 ## Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
+
+> Partly enforced by test:every_authored_field_that_travels_is_offered_to_the_scan; identifiers not on the list is held by this instruction alone.
 
 Before an incident, a log line, a trace or a path leaves the repository that holds it,
 scan the destination with the source's own detector -- not the destination's.
@@ -761,6 +775,8 @@ to rest in a second artefact, where it is committed, pushed, indexed and mirrore
 identifier, different surface, and the fixes do not substitute for one another.
 
 ## Tool attribution is off by decision and verified, never off by assumption [R:no-tool-attribution-in-public-artefacts]
+
+> Partly enforced by hook:no-tool-attribution; trailers passed inline to git commit, the tool's own attribution setting, document metadata, and history already pushed is held by this instruction alone.
 
 Attribution a tool inserts on your behalf is **off by decision and verified**, never off by assumption.
 
@@ -815,6 +831,8 @@ here. `[R:names-travel-with-the-quote]` is the third face of the same identifier
 printing it, but writing it down somewhere with a wider audience.
 
 ## A repository is created private; going public is an explicit decision [R:repository-private-by-default]
+
+> Partly enforced by hook:no-public-repo-create; a create typed at a shell prompt, through the web UI or through the REST API -- the hook reads written files, not commands is held by this instruction alone.
 
 A new repository is created **private**. Going public is a decision somebody takes, states and can point at.
 
@@ -2150,6 +2168,8 @@ The ledger is only load-bearing if it is read before every change, which is what
 
 ## A project carries five standing documents, and resists a sixth [R:five-files-no-more]
 
+> Partly enforced by gate:five-root-documents; documents sprawling below the root, documents not named .md, and every repository that does not run the gate is held by this instruction alone.
+
 A project keeps exactly five standing documents, each with one job:
 
 - `CLAUDE.md` — the recreation standard: purpose, design decisions with their *why*, invariants, build and test commands.
@@ -2191,6 +2211,8 @@ The cost is rarely the single allocation. It is that an owned parameter propagat
 Sketch the types until the design falls out, then write the logic. The type-level sketch is the executable specification a test-first red phase is reaching for, and it is the stronger one: a test samples points of the behaviour space, a type constrains the whole space and the compiler proves it everywhere, at compile time, for as long as the code exists. When the types are right much of the implementation writes itself, and many wrong implementations stop compiling. In Rust this ordering supersedes any test-first default -- tests are not removed, they are demoted to the layer where they are the right tool: property tests for behavioural laws the types cannot encode, unit tests as regression pins for past bugs. Apply each guarantee at the strongest layer that can hold it, and when reviewing, ask first not "does it pass" but "which of these guarantees could move up a layer?"
 
 ## Error enums carry the values that identify the failure [R:errors-name-what-failed]
+
+> Partly enforced by hook:no-string-error; field-less variants, variants omitting the identifying value, and a catch-all named Unknown(String), which a line cannot tell from a variant carrying the unrecognised value is held by this instruction alone.
 
 Every distinct failure is a variant of a `thiserror` enum, and every variant carries the values that identify the instance:
 
@@ -2260,6 +2282,8 @@ Library crates return typed error enums (thiserror), so a Result says exactly wh
 
 ## Do not silence an unused local with let _ =; use it, report it, or delete it [R:no-let-underscore-on-a-local]
 
+> Partly enforced by hook:no-let-underscore-local; underscore-prefixed bindings is held by this instruction alone.
+
 The compiler's unused-binding warning is a reader. It says that a value you went to the trouble of computing reaches nothing. `let _ = x;` exists to switch that reader off, and on a local it almost always switches it off at the moment it was right.
 
 It takes two shapes, and both compile clean under `-D warnings` while reading to a reviewer as a decision someone made:
@@ -2280,6 +2304,8 @@ Failure-mode check, whenever you are about to write `let _ = name;`: *what was t
 No unwrap() in production code. Use expect() only with a meaningful panic message that names the resource and the invariant, or return the error with `?` and let the caller decide how to surface it. This rule has graduated: the no-unwrap-in-src hook now enforces it deterministically at write time, so the instruction layer no longer has to.
 
 ## Parse, don't validate [R:parse-dont-validate]
+
+> Partly enforced by hook:no-free-validator; re-checking parsed data at interior call sites is held by this instruction alone.
 
 Transform raw input into a rich domain type at the outermost boundary, producing a witness newtype whose existence proves the check happened. Interior code takes the witness and never re-checks -- one perimeter, one check, enforced everywhere after by the compiler. R:parse-wide-then-range-check sharpens this: the boundary must be able to see the illegal value in order to name it.
 
@@ -2348,6 +2374,8 @@ Both halves are one act: an absent cost is a fact about emitted code, so it is e
 This is R:verify-through-production-path applied to code generation: a claim measured on a build the user never runs is evidence about that build alone. Where the cost is not load-bearing, do not make the claim at all -- an unverified performance assertion in a doc comment is read as a measured one.
 
 ## A test fixture must work on every OS the repository runs on [R:xplat-fixtures]
+
+> Partly enforced by hook:no-constructed-target-path; uncanonicalised path comparison, stray CRs in another tool's output, and interpreter stubs is held by this instruction alone.
 
 A test that passes only on the machine that wrote it is a latent lie, and it is a
 particularly expensive one: it does not fail, it certifies. Where a repository is worked
@@ -2485,6 +2513,8 @@ When output has a meaningful order, derive it from an explicit rank that states 
 
 ## Keep secret-bearing, machine-local config out of a shared config repo [R:no-secrets-in-config-repo]
 
+> Partly enforced by gate:listed-file-staged; a secret inside a tracked, whitelisted file, a secret-bearing file not on the machine-local list, and a commit made with --no-verify is held by this instruction alone.
+
 When a repository versions configuration that is meant to be shared, keep the secret-bearing and machine-local parts out of it: credentials, permission allowlists, and per-machine settings are not shareable configuration and do not belong in shared history, even (especially) when the repo is otherwise a config repo. Version the shareable wiring separately from the secrets, so tracking the former never commits the latter. A secret in history is a secret to rotate, not a secret to delete.
 
 ## Verify a moved file is still tracked in a whitelist-gitignore repo [R:verify-tracked-after-move]
@@ -2497,4 +2527,4 @@ Failure-mode check: *what did this correct change quietly stop tracking?*
 
 (Clause recovered 2026-09-27. It survived only in the rules ledger's 2026-07-22 entry, in neither rule home, until the 2026-08-16 audit found it and the port to this corpus did not carry it.)
 
-<!-- relearn:generated v0.1.0 sha256=280792d88d86c9db0f602bfc74d00a4c9b36fef41b5ecaeca8a62ce45fac9fb9 rules=R:an-ambiguous-write-target-is-a-question,R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:a-model-turn-is-for-judgment,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:features-ledger-names-its-artefact,R:five-files-no-more,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=6f2449a1cf98f8f5bcbc3527f26fd6b4e0c7db35330c5b84bf5e17cc85b2b717 rules=R:an-ambiguous-write-target-is-a-question,R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact,R:a-model-turn-is-for-judgment,R:employer-identity-not-in-public-artefacts,R:names-travel-with-the-quote,R:no-tool-attribution-in-public-artefacts,R:report-the-hit-not-the-match,R:repository-private-by-default,R:a-speculated-path-deoptimises-when-the-input-changes,R:a-view-is-not-a-copy,R:a-wrapper-type-is-not-free-here,R:close-what-you-open,R:design-for-inheritance-or-forbid-it,R:equality-is-one-contract,R:exceptions-name-what-failed,R:identity-is-not-equality-for-boxes,R:no-reference-to-internals-escapes,R:null-is-not-a-value,R:publish-safely-or-not-at-all,R:seal-the-alternatives,R:serializable-is-a-second-constructor,R:a-measurement-matches-the-regime-it-reports,R:a-queue-without-a-bound-has-no-overload-behaviour,R:a-structure-keeps-the-regime-it-was-proved-under,R:allocated-is-not-resident,R:answer-the-requirement-at-its-layer,R:attack-the-design-in-a-second-pass,R:no-allocation-on-the-hot-path,R:no-coordinated-omission,R:no-false-sharing-on-a-hot-line,R:no-retry-loop-on-a-contended-path,R:no-stall-inside-a-publication-window,R:no-syscall-on-a-bounded-path,R:profiler-samples-where-it-can-stop,R:transient-state-is-not-a-terminal-state,R:verify-ordering-on-the-weakest-target,R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:features-ledger-names-its-artefact,R:five-files-no-more,R:async-all-the-way,R:borrow-in-signatures,R:design-types-first,R:errors-name-what-failed,R:justify-every-clone,R:module-visibility-is-deliberate,R:must-use-on-consequential-returns,R:newtype-liberally,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-unwrap-in-production,R:parse-dont-validate,R:parse-wide-then-range-check,R:private-fields-only,R:seal-closed-trait-sets,R:typestate-builder-for-required-fields,R:typestate-for-protocols,R:verify-the-abstraction-compiled-away,R:xplat-fixtures,R:role-is-an-edge-property,R:seeded-data-needs-a-migration,R:verify-the-glyph-exists,R:generate-guards-unversioned,R:order-by-explicit-rank,R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

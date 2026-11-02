@@ -533,9 +533,11 @@ fn every_control_this_repository_holds_resolves_and_is_wired() {
         }
     }
     // A floor, so a map that stopped placing anything here fails rather than
-    // passing over nothing.
+    // passing over nothing. Raised from 2 to 7 on 2026-11-02, when the three
+    // proposals held here were accepted into `[[control]]` and two generated
+    // gates were placed beside them: they are held by this test now.
     assert!(
-        held_here >= 2,
+        held_here >= 7,
         "only {held_here} control(s) resolved in this repository"
     );
 }
@@ -740,8 +742,9 @@ fn every_proposal_in_this_repository_is_open_and_the_ones_held_here_are_wired() 
     let (library, map) = real_inputs();
     let snapshot = fsio::snapshot(&map, &repo_root(), &[]).expect("the repository root reads");
     let resolution = resolve::resolve(&library, &map, &snapshot, None);
-    let mut held_here = 0;
+    let mut seen = 0;
     for proposal in resolution.proposals() {
+        seen += 1;
         assert!(
             proposal.is_open(),
             "{} {}: {}",
@@ -750,7 +753,6 @@ fn every_proposal_in_this_repository_is_open_and_the_ones_held_here_are_wired() 
             proposal.standing()
         );
         if proposal.location().root() == map.here() {
-            held_here += 1;
             assert_eq!(
                 proposal.verdict().label(),
                 "RESOLVED_AND_WIRED",
@@ -761,5 +763,10 @@ fn every_proposal_in_this_repository_is_open_and_the_ones_held_here_are_wired() 
             );
         }
     }
-    assert!(held_here >= 3, "only {held_here} proposal(s) held here");
+    // The three proposals held here were accepted on 2026-11-02 and moved to
+    // `[[control]]`, where `every_control_this_repository_holds_resolves_and_is_wired`
+    // holds them. The floor is now on the loop itself: one proposal is still
+    // open (`R:verify-tracked-after-move`, in stochos-lab), so a map that lost
+    // its proposals fails here rather than passing over none.
+    assert!(seen >= 1, "the map holds no proposals at all");
 }

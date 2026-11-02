@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Every dependency is priced in the decisions log, and so is every dependency refused [R:price-every-dependency]
 
+> Partly enforced by test:tests/dependencies.rs; every repository but this one, and a dependency refused, which leaves no artefact is held by this instruction alone.
+
 Every dependency gets an entry in the decisions log: what it is for, why this one, and
 what was refused. The refused list includes **writing it yourself**, with a rough size,
 whenever that was a live option -- and it usually was. A crate arrives as one line in a
@@ -56,4 +58,4 @@ is mechanisable and cheap. Nothing mechanical can check the half about dependenc
 half is the one that goes missing. There the human reader is the only detector, and a
 gate covering the first half must never be read as covering the second.
 
-<!-- relearn:generated v0.1.0 sha256=0f14a0040ac426542e65055420d5b483fb5194166447de8de610e8f40fca7b90 rules=R:price-every-dependency -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=3f4aa26cddf8f7b39b0ad77409dbc8f03977f4c3be017bc49267ae62e902ce4b rules=R:price-every-dependency -- DO NOT EDIT; regenerate with `relearn build` -->

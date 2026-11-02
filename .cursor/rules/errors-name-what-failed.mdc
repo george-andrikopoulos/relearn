@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Error enums carry the values that identify the failure [R:errors-name-what-failed]
 
+> Partly enforced by hook:no-string-error; field-less variants, variants omitting the identifying value, and a catch-all named Unknown(String), which a line cannot tell from a variant carrying the unrecognised value is held by this instruction alone.
+
 Every distinct failure is a variant of a `thiserror` enum, and every variant carries the values that identify the instance:
 
 ```rust
@@ -24,4 +26,4 @@ Keep the cause in `#[source]` instead of interpolating it into the text. The cha
 
 One variant per condition a caller could plausibly treat differently. Collapsing four causes into `Other(String)` re-creates the string error inside an enum: it reads as a type and behaves as prose, and it is the shape this rule exists to catch.
 
-<!-- relearn:generated v0.1.0 sha256=5d80a770be827a0e3882d36a5405f392bb1aeecb90439b445ab40aec1b9e3676 rules=R:errors-name-what-failed -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=913c4305b052380ee3793516ed901152c2f31d62fec17f10c6fe22976679b996 rules=R:errors-name-what-failed -- DO NOT EDIT; regenerate with `relearn build` -->

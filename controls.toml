@@ -45,7 +45,55 @@ root = "relearn"
 path = "scripts/no-float-money.sh"
 invoked_by = "scripts/check.sh"
 
-# --- stochos-lab (~/.claude): hook scripts ----------------------------------
+# Accepted 2026-11-02 from the graduation review (docs/graduation-review-2026-11-02.md),
+# where they stood as proposals.
+
+[[control]]
+control = "test:tests/dependencies.rs"
+root = "relearn"
+path = "tests/dependencies.rs"
+
+[[control]]
+control = "gate:scripts/no-banned-names.sh"
+root = "relearn"
+path = "scripts/no-banned-names.sh"
+invoked_by = ".githooks/pre-push"
+
+[[control]]
+control = "test:every_authored_field_that_travels_is_offered_to_the_scan"
+root = "relearn"
+path = "tests/contribution.rs"
+function = "every_authored_field_that_travels_is_offered_to_the_scan"
+
+# Generated repository gates. A generated hook is placed from its detector; a
+# gate is not, so it is placed here with the invoker that runs it.
+
+[[control]]
+control = "gate:executable-text-eol-pinned"
+root = "relearn"
+path = "repo-pack/gates/executable-text-eol-pinned.sh"
+invoked_by = "scripts/check.sh"
+
+[[control]]
+control = "gate:five-root-documents"
+root = "relearn"
+path = "repo-pack/gates/five-root-documents.sh"
+invoked_by = "scripts/check.sh"
+
+# --- stochos-lab (~/.claude): hook scripts and commit gate -------------------
+
+[[control]]
+control = "hook:session-wiring-check"
+root = "stochos-lab"
+path = "hooks/session-wiring-check.sh"
+
+# The dispatcher is checked as invoked by pre-commit. That it is passed
+# `listed-file-staged` is one link deeper, and not followed (FEATURES.md).
+[[control]]
+control = "gate:listed-file-staged"
+root = "stochos-lab"
+path = ".githooks/relearn-pre-commit.sh"
+invoked_by = ".githooks/pre-commit"
 
 [[control]]
 control = "hook:banned-name-in-output"
@@ -110,33 +158,8 @@ invoked_by = "scripts/verify.sh"
 # naming a control is a status change, and the status is George's to make.
 # A proposal fails the run only when it no longer stands — its rule is gone, or
 # the rule now names the control, when the entry moves up to `[[control]]`.
-# Proposed 2026-11-01 (ARCHITECTURE.md, "detector engines").
-
-[[proposed]]
-rule = "R:price-every-dependency"
-control = "test:tests/dependencies.rs"
-root = "relearn"
-path = "tests/dependencies.rs"
-
-[[proposed]]
-rule = "R:employer-identity-not-in-public-artefacts"
-control = "gate:scripts/no-banned-names.sh"
-root = "relearn"
-path = "scripts/no-banned-names.sh"
-invoked_by = ".githooks/pre-push"
-
-[[proposed]]
-rule = "R:names-travel-with-the-quote"
-control = "test:every_authored_field_that_travels_is_offered_to_the_scan"
-root = "relearn"
-path = "tests/contribution.rs"
-function = "every_authored_field_that_travels_is_offered_to_the_scan"
-
-[[proposed]]
-rule = "R:reconcile-wiring-at-start"
-control = "hook:session-wiring-check"
-root = "stochos-lab"
-path = "hooks/session-wiring-check.sh"
+# Proposed 2026-11-01 (ARCHITECTURE.md, "detector engines"); four of the five
+# accepted 2026-11-02 and moved up.
 
 # Held at RESOLVED_NOT_WIRED: nothing runs verify-deploy automatically, and
 # stochos-lab's pre-push names it only in comments. Not proposed as `partial`

@@ -1367,6 +1367,18 @@ like the hook's other gates: a clone that has not run `git config core.hooksPath
 has no gate at all. **What it does not do:** grade the other OS. CI ran Ubuntu and Windows;
 a push grades the platform it is made from. Carried in `TODO.md`.
 
+**The Linux leg, run once (2026-11-02).** `bash scripts/check.sh` from a fresh clone on
+Ubuntu 26.04 under WSL2 (bash 5.3, git 2.53, gawk 5.3, jq 1.8, a newer nightly than the
+Windows one): every stage passed after two fixes, neither specific to Linux. The newer clippy's
+`double_must_use` fired on `cli::run`; and the bare `verify` stage named the project layer for
+the clone's directory, so a clone or worktree not called `relearn` read
+`.claude/rules/project-relearn.md` as an orphan — the stage now passes
+`--rules-layer project=relearn`, as the load-budget stage already passed `--as relearn`. The
+gate fixtures and the eol gate were also run under **mawk 1.3.4**, the non-GNU awk TODO.md
+flagged, and passed. The loader-constants stage read the Windows install through `/mnt/c`.
+macOS is not run. This is one observation, not a standing gate: a push still grades only the
+platform it is made from.
+
 ### A push that changes `claude-pack/` says the account copies are behind (added 2026-10-27)
 
 **What.** Once every pre-push gate has passed, `.githooks/pre-push` hands the refs being pushed
@@ -1401,6 +1413,14 @@ probed 2026-11-02.
 
 **A draft is emitted and never installed by the steps.** A detector on an `active` rule is still compiled into the pack, because the `hooks` target emits every detector. `hooks-pack/README.md`'s table carries an `Install` column: `yes` exactly when the rule's status names the hook, `draft` otherwise, and the install steps copy only `yes` rows. **Enforced by:** `tests/pack_counts.rs::the_hooks_pack_readme_marks_a_detector_installable_only_once_its_rule_names_it`, which reads the column against every rule's `named_controls`. Probed 2026-10-30: marking one draft row `yes` failed it, naming the script and the rule.
 
+**The graduation review, answered (2026-11-02).** George accepted every recommendation in `docs/graduation-review-2026-11-02.md`. The changes:
+- **Eight rules moved to `partial`, each naming its hook; the eight rows now read `yes`.** The rules are `no-weak-model-for-judgment`, `revision-integrity`, `no-tool-attribution-in-public-artefacts`, `repository-private-by-default`, `errors-name-what-failed`, `no-let-underscore-on-a-local`, `parse-dont-validate` and `xplat-fixtures`. The hooks are installed in stochos-lab, and two of them warn rather than block.
+- **Three rules moved to `partial`, each naming a generated repository gate placed in `controls.toml`.** `pin-eol-for-executable-text` names the eol gate. `five-files-no-more` names the root-documents gate, which is now a `check.sh` stage over this repository. `no-secrets-in-config-repo` names `listed-file-staged`, the commit dispatcher live in stochos-lab.
+- **The four ADOPT-EXISTING proposals moved from `[[proposed]]` to `[[control]]`,** and their rules to `partial`.
+- **Five were held,** with the reasons the sheet gives: the two Java detectors, `one-home-paragraph`, `pass-by-value-lint-on` and the ledger detector.
+
+**Before install, each draft ran over every tracked file in four local repositories, through its generated script.** That run found one false positive: `no-string-error` blocked `OriginError::Unknown(String)`, a variant that carries the unrecognised value, which is what the rule asks for. `Unknown` left the pattern's catch-all arm; a clean fixture pins it, and the rule's `uncovered` text names the catch-all it can no longer see. **Enforced by:** each rule's `status` (a `partial` must name its controls and its gap to parse), `relearn controls` (every named control resolves and is wired), the clean fixture, and stochos-lab's `scripts/test-hooks.sh`, with 17 new assertions through the installed scripts.
+
 **The sweep skips a detector's own files by identity (2026-10-31).** `check` runs every detector over every rule file and every emitted file. Two of those files must contain what a detector looks for: its own generated script, which quotes the pattern, and `test-detectors.sh`, which pipes every hit fixture through it. The hooks target now hands the sweep each file with its `HookRole` (`Script(name)`, `Runner`, `Snippet`), and a detector skips its own script and the runner. That is identity, not a path glob, so a file at the same path that the hooks target did not make is still swept, and a real repository's `hooks/*.sh` stays in scope at runtime. The two hand-written excludes it replaced are gone from `[R:no-tool-attribution-in-public-artefacts]` and `[R:repository-private-by-default]`. The first rule's clean fixture at `hooks/test-detectors.sh` pinned its own exclude, so it now expects `hit`, which pins that a repository's runner is read. **Enforced by:** `emit::hooks::HookRole` + `emit::hooks::Swept` (a hooks file can only be swept with the role `emit_with_roles` gave it) + `tests/self_exclusion.rs` (the generated files really do hit unskipped; they are skipped for their own detector; the same text from another target is swept; another detector's script is swept; a repository's `hooks/*.sh` still hits at runtime). **Invocation:** `cargo test --test self_exclusion`, and `relearn check` in `scripts/check.sh`. **Probed 2026-10-31:** with the skip disabled, `relearn check` on the corpus failed with 4 self-matches; restored, it passed.
 
 **Status stays the operator's.** `lint` reports `graduation candidate` (Info) for a prose-held rule whose detector its status does not name, and `unplaced hook` (Warning) for a named `hook:` that no detector defines and the control map does not place. `--map` defaults to `controls.toml`; when no map is found, every such hook is reported. A `hook:` a detector defines resolves in `relearn controls` to the pack, and a hand entry for it in `controls.toml` is refused.
@@ -1415,7 +1435,7 @@ probed 2026-11-02.
 
 **The remaining three, the same way (2026-11-01, Windows, Git Bash).** `[R:justify-every-clone]`, `[R:private-fields-only]` and `[R:async-all-the-way]` now carry the detectors `no-clone-without-comment`, `no-pub-fields` and `no-block-on-in-async`, each mirroring the hand-written hook's path scope, test-file excludes, comment skip and per-line escape, and their `controls.toml` entries are gone. stochos-lab's `scripts/test-hooks.sh` assertions for the three gave 10 of 10 against the originals and 10 of 10 against the generated scripts. A differential over 2,592 payloads (18 paths × 16 texts × Write/Edit/MultiEdit × the three hooks) found 30 differing exit codes, all one deliberate difference: the original clone hook also accepted `// clone: <reason>` (any spacing after `//`) as an escape, and the generated one accepts only `allow:clone`, the house form the rule's own text prescribes. The rule is the source, so the detector follows it. Measured the same day across the local repositories: the house form is on 158 lines, the other form on 2 clone lines, both in one repository, which a cut-over would block on their next edit until re-annotated. The `pub`-field and `block_on` hooks differ on nothing.
 
-**Scope (`[R:measure-the-claim-not-a-subset]`).** The generated scripts have been run on Windows under Git Bash only. Nothing has run them on Linux or macOS, so the shell half is single-platform evidence (`[R:xplat-fixtures]`). The committed runner has exercised `warn` since 2026-10-30, when the control triage drafted the first `warn` detector into the corpus (`no-embedded-local-llm`, on `[R:no-weak-model-for-judgment]`); before that the path was held by a text assertion and one observed run. MultiEdit's payload shape is handled when present but not confirmed against the current hooks reference. Carried in TODO.md.
+**Scope (`[R:measure-the-claim-not-a-subset]`).** The generated scripts have been run on Windows under Git Bash, and once on Linux (2026-11-02, see *The Linux leg, run once*). Nothing has run them on macOS (`[R:xplat-fixtures]`). The committed runner has exercised `warn` since 2026-10-30, when the control triage drafted the first `warn` detector into the corpus (`no-embedded-local-llm`, on `[R:no-weak-model-for-judgment]`); before that the path was held by a text assertion and one observed run. MultiEdit's payload shape is handled when present; the tool no longer exists (checked 2026-11-02), so that branch is dead weight, carried in TODO.md.
 
 ### Repository gates: a rule's check over a whole checkout, compiled to a script (added 2026-11-01)
 
@@ -1449,7 +1469,7 @@ probed 2026-11-02.
 
 **Pilot, status unchanged:** `[R:one-home-per-rule]` (`one-home-paragraph`, 160 bytes, warn). It excludes relearn's own emission paths (`**/skills/**/SKILL.md`, `**/.claude/rules/**`, `**/.cursor/rules/**`, `**/.github/copilot-instructions.md`, `**/AGENTS.md`), because a generated copy is not a second home.
 
-**Scope (`[R:measure-the-claim-not-a-subset]`).** Run on Windows under Git Bash only; TODO.md carries the Linux command. It finds a verbatim copy after whitespace, never a paraphrase, a reordered list or an index, which are the second homes the rule says hide best. A path containing a tab or a newline cannot be a record; the judge then disarms. A hand-written file at an emission path is excluded as if it were generated.
+**Scope (`[R:measure-the-claim-not-a-subset]`).** Run on Windows under Git Bash, and once on Linux under gawk and mawk (2026-11-02). It finds a verbatim copy after whitespace, never a paraphrase, a reordered list or an index, which are the second homes the rule says hide best. A path containing a tab or a newline cannot be a record; the judge then disarms. A hand-written file at an emission path is excluded as if it were generated.
 
 ### Commit-time detectors: `git-pre-commit` and `listed-path` (added 2026-11-01)
 
@@ -1463,7 +1483,7 @@ probed 2026-11-02.
 
 **Pilots, each status unchanged,** are listed in `repo-pack/README.md`'s commit-time table, which a test reads.
 
-**Scope (`[R:measure-the-claim-not-a-subset]`).** Run on Windows under Git Bash only; Linux and macOS are not run, and TODO.md carries the command. A list entry is compared byte for byte, so on a case-insensitive filesystem a path staged in another case is not caught. A path containing a newline is not supported. A commit message is not staged content, so a `commit-msg` check is a different event and is not built.
+**Scope (`[R:measure-the-claim-not-a-subset]`).** Run on Windows under Git Bash, and once on Linux (2026-11-02); macOS is not run. A list entry is compared byte for byte, so on a case-insensitive filesystem a path staged in another case is not caught. A path containing a newline is not supported. A commit message is not staged content, so a `commit-msg` check is a different event and is not built.
 
 ### Whole-file detectors: `sections` and `claude-code-post-tool-use` (added 2026-11-01)
 
@@ -1479,7 +1499,7 @@ probed 2026-11-02.
 
 **Pilot, status unchanged:** `[R:features-ledger-names-its-artefact]` (`ledger-entry-names-artefact`, level 3, block), listed in both packs' READMEs, which tests read.
 
-**Scope (`[R:measure-the-claim-not-a-subset]`).** Run on Windows under Git Bash only; TODO.md carries the Linux command. One detector holds one heading level, so a ledger whose entries are a different level is not judged by the pilot. `MultiEdit` is registered on the strength of the hooks already shipped for it; the current hooks reference names only `Edit` and `Write` in its PostToolUse examples. A PostToolUse hit reaches the model only as context, never as a block.
+**Scope (`[R:measure-the-claim-not-a-subset]`).** Run on Windows under Git Bash, and once on Linux (2026-11-02). One detector holds one heading level, so a ledger whose entries are a different level is not judged by the pilot. `MultiEdit` is registered on the strength of the hooks already shipped for it, and the tool no longer exists (checked 2026-11-02): the matcher entry is dead weight, and `Edit` is covered. A PostToolUse hit reaches the model only as context, never as a block.
 
 ### Probes: a rule's error class replayed with its layer and without it (added 2026-10-30)
 
@@ -1495,7 +1515,7 @@ probed 2026-11-02.
 
 **Observed, not a gate (2026-10-30, Windows, Git Bash).** The refusals for a missing budget, `--samples` over the cap, an `--out` inside the repository and a work root inside `$HOME` all exited 2 before any model call. The self-test's first run caught four trace cases whose JSON held Windows backslash paths, which do not parse, and they were repaired. **Observed, not a gate (2026-10-31, the first pilot: `claude-opus-5-5`, CLI 2.1.316, 140 sessions plus the preflight, $13.52).** The real CLI accepted the isolation flags, the preflight found no canary, and the `init` field names held. No session was `contaminated`: every paid session's `init` listed only the CLI's measured baseline, plus `skill:global` in the WITH arm. Each session's reported cost summed to the runner's total, and the rebuilt `--dry-run` estimate for the pilot's shape is within 2% of what was spent. Two things are still **NOTHING YET — exposed**. One is whether the CLI enforces `--max-budget-usd`, since no session came near its cap. The other is a budget stop against the real CLI, which only the stand-in has exercised. The pilot also showed three limits: a trace's `write` event does not see a write made through the shell, a `diff` `lacks` clause matches comments, and the recommendation ignores whether the WITH arm opened the skill. The results are in `docs/control-triage.md`; all of the above is carried in TODO.md.
 
-**Scope (`[R:measure-the-claim-not-a-subset]`).** `run` checkers and fixtures have run on Windows under Git Bash only (`[R:xplat-fixtures]`). The prefer-by-construction checker needs `cargo` on PATH.
+**Scope (`[R:measure-the-claim-not-a-subset]`).** `run` checkers and fixtures have run on Windows under Git Bash, and once on Linux (2026-11-02) (`[R:xplat-fixtures]`). The prefer-by-construction checker needs `cargo` on PATH.
 
 ## Deliberately out of scope for v0.1
 

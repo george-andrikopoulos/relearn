@@ -55,6 +55,8 @@ The ledger is only load-bearing if it is read before every change, which is what
 
 ## A project carries five standing documents, and resists a sixth [R:five-files-no-more]
 
+> Partly enforced by gate:five-root-documents; documents sprawling below the root, documents not named .md, and every repository that does not run the gate is held by this instruction alone.
+
 A project keeps exactly five standing documents, each with one job:
 
 - `CLAUDE.md` — the recreation standard: purpose, design decisions with their *why*, invariants, build and test commands.
@@ -69,4 +71,4 @@ The two failure classes the set exists to kill are staleness and unenforced guar
 
 Do not duplicate domain rules into the project layer. Reference them. A rule stated in two places forks and rots, and the copy is always the one someone reads.
 
-<!-- relearn:generated v0.1.0 sha256=c839510c1edea869feb674dc3c25fa00aee5715caafc7480a9a975e0f61d6a18 rules=R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:features-ledger-names-its-artefact,R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=3a2e44666c882fcfb2e7f98bbe681c0f50d21c5886907fbefc0f0d0cff3881a6 rules=R:claude-md-recreates-the-project,R:decisions-log-records-rejected-alternatives,R:definition-of-done-every-change,R:features-ledger-names-its-artefact,R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->

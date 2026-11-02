@@ -1,11 +1,13 @@
 ---
 name: project-stochos-lab
-description: "Engineering discipline for the stochos-lab repository. Covers: no secrets in config repo; verify tracked after move"
+description: "Engineering discipline for the stochos-lab repository. Covers: verify tracked after move; no secrets in config repo"
 ---
 
 # project: stochos-lab rules
 
 ## Keep secret-bearing, machine-local config out of a shared config repo [R:no-secrets-in-config-repo]
+
+> Partly enforced by gate:listed-file-staged; a secret inside a tracked, whitelisted file, a secret-bearing file not on the machine-local list, and a commit made with --no-verify is held by this instruction alone.
 
 When a repository versions configuration that is meant to be shared, keep the secret-bearing and machine-local parts out of it: credentials, permission allowlists, and per-machine settings are not shareable configuration and do not belong in shared history, even (especially) when the repo is otherwise a config repo. Version the shareable wiring separately from the secrets, so tracking the former never commits the latter. A secret in history is a secret to rotate, not a secret to delete.
 
@@ -19,4 +21,4 @@ Failure-mode check: *what did this correct change quietly stop tracking?*
 
 (Clause recovered 2026-09-27. It survived only in the rules ledger's 2026-07-22 entry, in neither rule home, until the 2026-08-16 audit found it and the port to this corpus did not carry it.)
 
-<!-- relearn:generated v0.1.0 sha256=92931fbd5d2b99a6c5285e1fd973f2e6a039c47462707c29fb9b15f72a69ed7b rules=R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=d37a96514dd8521ba92e9ec7df311ac4513cfdec8216bc8dc55a626df01949ce rules=R:no-secrets-in-config-repo,R:verify-tracked-after-move -- DO NOT EDIT; regenerate with `relearn build` -->

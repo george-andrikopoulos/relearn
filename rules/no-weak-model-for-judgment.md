@@ -5,7 +5,7 @@ error_class = "Wiring a meaningfully less capable model into a tool for work tha
 home = { kind = "global" }
 created = "2026-08-22"
 origin = "codified"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:no-embedded-local-llm", uncovered = "routing judgment to a cheaper hosted tier, and local runtimes the pattern does not name", date = "2026-11-02" }
 incident = "Codification-dated: folded into ~/.claude/skills/rust-typedd/SKILL.md on 2026-07-22 from a standalone memory (the skill's own revision note records the fold and the removal of the atticked copy), then ported here 2026-08-22. Distinct from R:measure-cost-per-task, which it cites: that rule governs how to choose between capable models by measured cost, whereas this one is a capability floor that holds even when the cheaper option is genuinely cheaper per task."
 published_incident = "Codified rather than mined, and folded in from a standalone note. The practice: a task requiring judgement — reviewing a design, deciding whether two rules contradict, weighing an argument — is not the place to economise on capability, because the failure mode is a confident answer that is wrong in a way nobody checks. It is distinct from choosing a model by measured cost per completed task: that rule governs how to choose, this one governs where the choice must not be made on price at all."
 

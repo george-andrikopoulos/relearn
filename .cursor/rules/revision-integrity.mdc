@@ -6,6 +6,8 @@ alwaysApply: true
 
 # After restructuring, verify references as a distinct pass [R:revision-integrity]
 
+> Partly enforced by hook:no-count-in-heading; antecedents, cross-references, counts in body text, and terms used before their definition is held by this instruction alone.
+
 Editing a structured artefact silently breaks references that the previous version made true. The edit raises no error, and rereading does not catch it: the author restores the deleted context from memory and reads a coherent passage that is not on the page.
 
 So run referential integrity as a **distinct pass**, after the restructuring and not during it. Every pronoun and comparative -- *this*, *neither*, *the former*, *the more important* -- must resolve within the current text. Every cross-reference must point where it claims. Every announced count must match what follows. Every term must be defined before it is used.
@@ -16,4 +18,4 @@ Prefer structure that cannot carry the defect. A heading that states a count goe
 
 This is the prose sibling of R:wired-artifact: a locally correct change with a silent non-local effect. Ask, every time: *what did this edit quietly leave pointing at nothing?*
 
-<!-- relearn:generated v0.1.0 sha256=ccb636fc755a44d4be94e1cf62137d0d0b8e94eb77f234b04546b6197985ac11 rules=R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=8a6470a3a95ab2fb78f8c27b1d70c5baec2e6683390e8ec77c532d6665cb902e rules=R:revision-integrity -- DO NOT EDIT; regenerate with `relearn build` -->
