@@ -103,15 +103,17 @@ the body. Do not reformat, reflow, re-order, summarise, rewrite in your own word
 two layers into one file, or split one across several. Create no other files.
 
 STEP 4 — Report each destination path and its line count, and confirm that no existing
-file was modified or replaced. Expected line counts: global 638, domain-rust 230,
-project-relearn 16, project-stochos-lab 22, project-design-architecture-tool 95.
+file was modified or replaced. Expected line counts: global 674, domain-project-files 72,
+domain-disclosure 126, domain-rust 232, domain-low-latency 753, domain-java 535,
+domain-agent-tooling 52, project-relearn 16, project-stochos-lab 22,
+project-design-architecture-tool 95.
 ```
 
 The expected line counts are in the prompt because they are the one check the person
-pasting it can make without reading the files. Unlike the rule counts above, these are
-hand-written **and unchecked** — `tests/pack_counts.rs` reads rule counts off each skill
-and line counts only off the copilot file, so nothing fails when a number here drifts.
-`wc -l claude-pack/skills/*/SKILL.md` is the reading that cannot rot.
+pasting it can make without reading the files. They are hand-written, and since
+2026-11-02 `tests/pack_counts.rs` reads every one back off the skill it names, and fails
+when the list leaves a skill out — it had named five of ten, and two of the five were
+stale. `wc -l claude-pack/skills/*/SKILL.md` is the reading that needs no build.
 
 ## Confirming a skill loaded
 

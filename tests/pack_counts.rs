@@ -390,3 +390,204 @@ fn the_hooks_pack_readme_marks_a_detector_installable_only_once_its_rule_names_i
         }
     }
 }
+
+// --- the paste-in prompts ----------------------------------------------------
+//
+// Each pack README carries a prompt to paste into an assistant, and the prompt
+// states the line counts the person should expect back. Those figures are the
+// one check a person can make without reading the file, so a stale one teaches
+// them to ignore the check. Until 2026-11-02 nothing read them: every one was
+// found stale on the day this was written (copilot 2464 against 2500, `global`
+// alone 633 against 669, claude-pack's `global` 638 against 674), and the
+// claude-pack prompt named five skills of ten.
+
+/// The figures `copilot-pack/README.md` states: `(expected: N)` and `N for this
+/// pack` about the pack's own file, and `N for \`<home>\` alone` about a build
+/// narrowed to one home.
+#[derive(Debug, PartialEq, Eq)]
+enum CopilotFigure {
+    Pack(usize),
+    Home(String, usize),
+}
+
+/// The last whitespace-delimited token of `before`, as a number.
+fn trailing_number(before: &str) -> Option<usize> {
+    before
+        .split_whitespace()
+        .next_back()?
+        .trim_matches(|c: char| !c.is_ascii_digit())
+        .parse()
+        .ok()
+}
+
+fn copilot_figures(text: &str) -> Vec<(usize, CopilotFigure)> {
+    let mut found = Vec::new();
+    for (at, line) in text.lines().enumerate() {
+        let n = at + 1;
+        if let Some((_, after)) = line.split_once("(expected: ") {
+            let digits: String = after.chars().take_while(char::is_ascii_digit).collect();
+            if let Ok(v) = digits.parse() {
+                found.push((n, CopilotFigure::Pack(v)));
+            }
+        }
+        if let Some((before, _)) = line.split_once(" for this pack")
+            && let Some(v) = trailing_number(before)
+        {
+            found.push((n, CopilotFigure::Pack(v)));
+        }
+        let segments: Vec<&str> = line.split(" for `").collect();
+        for pair in segments.windows(2) {
+            let Some((home, rest)) = pair[1].split_once('`') else {
+                continue;
+            };
+            if rest.starts_with(" alone")
+                && let Some(v) = trailing_number(pair[0])
+            {
+                found.push((n, CopilotFigure::Home(home.to_owned(), v)));
+            }
+        }
+    }
+    found
+}
+
+/// The lines a real copilot build of one home writes, through the binary.
+fn copilot_lines_for_home(home: &str) -> usize {
+    let scratch = tempfile::tempdir().expect("a scratch directory");
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_relearn"))
+        .args(["build", "--targets", "copilot", "--home", home, "--out"])
+        .arg(scratch.path())
+        .arg("--rules")
+        .arg(root().join("rules"))
+        .output()
+        .expect("run the relearn binary");
+    assert!(
+        output.status.success(),
+        "a copilot build of `{home}` alone failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = fs::read_to_string(scratch.path().join(".github/copilot-instructions.md"))
+        .expect("the single-home build writes the instruction file");
+    Unit::Lines.measure(&text)
+}
+
+#[test]
+fn every_line_count_the_copilot_prompt_states_is_the_one_a_build_writes() {
+    let readme = root().join("copilot-pack/README.md");
+    let text = fs::read_to_string(&readme).expect("read copilot-pack/README.md");
+    let figures = copilot_figures(&text);
+    assert!(
+        figures
+            .iter()
+            .any(|(_, f)| matches!(f, CopilotFigure::Pack(_)))
+            && figures
+                .iter()
+                .any(|(_, f)| matches!(f, CopilotFigure::Home(..))),
+        "copilot-pack/README.md states no prompt figure of one kind or the other — \
+         the prompt changed shape, or this parser stopped recognising it: {figures:?}"
+    );
+    let pack = fs::read_to_string(root().join("copilot-pack/.github/copilot-instructions.md"))
+        .expect("read the pack's instruction file");
+    let pack_lines = Unit::Lines.measure(&pack);
+    for (line, figure) in figures {
+        let (what, actual, claimed) = match figure {
+            CopilotFigure::Pack(v) => ("this pack".to_owned(), pack_lines, v),
+            CopilotFigure::Home(home, v) => {
+                let actual = copilot_lines_for_home(&home);
+                (format!("a build of `{home}` alone"), actual, v)
+            }
+        };
+        assert_eq!(
+            claimed, actual,
+            "copilot-pack/README.md:{line} tells the person pasting the prompt to expect \
+             {claimed} lines for {what}, and it has {actual}. Fix the README."
+        );
+    }
+}
+
+/// `Expected line counts: <skill> N, <skill> N, …` in `claude-pack/README.md`,
+/// which may wrap across lines and ends at the first full stop.
+fn claude_expected(text: &str) -> Option<(usize, Vec<(String, usize)>)> {
+    let lines: Vec<&str> = text.lines().collect();
+    let at = lines
+        .iter()
+        .position(|l| l.contains("Expected line counts:"))?;
+    let joined = lines[at..].join(" ");
+    let (_, after) = joined.split_once("Expected line counts:")?;
+    let (list, _) = after.split_once('.')?;
+    let pairs = list
+        .split(',')
+        .filter_map(|item| {
+            let (name, n) = item.trim().rsplit_once(' ')?;
+            Some((name.trim().to_owned(), n.parse().ok()?))
+        })
+        .collect();
+    Some((at + 1, pairs))
+}
+
+#[test]
+fn the_claude_prompt_states_every_skill_and_each_line_count_it_states_is_true() {
+    let readme = root().join("claude-pack/README.md");
+    let text = fs::read_to_string(&readme).expect("read claude-pack/README.md");
+    let (line, pairs) = claude_expected(&text)
+        .expect("claude-pack/README.md has an `Expected line counts:` list ending in a full stop");
+    let skills_dir = root().join("claude-pack/skills");
+    let mut on_disk: Vec<String> = fs::read_dir(&skills_dir)
+        .expect("read claude-pack/skills")
+        .map(|e| {
+            e.expect("an entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    on_disk.sort();
+    let mut stated: Vec<String> = pairs.iter().map(|(name, _)| name.clone()).collect(); // allow:clone: the sorted list outlives the borrow of `pairs` it is checked against
+    stated.sort();
+    assert_eq!(
+        stated, on_disk,
+        "claude-pack/README.md:{line} states line counts for a different set of skills \
+         than the pack holds"
+    );
+    for (name, claimed) in pairs {
+        let text = fs::read_to_string(skills_dir.join(&name).join("SKILL.md"))
+            .expect("a stated skill's SKILL.md");
+        let actual = Unit::Lines.measure(&text);
+        assert_eq!(
+            claimed, actual,
+            "claude-pack/README.md:{line} tells the person pasting the prompt to expect \
+             {claimed} lines for {name}, and it has {actual}. Fix the README."
+        );
+    }
+}
+
+/// The two prompt parsers, pinned on the shapes the READMEs use.
+#[test]
+fn the_prompt_parsers_read_the_shapes_the_readmes_use() {
+    let copilot = "STEP 4 — the line count (expected: 2500), and\n\
+                   the file: 2500 for this pack. A single-home build is\n\
+                   shorter — 669 for `global` alone, 227 for `domain-rust` alone — so\n";
+    assert_eq!(
+        copilot_figures(copilot)
+            .into_iter()
+            .map(|(_, f)| f)
+            .collect::<Vec<_>>(),
+        vec![
+            CopilotFigure::Pack(2500),
+            CopilotFigure::Pack(2500),
+            CopilotFigure::Home("global".to_owned(), 669),
+            CopilotFigure::Home("domain-rust".to_owned(), 227),
+        ]
+    );
+    let claude = "file was modified. Expected line counts: global 674, domain-rust\r\n232, \
+                  project-relearn 16.\r\nMore prose, with a 7. in it\r\n";
+    let (line, pairs) = claude_expected(claude).expect("the list is found");
+    assert_eq!(line, 1);
+    assert_eq!(
+        pairs,
+        vec![
+            ("global".to_owned(), 674),
+            ("domain-rust".to_owned(), 232),
+            ("project-relearn".to_owned(), 16),
+        ]
+    );
+}

@@ -192,8 +192,9 @@ pub enum Recommendation {
     /// The WITH arm never violated, but the difference cannot be told from
     /// zero at this sample size. Neither a finding for the prose nor against.
     Underpowered,
-    /// The WITHOUT arm never violated, or an arm has no scored sample: the
-    /// probe cannot measure the rule, so rewrite it. Never "the rule holds"
+    /// The WITHOUT arm never violated, or an arm's sessions ran and none could
+    /// be scored because the task was never done: the probe cannot measure
+    /// the rule, so rewrite it. Never "the rule holds"
     /// (`[R:evidence-must-discriminate]`).
     NonDiscriminating,
     /// The rule's skill was measurably left unopened, and where it was opened
@@ -201,6 +202,12 @@ pub enum Recommendation {
     /// or the skill's description — not a stronger control, and not firmer
     /// prose, because the prose is not what failed.
     LoadFailure,
+    /// No session in an arm reached the checker at all: every one errored or
+    /// was contaminated, or none was run. The run measured nothing, so it says
+    /// nothing about the probe either — rerun it before rewriting anything.
+    /// Kept apart from `NonDiscriminating`, whose remedy (rewrite the probe)
+    /// would be wrong here.
+    NoData,
 }
 
 impl Recommendation {
@@ -212,30 +219,58 @@ impl Recommendation {
             Recommendation::Underpowered => "underpowered",
             Recommendation::NonDiscriminating => "non-discriminating",
             Recommendation::LoadFailure => "load-failure",
+            Recommendation::NoData => "no-data",
         }
     }
 }
 
+/// What one arm's sessions add up to, for the recommendation. "No scored
+/// sample" is two different findings, and an `Option<Count>` could not tell
+/// them apart: sessions that ran and could not be scored are evidence about
+/// the probe; sessions that never reached the checker are no evidence at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArmEvidence {
+    /// At least one session was judged `held` or `violated`.
+    Scored(Count),
+    /// None scored, and at least one was `inconclusive`: it ran, and the
+    /// probe's anchor never happened.
+    Unscorable,
+    /// None scored and none inconclusive: every session errored or was
+    /// contaminated, or the arm has no session.
+    NoSession,
+}
+
+impl From<Count> for ArmEvidence {
+    fn from(count: Count) -> Self {
+        ArmEvidence::Scored(count)
+    }
+}
+
 /// Decide from the two arms, and from delivery where the rule is a skill.
-/// `None` is an arm with no scored sample, or a rule whose layer loads with
-/// no `Skill` call (a `.claude/rules/` file), where there is no delivery to
-/// measure.
+/// `load` is `None` for a rule whose layer loads with no `Skill` call (a
+/// `.claude/rules/` file), where there is no delivery to measure.
 ///
-/// Order: an arm that cannot discriminate decides first, then a measurable
-/// reduction (the prose holds as delivered, however it was delivered), then
-/// delivery, and only then the prose.
+/// Order: a WITHOUT arm that never violated decides first, since nothing
+/// later can make it discriminate. Then an arm whose sessions ran unscored
+/// (the probe is shown defective), then an arm with no session at all (the
+/// run measured nothing), then a measurable reduction (the prose holds as
+/// delivered, however it was delivered), then delivery, and only then the
+/// prose.
 #[must_use]
 pub fn recommend(
-    without: Option<Count>,
-    with: Option<Count>,
+    without: ArmEvidence,
+    with: ArmEvidence,
     load: Option<LoadEvidence>,
 ) -> Recommendation {
-    let (Some(without), Some(with)) = (without, with) else {
-        return Recommendation::NonDiscriminating;
-    };
-    if without.violations == 0 {
+    use ArmEvidence::{NoSession, Scored, Unscorable};
+    if matches!(without, Scored(w) if w.violations == 0) {
         return Recommendation::NonDiscriminating;
     }
+    let (without, with) = match (without, with) {
+        (Scored(without), Scored(with)) => (without, with),
+        (Unscorable, _) | (_, Unscorable) => return Recommendation::NonDiscriminating,
+        (NoSession, _) | (_, NoSession) => return Recommendation::NoData,
+    };
     if newcombe(without, with).lo > 0.0 {
         return Recommendation::Keep;
     }

@@ -19,7 +19,9 @@
 //! `.claude/rules/` file loads with no tool call, and is never split — it is
 //! given no load rate rather than a load rate of zero.
 
-use super::stats::{Count, LoadEvidence, LoadRate, Recommendation, newcombe, recommend, wilson};
+use super::stats::{
+    ArmEvidence, Count, LoadEvidence, LoadRate, Recommendation, newcombe, recommend, wilson,
+};
 use super::transcript::MicroUsd;
 use crate::rule::{RuleTag, Verdict};
 
@@ -282,6 +284,17 @@ impl ArmTally {
         Count::new(self.violated, self.held + self.violated)
     }
 
+    /// What this arm adds up to for the recommendation: scored, ran but could
+    /// not be scored, or never reached the checker at all.
+    #[must_use]
+    pub fn evidence(self) -> ArmEvidence {
+        match self.count() {
+            Some(count) => ArmEvidence::Scored(count),
+            None if self.inconclusive > 0 => ArmEvidence::Unscorable,
+            None => ArmEvidence::NoSession,
+        }
+    }
+
     /// Sessions recorded but not scored: inconclusive, contaminated, failed.
     #[must_use]
     pub fn unscored(self) -> (u32, u32, u32) {
@@ -324,7 +337,7 @@ impl RuleTally {
             Load::Split(split) => split.evidence(),
             Load::RulesLayer | Load::NotInLibrary => None,
         };
-        recommend(self.without.count(), self.with.count(), evidence)
+        recommend(self.without.evidence(), self.with.evidence(), evidence)
     }
 }
 

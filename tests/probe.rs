@@ -8,7 +8,8 @@
 
 use proptest::prelude::*;
 use relearn::probe::{
-    Count, MicroUsd, Recommendation, newcombe, recommend, session_from_stream_json, wilson,
+    ArmEvidence, Count, MicroUsd, Recommendation, newcombe, recommend, session_from_stream_json,
+    wilson,
 };
 use relearn::rule::{
     Checker, EventKind, ParseError, ProbeError, SessionEvent, Verdict, WorkspaceChange,
@@ -332,6 +333,10 @@ fn count(v: u32, n: u32) -> Count {
     Count::new(v, n).expect("valid count")
 }
 
+fn scored(v: u32, n: u32) -> ArmEvidence {
+    count(v, n).into()
+}
+
 #[test]
 fn a_count_cannot_have_more_violations_than_samples_or_no_samples() {
     assert!(Count::new(3, 2).is_none());
@@ -358,23 +363,38 @@ fn newcombe_matches_the_published_value() {
 fn the_four_recommendations_without_a_load_split() {
     use Recommendation::*;
     assert_eq!(
-        recommend(Some(count(0, 10)), Some(count(0, 10)), None),
+        recommend(scored(0, 10), scored(0, 10), None),
         NonDiscriminating
     );
-    assert_eq!(recommend(None, Some(count(1, 10)), None), NonDiscriminating);
     assert_eq!(
-        recommend(Some(count(9, 10)), Some(count(1, 10)), None),
-        Keep
+        recommend(ArmEvidence::Unscorable, scored(1, 10), None),
+        NonDiscriminating
     );
+    assert_eq!(recommend(scored(9, 10), scored(1, 10), None), Keep);
+    assert_eq!(recommend(scored(5, 10), scored(5, 10), None), GraduateNow);
+    assert_eq!(recommend(scored(2, 10), scored(0, 10), None), Underpowered);
     assert_eq!(
-        recommend(Some(count(5, 10)), Some(count(5, 10)), None),
-        GraduateNow
+        recommend(scored(2, 10), ArmEvidence::Unscorable, None),
+        NonDiscriminating
     );
-    assert_eq!(
-        recommend(Some(count(2, 10)), Some(count(0, 10)), None),
-        Underpowered
-    );
-    assert_eq!(recommend(Some(count(2, 10)), None, None), NonDiscriminating);
+}
+
+// TODO.md, "The tally says `non-discriminating` for an arm with no scored
+// sample at all": a run in which every session errored measured nothing, and
+// "rewrite the probe" was the wrong remedy for it.
+#[test]
+fn an_arm_no_session_reached_is_no_data_and_not_a_probe_defect() {
+    use ArmEvidence::{NoSession, Unscorable};
+    use Recommendation::{NoData, NonDiscriminating};
+    assert_eq!(recommend(NoSession, scored(5, 10), None), NoData);
+    assert_eq!(recommend(scored(5, 10), NoSession, None), NoData);
+    assert_eq!(recommend(NoSession, NoSession, None), NoData);
+    // An arm that ran and could not be scored shows the probe is defective,
+    // which a rerun will not change: it outranks an arm that never ran.
+    assert_eq!(recommend(Unscorable, NoSession, None), NonDiscriminating);
+    assert_eq!(recommend(NoSession, Unscorable, None), NonDiscriminating);
+    // A WITHOUT arm that never violated cannot discriminate, whatever WITH did.
+    assert_eq!(recommend(scored(0, 10), NoSession, None), NonDiscriminating);
 }
 
 proptest! {
@@ -405,7 +425,8 @@ proptest! {
     #[test]
     fn a_silent_without_arm_is_always_non_discriminating(n in 1u32..100, w in 0u32..100, m in 1u32..100) {
         let with = Count::new(w.min(m), m);
-        prop_assert_eq!(recommend(Some(count(0, n)), with, None), Recommendation::NonDiscriminating);
+        let with = with.map_or(ArmEvidence::NoSession, ArmEvidence::Scored);
+        prop_assert_eq!(recommend(scored(0, n), with, None), Recommendation::NonDiscriminating);
     }
 }
 

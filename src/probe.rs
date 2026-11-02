@@ -19,7 +19,7 @@ pub use results::{
     parse_results, render, tally,
 };
 pub use stats::{
-    Count, Interval, LOW_LOAD_CEILING, LoadEvidence, LoadRate, Recommendation, newcombe, recommend,
-    wilson,
+    ArmEvidence, Count, Interval, LOW_LOAD_CEILING, LoadEvidence, LoadRate, Recommendation,
+    newcombe, recommend, wilson,
 };
 pub use transcript::{MicroUsd, Session, TranscriptError, session_from_stream_json, skill_named};

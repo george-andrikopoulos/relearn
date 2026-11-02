@@ -66,7 +66,7 @@ bounded. The YAML `description` aggregates the home's rules for trigger coverage
 ```markdown
 ---
 name: project-relearn
-description: "Rules for project: relearn. Covers: Order by an explicit rank, not an incidental string sort (Deriving a semantic ordering from an incidental lexical sort (e.g. sorting home layers by their slug string), so the order is an alphabetical accident rather than a stated intent)"
+description: "Engineering discipline for the relearn repository. Covers: order by explicit rank"
 ---
 
 # project: relearn rules
@@ -75,7 +75,7 @@ description: "Rules for project: relearn. Covers: Order by an explicit rank, not
 
 When output has a meaningful order, derive it from an explicit rank that states the intent (general to specific, most to least severe), not from an incidental lexical sort of some string field. An alphabetical accident is not an ordering decision, and it changes silently the day the underlying strings change.
 
-<!-- relearn:generated v0.1.0 sha256=f99fa86bf9ad30f3dabe1d3f53472f4b2ef60e484728e31a2ae61fff3a9e9464 rules=R:order-by-explicit-rank -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=96cb12fef0c4a83100cad7519413026c64b798cb6dcc0d7ca822ab85ca1c9495 rules=R:order-by-explicit-rank -- DO NOT EDIT; regenerate with `relearn build` -->
 ```
 
 ### Cursor rule — `.cursor/rules/order-by-explicit-rank.mdc`
@@ -148,13 +148,19 @@ rule**.
 
 ## Reproducing this
 
-Every block above is real output. To regenerate it from a checkout:
+Every block above is real output, and `tests/worked_example.rs` runs these commands and fails
+if any block differs from what they write. To regenerate it from a checkout:
 
 ```sh
 mkdir -p /tmp/one-rule && cp rules/order-by-explicit-rank.md /tmp/one-rule/
-relearn build --rules /tmp/one-rule --out /tmp/example
-relearn verify --rules /tmp/one-rule --out /tmp/example   # exit 0: the tree matches the rule
+relearn build --rules /tmp/one-rule --out /tmp/example --rules-layer project=relearn
+relearn verify --rules /tmp/one-rule --out /tmp/example --rules-layer project=relearn   # exit 0
 ```
 
+`--rules-layer project=relearn` names the project whose Claude layer is written. Without it the
+layer is named for the `--out` directory, `example`, which homes no rule, and the build writes
+four files rather than five.
+
 (The `sha256` in each header is a hash of that file's body, so the values above are stable as
-long as the rule body is unchanged.)
+long as the rule body and the emitters are unchanged. The skill's `description` changed format
+after this example was first written, which is how its block went stale unnoticed.)
