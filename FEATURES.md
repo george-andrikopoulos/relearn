@@ -935,7 +935,7 @@ pattern occurs in the data it counts (`[R:detector-excludes-own-definitions]`). 
 ### Every rule sample in the documentation is a rule the parser accepts
 
 What: `tests/doc_samples.rs` extracts every `+++`-delimited block from `README.md`,
-`ARCHITECTURE.md` and the two worked examples, gives it a body where the document elides one, and
+`ARCHITECTURE.md`, the two worked examples and `docs/manual.md` (added 2026-11-02), gives it a body where the document elides one, and
 runs it through `rule::parse_document`. A sample that does not parse fails the build, naming the
 file, the line and the parser's own diagnostic.
 

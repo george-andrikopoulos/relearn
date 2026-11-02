@@ -28,11 +28,11 @@ them. `[R:doc-currency]`
   hook, load-log, gate and probe fixtures as stages. It closes or narrows five items that say
   "only run on Windows": *load-log on Linux*, *the generated scripts*, *test-gates and
   check.sh on Linux*, *probe fixtures*, and *Linux leg of the local gate*.
-- [x] **Written 2026-11-02: `docs/graduation-review-2026-11-02.md`, waiting on George's answers.** **A graduation review sheet for George**: one row per drafted detector (the ten
+- [x] **Written 2026-11-02: `docs/graduation-review-2026-11-02.md`, answered 2026-11-02 (accept all), applied in f1f7de9; was waiting on George's answers.** **A graduation review sheet for George**: one row per drafted detector (the ten
   `George: graduation review of …` items and *move the four proposed rules to `partial`*),
   carrying the proposed status, the `uncovered` text, and the measured fixture result. The
   decisions are George's; the sheet is the work.
-- [ ] **Tag `v0.1.0`** on main once both are in.
+- [x] **Tagged 2026-11-02 on a153e93.** **Tag `v0.1.0`** on main once both are in.
 
 **After the tag.** Every other `[ ]` below. None of them blocks a first versioned release:
 they are George's calls (installs, dogfooding, the hand pins, dropping the dead `MultiEdit`

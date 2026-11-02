@@ -40,6 +40,7 @@ const DOCUMENTED: &[&str] = &[
     "ARCHITECTURE.md",
     "docs/worked-example.md",
     "docs/worked-example-two-installs.md",
+    "docs/manual.md",
 ];
 
 fn repo_root() -> PathBuf {
