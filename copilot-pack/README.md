@@ -9,7 +9,7 @@ as custom instructions. Download this folder, copy one file into your repository
 copilot-pack/
 ├── README.md                          this file
 └── .github/
-    └── copilot-instructions.md        97 rules, 2500 lines — the instruction file
+    └── copilot-instructions.md        97 rules, 2530 lines — the instruction file
 ```
 
 The instruction file is **generated** by `relearn build --targets copilot` from the
@@ -199,13 +199,13 @@ the body, and any edit makes the next regeneration a conflict and is silently re
 Add front-matter (applyTo:) only if the agreed path is a path-scoped *.instructions.md
 file, and only that one key.
 
-STEP 4 — Report the final path, the line count (expected: 2500), and confirm that no
+STEP 4 — Report the final path, the line count (expected: 2530), and confirm that no
 other file was created or modified.
 ```
 
 The expected line count belongs in the prompt because it is the one check the person
-pasting it can make without reading the file: 2500 for this pack. A single-home build is
-shorter — 669 for `global` alone, 227 for `domain-rust` alone — so correct the number if
+pasting it can make without reading the file: 2530 for this pack. A single-home build is
+shorter — 679 for `global` alone, 235 for `domain-rust` alone — so correct the number if
 you narrowed the set (see *Seven rules are about other repositories*, below). Every figure
 in this paragraph and in the prompt is read back by `tests/pack_counts.rs`, the single-home
 ones by building that home alone.

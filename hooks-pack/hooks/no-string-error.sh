@@ -32,7 +32,7 @@ case $? in 0) ;; 1) exit 0 ;; *) fail "grep could not read the files pattern" ;;
 printf '%s\n' "$file_path" | grep -qE -- "$exclude_ere"
 case $? in 0) exit 0 ;; 1) ;; *) fail "grep could not read the exclude pattern" ;; esac
 
-pattern='Result<.*,[[:space:]]*(String|Box<dyn [a-z:]*Error[^>]*>)>[[:space:]]*(\{|;|=|where|$)|\b(Other|Unknown|Generic|Misc)\(String\)|map_err\(\|[a-z_]+\|[[:space:]]*[a-z_]+\.to_string\(\)\)'
+pattern='Result<.*,[[:space:]]*(String|Box<dyn [a-z:]*Error[^>]*>)>[[:space:]]*(\{|;|=|where|$)|\b(Other|Generic|Misc)\(String\)|map_err\(\|[a-z_]+\|[[:space:]]*[a-z_]+\.to_string\(\)\)'
 case "$tool_name" in
   Write) new="$(jq -r '.tool_input.content // ""' <<<"$input")" ;;
   Edit) new="$(jq -r '.tool_input.new_string // ""' <<<"$input")" ;;
@@ -54,4 +54,4 @@ hits="$(printf '%s\n' "$hits" | grep -vF -- 'allow:string-error')"
 } >&2
 exit 2
 
-# <!-- relearn:generated v0.1.0 sha256=01ebfca291549fa3bd163086bec8443fcfbb4485ac5e63c0919d99bf6e04a498 rules=R:errors-name-what-failed -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=28a94a0847e247c8e246f9248f468bf0b7b421f2f884f83e62a5959a8fe6e831 rules=R:errors-name-what-failed -- DO NOT EDIT; regenerate with `relearn build` -->

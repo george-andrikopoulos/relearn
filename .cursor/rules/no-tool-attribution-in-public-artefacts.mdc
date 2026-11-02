@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Tool attribution is off by decision and verified, never off by assumption [R:no-tool-attribution-in-public-artefacts]
 
+> Partly enforced by hook:no-tool-attribution; trailers passed inline to git commit, the tool's own attribution setting, document metadata, and history already pushed is held by this instruction alone.
+
 Attribution a tool inserts on your behalf is **off by decision and verified**, never off by assumption.
 
 **The default is on, and the artefact is published.** Commit trailers, generated-file headers, document properties and export metadata are written by tooling that defaults to identifying itself. Where a disclosure policy forbids that, the policy is not satisfied by anybody intending to comply: it is satisfied by the setting being off, and by someone having read the setting rather than a sentence about it.
@@ -29,4 +31,4 @@ Measured on the day this rule was written, the two disagreed by two and the gap 
 
 Failure-mode check, for any tool that can sign its own work: *what would I see if this were on, and have I looked at that rather than at a document about it?*
 
-<!-- relearn:generated v0.1.0 sha256=6f41936a683b0e7d91276334d87dfec745bf546020ed8088682c4965e9cf55fd rules=R:no-tool-attribution-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=617892c91d0dba86675ac11b6b9910f71ec9fa02f41ffe21301bcb30adef5a08 rules=R:no-tool-attribution-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->

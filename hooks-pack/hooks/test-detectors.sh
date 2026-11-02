@@ -257,6 +257,7 @@ run 'no-string-error.sh' clean block 'src/config.rs' 'pub fn load(path: &Path) -
 run 'no-string-error.sh' clean block 'src/config.rs' 'pub fn names(&self) -> Result<HashMap<u32, String>, LoadError> {'
 run 'no-string-error.sh' clean block 'src/config.rs' 'pub fn name(&self) -> Result<String, LoadError> {'
 run 'no-string-error.sh' clean block 'src/main.rs' 'fn main() -> Result<(), String> {'
+run 'no-string-error.sh' clean block 'src/rule/origin.rs' '    Unknown(String),'
 # no-string-identity-compare
 run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'if (side == "BUY") {'
 run 'no-string-identity-compare.sh' hit block 'src/main/java/Order.java' 'boolean sell = "SELL" != side;'
@@ -288,4 +289,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=4372b5b0452a2645a25f0d482270499f8a3f4ec03e0d6764173f9456199c96a4 rules=R:async-all-the-way,R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:justify-every-clone,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:private-fields-only,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=ca1bedfb480b1b3faec0c76be98bc1bde85d0dbdc14b97dff54cda579db9cb72 rules=R:async-all-the-way,R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:justify-every-clone,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:private-fields-only,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

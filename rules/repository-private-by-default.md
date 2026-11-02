@@ -5,7 +5,7 @@ error_class = "A repository created with public visibility by default, so public
 home = { kind = "domain", name = "disclosure" }
 created = "2026-09-20"
 origin = "codified"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:no-public-repo-create", uncovered = "a create typed at a shell prompt, through the web UI or through the REST API -- the hook reads written files, not commands", date = "2026-11-02" }
 incident = "Codification-dated, not single-incident: written down 2026-09-20 from a standing practice that had lived in a conditionally-loaded skill alongside two disclosure rules that were demonstrably not in force, and was rehomed with them. The practice predates the corpus: every repository is created private and going public is an explicit decision, with one sanctioned public exception maintained deliberately. It is codified rather than mined because no incident is needed to see the asymmetry -- publishing is a one-way door and privacy is not -- and because the two rules it was rehomed beside supply the evidence for what a conditionally-loaded policy is worth."
 
 [[detector]]

@@ -6,6 +6,8 @@ alwaysApply: false
 
 # A test fixture must work on every OS the repository runs on [R:xplat-fixtures]
 
+> Partly enforced by hook:no-constructed-target-path; uncanonicalised path comparison, stray CRs in another tool's output, and interpreter stubs is held by this instruction alone.
+
 A test that passes only on the machine that wrote it is a latent lie, and it is a
 particularly expensive one: it does not fail, it certifies. Where a repository is worked
 on from more than one operating system, every fixture that spawns a process, locates a
@@ -45,4 +47,4 @@ puts on disk, fixed once and structurally in `.gitattributes`. This rule governs
 flight, what a tool emits into a pipe at runtime, which no file attribute can reach, so
 the fix belongs at the consuming end. A repository can satisfy either and fail the other.
 
-<!-- relearn:generated v0.1.0 sha256=2487888eaa5611434d22a40a4566cf49519b63a41f5bf3b31ad85e481898e12c rules=R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=f880b57c540642a5af5c2d0045d09866e0f53d665d3738d507fe76f19811f39c rules=R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

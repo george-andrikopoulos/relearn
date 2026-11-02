@@ -6,6 +6,8 @@ alwaysApply: false
 
 # A project carries five standing documents, and resists a sixth [R:five-files-no-more]
 
+> Partly enforced by gate:five-root-documents; documents sprawling below the root, documents not named .md, and every repository that does not run the gate is held by this instruction alone.
+
 A project keeps exactly five standing documents, each with one job:
 
 - `CLAUDE.md` — the recreation standard: purpose, design decisions with their *why*, invariants, build and test commands.
@@ -20,4 +22,4 @@ The two failure classes the set exists to kill are staleness and unenforced guar
 
 Do not duplicate domain rules into the project layer. Reference them. A rule stated in two places forks and rots, and the copy is always the one someone reads.
 
-<!-- relearn:generated v0.1.0 sha256=138f3680f3fc7cb6ab60d8de30a99568055c21de27f51ee8512d1fd531d986ff rules=R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=294a0acb44d9d3142a144f852b7353ac016ecb8a4d7dbf11b7d7d60947651beb rules=R:five-files-no-more -- DO NOT EDIT; regenerate with `relearn build` -->

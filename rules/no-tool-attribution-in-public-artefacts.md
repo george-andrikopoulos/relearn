@@ -5,7 +5,7 @@ error_class = "Authorship or attribution metadata a tool inserts by default reac
 home = { kind = "domain", name = "disclosure" }
 created = "2026-09-20"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:no-tool-attribution", uncovered = "trailers passed inline to git commit, the tool's own attribution setting, document metadata, and history already pushed", date = "2026-11-02" }
 incident = "2026-09-20. A standing house rule forbids tool attribution in commits, tracked files and release artefacts. Measured across two repositories on this machine: 72 commits carry an assistant `Co-Authored-By` trailer and 67 of them are already pushed. The rule was not weakly enforced; it was not in force at all, for two reasons that compound. First, it lived only in a skill that loads when a particular vault workflow loads, so it was absent from every session that did not touch that vault -- a configuration-dependent home for an organisation-level disclosure policy. Second, and worse, the always-loaded layer carried a sentence reading \"Attribution disabled globally via settings.json\", and that setting does not exist in the file: the key is absent, the default is on, and nothing ever read the state the sentence asserted. An audit on 2026-08-16 had recorded zero such trailers, which was true of that day and was then carried forward as though it described the configuration. Both halves were found only because a rehoming task made someone open the file the sentence named. The commits cannot be unpublished; history rewriting is the only remedy for the 67 and it is not a cheap one."
 
 [[detector]]

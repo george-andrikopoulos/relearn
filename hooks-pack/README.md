@@ -23,18 +23,18 @@ hooks-pack/
 | `no-block-on-in-async.sh` | `[R:async-all-the-way]` | block | Write, Edit, MultiEdit | yes |
 | `no-case-collision.sh` | `[R:case-collision]` | block | Write | yes |
 | `no-clone-without-comment.sh` | `[R:justify-every-clone]` | block | Write, Edit, MultiEdit | yes |
-| `no-constructed-target-path.sh` | `[R:xplat-fixtures]` | block | Write, Edit, MultiEdit | draft |
-| `no-count-in-heading.sh` | `[R:revision-integrity]` | warn | Write, Edit, MultiEdit | draft |
-| `no-embedded-local-llm.sh` | `[R:no-weak-model-for-judgment]` | warn | Write, Edit, MultiEdit | draft |
+| `no-constructed-target-path.sh` | `[R:xplat-fixtures]` | block | Write, Edit, MultiEdit | yes |
+| `no-count-in-heading.sh` | `[R:revision-integrity]` | warn | Write, Edit, MultiEdit | yes |
+| `no-embedded-local-llm.sh` | `[R:no-weak-model-for-judgment]` | warn | Write, Edit, MultiEdit | yes |
 | `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
-| `no-free-validator.sh` | `[R:parse-dont-validate]` | block | Write, Edit, MultiEdit | draft |
-| `no-let-underscore-local.sh` | `[R:no-let-underscore-on-a-local]` | block | Write, Edit, MultiEdit | draft |
+| `no-free-validator.sh` | `[R:parse-dont-validate]` | block | Write, Edit, MultiEdit | yes |
+| `no-let-underscore-local.sh` | `[R:no-let-underscore-on-a-local]` | block | Write, Edit, MultiEdit | yes |
 | `no-pub-fields.sh` | `[R:private-fields-only]` | block | Write, Edit, MultiEdit | yes |
-| `no-public-repo-create.sh` | `[R:repository-private-by-default]` | block | Write, Edit, MultiEdit | draft |
+| `no-public-repo-create.sh` | `[R:repository-private-by-default]` | block | Write, Edit, MultiEdit | yes |
 | `no-serializable-domain-type.sh` | `[R:serializable-is-a-second-constructor]` | block | Write, Edit, MultiEdit | draft |
-| `no-string-error.sh` | `[R:errors-name-what-failed]` | block | Write, Edit, MultiEdit | draft |
+| `no-string-error.sh` | `[R:errors-name-what-failed]` | block | Write, Edit, MultiEdit | yes |
 | `no-string-identity-compare.sh` | `[R:identity-is-not-equality-for-boxes]` | block | Write, Edit, MultiEdit | draft |
-| `no-tool-attribution.sh` | `[R:no-tool-attribution-in-public-artefacts]` | block | Write, Edit, MultiEdit | draft |
+| `no-tool-attribution.sh` | `[R:no-tool-attribution-in-public-artefacts]` | block | Write, Edit, MultiEdit | yes |
 | `no-unwrap-in-src.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
 
 That table is hand-written. `tests/pack_counts.rs` reads it back against the scripts and
@@ -46,7 +46,9 @@ drafted by the control triage (`docs/control-triage.md`) and its fixtures pass, 
 it covers the rule, and whether its false positives are acceptable on real work, is a
 graduation review that has not happened. The script is in the pack because the `hooks`
 target emits every detector; the row says so because the emission cannot. A row moves to
-`yes` in the same change that graduates or partly graduates its rule.
+`yes` in the same change that graduates or partly graduates its rule. The rows still at
+`draft` were held by the review in `docs/graduation-review-2026-11-02.md`, which gives the
+reason for each.
 
 ## Never edit a script
 

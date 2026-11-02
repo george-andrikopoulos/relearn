@@ -5,7 +5,7 @@ error_class = "A control that is correctly declared but no longer active -- comm
 home = { kind = "global" }
 created = "2026-08-16"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:session-wiring-check", uncovered = "the drill that proves the alarm fires, and any machine but the one the hook runs on", date = "2026-11-02" }
 incident = "2026-08-16: all nine PreToolUse hooks went unwired when settings.json was rewritten by an unidentified writer. Nothing announced it. It surfaced about eighty minutes later, and only because an unrelated audit happened to run the deploy verifier -- edits that should have been blocked went through in the interval. The file was tracked, which is why the entry condition had to be declared-not-equal-to-active rather than 'the wiring is unversioned': scoped to unversioned files, this rule would have excluded the very case that produced it. Ported into this library 2026-08-25."
 published_incident = "Nine write-time hooks went unwired when their settings file was rewritten by an unidentified writer. Nothing announced it. It surfaced roughly eighty minutes later, and only because an unrelated audit happened to run a deployment verifier — edits that should have been blocked went through in the interval. The file was tracked in version control, which is why the condition had to be stated as declared-wiring-differs-from-active rather than as a check on unversioned files: scoped that way, the rule would have excluded the very case that produced it."
 +++

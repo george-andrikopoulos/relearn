@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Reconcile declared against active wiring on a schedule the guard cannot break [R:reconcile-wiring-at-start]
 
+> Partly enforced by hook:session-wiring-check; the drill that proves the alarm fires, and any machine but the one the hook runs on is held by this instruction alone.
+
 The entry condition is **declared is not active**. It is not "the wiring is unversioned". A tracked control goes dark just as quietly as an untracked one: a commented-out entry, a moved path, a lost executable bit. Version control yields a diff, but a diff does not tell you a guard is inert *now*, and nobody diffs a file they have no reason to suspect. Being unversioned is an aggravating factor -- no diff, no revert, no attribution -- never the qualifier.
 
 So check the declared-versus-active gap on a schedule that does not depend on the guard being alive, and report **by name** which control is inert. A count is not actionable and reads as noise; a name is a work item.
@@ -14,4 +16,4 @@ So check the declared-versus-active gap on a schedule that does not depend on th
 
 Ask: *if this control switched itself off, what would tell me, and when?* If the honest answer is "the next audit", the control is off for as long as audits are apart, and that interval is the real guarantee -- not the control.
 
-<!-- relearn:generated v0.1.0 sha256=3ab408d5ed4d50ed33764242d3349aab1703c3755c2b0a3cf3e5508cb7f39232 rules=R:reconcile-wiring-at-start -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=ce1db49508672c48c9db8fef0f7d1d5ae3f4b158432239f2c4afed1cf4f4d000 rules=R:reconcile-wiring-at-start -- DO NOT EDIT; regenerate with `relearn build` -->

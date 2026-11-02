@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Do not silence an unused local with let _ =; use it, report it, or delete it [R:no-let-underscore-on-a-local]
 
+> Partly enforced by hook:no-let-underscore-local; underscore-prefixed bindings is held by this instruction alone.
+
 The compiler's unused-binding warning is a reader. It says that a value you went to the trouble of computing reaches nothing. `let _ = x;` exists to switch that reader off, and on a local it almost always switches it off at the moment it was right.
 
 It takes two shapes, and both compile clean under `-D warnings` while reading to a reviewer as a decision someone made:
@@ -19,4 +21,4 @@ When the warning fires, do one of three things. **Use the value** -- an unused d
 
 Failure-mode check, whenever you are about to write `let _ = name;`: *what was this value computed to decide, and where does that decision now happen?* If the answer is "nowhere", the warning was right.
 
-<!-- relearn:generated v0.1.0 sha256=2c66a8b7242079008680f836b9afb697162cf0dca02a6f9ad82707f55fe0ca90 rules=R:no-let-underscore-on-a-local -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=352713aadad092985a6053851eb42fbbe53dc8c1a0258306dedee72a7094653e rules=R:no-let-underscore-on-a-local -- DO NOT EDIT; regenerate with `relearn build` -->

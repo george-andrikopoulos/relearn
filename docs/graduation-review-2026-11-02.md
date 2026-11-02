@@ -1,5 +1,9 @@
 # Graduation review — 2026-11-02
 
+> **Answered 2026-11-02: George accepted every recommendation.** What changed is recorded
+> in FEATURES.md (*The graduation review, answered*) and in the decisions log. This sheet is
+> kept as the evidence those decisions were made on, and is not updated after.
+
 *A dated snapshot for one decision session. It states its own numbers; nothing else quotes
 them. The decisions are George's; this sheet carries the evidence and a recommendation per
 row. Answer per row — **accept**, **alternative**, or **hold** — or "accept all" with the

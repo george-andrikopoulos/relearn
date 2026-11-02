@@ -5,7 +5,7 @@ error_class = "Re-validating already-checked data at interior call sites instead
 home = { kind = "domain", name = "rust" }
 created = "2026-07-22"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:no-free-validator", uncovered = "re-checking parsed data at interior call sites", date = "2026-11-02" }
 incident = "Codified from the rust-typedd discipline (2026-07-22): validation scattered across call sites drifts, and an interior re-check that disagrees with the boundary check is a latent bug. R:parse-wide-then-range-check is the sharp edge of this same rule."
 published_incident = "Validation scattered across call sites drifts: one site tightens, another is added without it, and an interior re-check that disagrees with the boundary check is a latent bug that reads as defensive programming. The remedy is to transform input into a type whose existence proves the check happened, once, at the perimeter — after which no interior code can be written that skips it, because there is nothing to skip."
 

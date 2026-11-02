@@ -5,7 +5,7 @@ error_class = "Leaving line endings to the checkout for a file whose bytes are l
 home = { kind = "global" }
 created = "2026-07-22"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "gate:executable-text-eol-pinned", uncovered = "executable text with no shebang outside the declared globs, and every repository that does not run the gate", date = "2026-11-02" }
 incident = "stochos-lab (2026-07-22): with `core.autocrlf=true` and no `.gitattributes`, a fresh clone rewrote every hook script to CRLF. The shebang line then ended in a carriage return, the interpreter was not found, and the whole deterministic hook layer stopped firing -- with no error attributable to the cause. Recurred in relearn 2026-08-22 in its other form: committing the emitted tree made line endings load-bearing for `verify`, which rehashes each file's body against the hash in its own header, so a Windows checkout would have reported every generated file as hand-edited while Linux stayed green."
 published_incident = "With automatic line-ending conversion enabled and no attributes file pinning them, a fresh clone rewrote every hook script to carriage-return line endings. The shebang line then ended in a carriage return, the interpreter was not found, and an entire deterministic hook layer stopped firing — with no error attributable to the cause. The same class returned in another form when an emitted tree was committed: verification rehashes each file's body against a hash in its own header, so a checkout on the other platform would have reported every generated file as hand-edited while the first platform stayed green."
 

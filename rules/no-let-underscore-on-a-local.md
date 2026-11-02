@@ -5,7 +5,7 @@ error_class = "A value computed to decide something or to report a failure -- a 
 home = { kind = "domain", name = "rust" }
 created = "2026-09-26"
 origin = "mined"
-status = { kind = "active" }
+status = { kind = "partial", by = "hook:no-let-underscore-local", uncovered = "underscore-prefixed bindings", date = "2026-11-02" }
 incident = "fix-gateway, 2026-09-26. `on_sequence_reset` parsed GapFillFlag(123) into a bool and then wrote `let _ = gap_fill;`, so a FIX SequenceReset in GapFill mode was handled exactly like one in Reset mode: a GapFill numbered ahead of the expected sequence moved the session straight past messages it had never received, and never asked for them (ARCHITECTURE.md D-052). Conformance case Q9 had been ticked on a test that only ever sent a fill at the expected number, the one input where the two modes agree. Auditing the same tree for the shape the same day found a second production site of a different kind: `intake.rs` binds the error from `set_nonblocking` on a freshly accepted socket and discards it with `let _ = e; continue;`, so the peer is dropped with no event at all."
 
 [[detector]]

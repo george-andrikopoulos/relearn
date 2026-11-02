@@ -6,6 +6,8 @@ alwaysApply: false
 
 # An employer name, internal product name or role title never reaches a public artefact [R:employer-identity-not-in-public-artefacts]
 
+> Partly enforced by gate:scripts/no-banned-names.sh; role titles and names not on the list, and any repository without the gate is held by this instruction alone.
+
 An employer's name, an internal product name and a role title never reach an artefact with a public audience.
 
 **The artefact is wider than the file.** A repository publishes its history, not its working tree: branch names, commit messages, commit *trees*, tags, issue text and release notes all travel, and a name removed from `main` today is still in the clone somebody took last month. Fix the working tree if you like, but the honest question is what the history contains.
@@ -20,4 +22,4 @@ An employer's name, an internal product name and a role title never reach an art
 
 Failure-mode check, before any artefact becomes public: *does the history contain it, and which repository's detector covers the destination?* If the answer to the second is the repository the text came from, nothing covers where it is going.
 
-<!-- relearn:generated v0.1.0 sha256=14097879519d7cad391797499eb440bf958aa1f5172223c4b8b31ddcda8704cc rules=R:employer-identity-not-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=c3fae328bc3403b30a89ae69ed05032ade18b8c9d58dcfce0b232aa13312b2f0 rules=R:employer-identity-not-in-public-artefacts -- DO NOT EDIT; regenerate with `relearn build` -->

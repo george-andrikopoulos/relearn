@@ -1,6 +1,6 @@
 ---
 name: global
-description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; check the claim you inherit; doc currency; measure the claim not a subset; no silent spend; prefer by construction; repair the lying artefact; signal needs a consequence; verify through production path; detector excludes own definitions; an ambiguous write target is a question; anchor outside the checked partys reach; delegate a fan out; diff against the known good state; evidence must discriminate; make illegal states unrepresentable; measure cost per task; no sentinel values; no stale push over fresh; no weak model for judgment; one home per rule; pin eol for executable text; price every dependency; reconcile wiring at start; review against contract not plan; revision integrity; search before you build; source practice from its artefact; wired artifact; money is not a float; case collision"
+description: "Engineering discipline that applies to every project and language. Covers: guarantee needs a reader; verdict survives the channel; check the claim you inherit; doc currency; measure the claim not a subset; no silent spend; prefer by construction; repair the lying artefact; signal needs a consequence; verify through production path; detector excludes own definitions; an ambiguous write target is a question; anchor outside the checked partys reach; delegate a fan out; diff against the known good state; evidence must discriminate; make illegal states unrepresentable; measure cost per task; no sentinel values; no stale push over fresh; one home per rule; review against contract not plan; search before you build; source practice from its artefact; wired artifact; money is not a float; no weak model for judgment; pin eol for executable text; price every dependency; reconcile wiring at start; revision integrity; case collision"
 ---
 
 # global rules
@@ -363,6 +363,8 @@ Ask before writing such a push: *if my copy is the stale one, what does this des
 
 ## Never route judgment work to a weak model, and never embed a sub-tier local LLM [R:no-weak-model-for-judgment]
 
+> Partly enforced by hook:no-embedded-local-llm; routing judgment to a cheaper hosted tier, and local runtimes the pattern does not name is held by this instruction alone.
+
 Work that needs judgment goes to a capable model. Do not embed a sub-tier local LLM (a 7B/13B behind Ollama, llama.cpp or similar) in a tool as a convenient, API-key-free fallback: a meaningfully dumber model degrades the tool it is wedged into, everywhere and silently, and the output looks like ordinary tool output rather than like a downgrade. When a tool needs intelligence, delegate to the capable model through the existing subscription -- the MCP server is the abstraction boundary and clients are peers. Note that the cost argument usually offered for the local model is the price-tier fallacy R:measure-cost-per-task names; but this rule is not an economic one and does not dissolve if the sums come out favourably. Mechanical, tool-restricted passes are a different matter and may be scoped tightly; the floor applies to work where the answer is a judgement.
 
 ## One home per rule; every other copy is a reference or is generated [R:one-home-per-rule]
@@ -382,6 +384,8 @@ Failure-mode check, before adding any list, table, registry or inventory: *does 
 `[R:doc-currency]` is the downstream half -- when the source moves, the descriptions of it move in the same change. This rule is upstream of that: it asks why a second description existed to go stale.
 
 ## Pin the line endings of text a machine executes or hashes [R:pin-eol-for-executable-text]
+
+> Partly enforced by gate:executable-text-eol-pinned; executable text with no shebang outside the declared globs, and every repository that does not run the gate is held by this instruction alone.
 
 When a file's exact bytes are load-bearing, do not leave its line endings to whatever the
 checkout decides. Two kinds of file qualify: text a machine executes, where a stray
@@ -416,6 +420,8 @@ When a class of mistake can be designed out, design it out, rather than adding a
 **A convention followed everywhere is not construction.** When correctness needs two actions paired at every call site -- advance a counter then emit, acquire then release, validate then store -- and a new call site could do one without the other and still compile, the pairing is held by memory, however consistently it has been followed so far. Fold the pair into one function that does both, and make the unpaired half unreachable from outside it. Test: *could the next call site I write omit half of this and still compile?* If it could, the words "by construction" do not apply, and a comment using them is a guarantee with no reader (R:guarantee-needs-a-reader).
 
 ## Every dependency is priced in the decisions log, and so is every dependency refused [R:price-every-dependency]
+
+> Partly enforced by test:tests/dependencies.rs; every repository but this one, and a dependency refused, which leaves no artefact is held by this instruction alone.
 
 Every dependency gets an entry in the decisions log: what it is for, why this one, and
 what was refused. The refused list includes **writing it yourself**, with a rough size,
@@ -468,6 +474,8 @@ half is the one that goes missing. There the human reader is the only detector, 
 gate covering the first half must never be read as covering the second.
 
 ## Reconcile declared against active wiring on a schedule the guard cannot break [R:reconcile-wiring-at-start]
+
+> Partly enforced by hook:session-wiring-check; the drill that proves the alarm fires, and any machine but the one the hook runs on is held by this instruction alone.
 
 The entry condition is **declared is not active**. It is not "the wiring is unversioned". A tracked control goes dark just as quietly as an untracked one: a commented-out entry, a moved path, a lost executable bit. Version control yields a diff, but a diff does not tell you a guard is inert *now*, and nobody diffs a file they have no reason to suspect. Being unversioned is an aggravating factor -- no diff, no revert, no attribution -- never the qualifier.
 
@@ -530,6 +538,8 @@ Plan code, scaffold code and reference implementations are **unreviewed input**.
 Failure-mode check, before approving: *what did I compare this against, and could that thing itself be wrong?* If the answer is the plan, the specification or the ticket, the contract has not been consulted yet.
 
 ## After restructuring, verify references as a distinct pass [R:revision-integrity]
+
+> Partly enforced by hook:no-count-in-heading; antecedents, cross-references, counts in body text, and terms used before their definition is held by this instruction alone.
 
 Editing a structured artefact silently breaks references that the previous version made true. The edit raises no error, and rereading does not catch it: the author restores the deleted context from memory and reads a coherent passage that is not on the page.
 
@@ -671,4 +681,4 @@ The same test applies to enforcement claimed on a component: *what produces this
 
 A green check that cannot fail is worse than no check. It converts an open question into a settled one, so nobody looks again, and the thing it was protecting degrades behind a signal that says it is fine. This is the type-level and tooling-level sibling of R:verify-through-production-path, and it shares a family with R:guarantee-needs-a-reader: that rule fires when nothing enforces the claim, this one when something does and accepts the wrong evidence.
 
-<!-- relearn:generated v0.1.0 sha256=8d243b8488ea8cfe31ff2354e916ac68580ddb9cc8701c5d365651a259209120 rules=R:an-ambiguous-write-target-is-a-question,R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=6cd7d452e28f07abfe8e8da5fb466007a34057c7c0980431e88a4a1efd947f7a rules=R:an-ambiguous-write-target-is-a-question,R:anchor-outside-the-checked-partys-reach,R:case-collision,R:check-the-claim-you-inherit,R:delegate-a-fan-out,R:detector-excludes-own-definitions,R:diff-against-the-known-good-state,R:doc-currency,R:evidence-must-discriminate,R:guarantee-needs-a-reader,R:make-illegal-states-unrepresentable,R:measure-cost-per-task,R:measure-the-claim-not-a-subset,R:money-is-not-a-float,R:no-sentinel-values,R:no-silent-spend,R:no-stale-push-over-fresh,R:no-weak-model-for-judgment,R:one-home-per-rule,R:pin-eol-for-executable-text,R:prefer-by-construction,R:price-every-dependency,R:reconcile-wiring-at-start,R:repair-the-lying-artefact,R:review-against-contract-not-plan,R:revision-integrity,R:search-before-you-build,R:signal-needs-a-consequence,R:source-practice-from-its-artefact,R:verdict-survives-the-channel,R:verify-through-production-path,R:wired-artifact -- DO NOT EDIT; regenerate with `relearn build` -->

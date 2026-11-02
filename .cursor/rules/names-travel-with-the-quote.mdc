@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Quoting an incident carries its names past the gate that was holding them [R:names-travel-with-the-quote]
 
+> Partly enforced by test:every_authored_field_that_travels_is_offered_to_the_scan; identifiers not on the list is held by this instruction alone.
+
 Before an incident, a log line, a trace or a path leaves the repository that holds it,
 scan the destination with the source's own detector -- not the destination's.
 
@@ -38,4 +40,4 @@ search prints what it found. That one is about output; this one is about content
 to rest in a second artefact, where it is committed, pushed, indexed and mirrored. Same
 identifier, different surface, and the fixes do not substitute for one another.
 
-<!-- relearn:generated v0.1.0 sha256=afe63633db20f415b431136ce4e14798904fe1e926d3c07652970a92fed30bdd rules=R:names-travel-with-the-quote -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=d338587786f45b2c6184e75d8bfa3a569f1def1c6623e55cdf1127c22411218b rules=R:names-travel-with-the-quote -- DO NOT EDIT; regenerate with `relearn build` -->
