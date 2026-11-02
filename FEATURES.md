@@ -1383,9 +1383,12 @@ platform it is made from.
 
 **What.** Once every pre-push gate has passed, `.githooks/pre-push` hands the refs being pushed
 to `scripts/pack-sync-reminder.sh`. If any commit being pushed touches `claude-pack/`, it prints
-one line telling George to run the claude.ai skill sync in Cowork. Nothing refreshes the account
-copies automatically: a cloud scheduled task cannot save an account skill, so the copies are
-synced by hand and lag until someone does. The reminder marks where that lag starts.
+one line telling George to upload the changed homes' `.skill` bundles in the Claude app.
+Nothing refreshes the account copies automatically: a cloud scheduled task cannot save an
+account skill, so the copies are refreshed by hand and lag until someone does. The reminder
+marks where that lag starts. The upload route replaced "run the sync in Cowork" on 2026-11-02:
+two runs of the sync prompt could not save, and uploading the bundles that stochos-lab exports
+refreshed four homes exactly, with all seven reported current afterwards.
 
 **What it is not.** It is not a gate. It exits 0, its status is not read, and it cannot refuse a
 push. It refreshes nothing, and it cannot see whether the sync was then run.

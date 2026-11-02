@@ -173,7 +173,7 @@ bash scripts/verify-dependencies.sh   # the dependency gate alone (a door onto `
 bash scripts/no-float-money.sh [ROOT ...]   # 0 clean / 1 hit / 2 disarmed
 bash scripts/no-float-money.sh --self-test  # the detector's own probe, both directions
 
-# Nothing refreshes the claude.ai account copies of the skills (synced by hand in Cowork)
+# Nothing refreshes the claude.ai account copies of the skills (uploaded by hand as .skill bundles in the Claude app)
 # or the user-level domain layers (copied by hand into ~/.claude/rules/). After its gates
 # pass, .githooks/pre-push hands this script the pushed refs, and it prints one line per
 # pack — claude-pack/, rules-pack/ — that a pushed commit touches. It never refuses.

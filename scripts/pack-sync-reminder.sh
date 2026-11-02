@@ -8,9 +8,11 @@
 # Two packs are installed by hand and refreshed by nothing:
 #
 #   claude-pack/  the claude.ai account copies of the skills. A cloud scheduled
-#                 task cannot save an account skill (that tool exists only inside
-#                 the Cowork desktop app), so the only working route is a manual
-#                 sync in a Cowork session.
+#                 task cannot save an account skill, and neither can a session
+#                 without the save tool. The route that worked on 2026-11-02 is
+#                 to upload each changed home's .skill bundle in the Claude app
+#                 (stochos-lab's export-cowork-bundle.sh writes them to
+#                 ~/Phd/skills). Nothing is retyped, so the copy is exact.
 #   rules-pack/   the user-level domain layers in ~/.claude/rules/, copied there
 #                 by hand per rules-pack/README.md. Added 2026-11-02: a pushed
 #                 change to a domain layer lagged on every machine until someone
@@ -38,7 +40,7 @@ PACKS=(claude-pack rules-pack)
 
 reminder_for() {
     case "$1" in
-        claude-pack) echo '[pre-push] claude-pack/ changed: run the claude.ai skill sync in Cowork, or the account copies stay behind.' ;;
+        claude-pack) echo '[pre-push] claude-pack/ changed: upload the changed homes from ~/Phd/skills/<home>.skill in the Claude app (export-cowork-bundle.sh writes them), or the account copies stay behind.' ;;
         rules-pack) echo '[pre-push] rules-pack/ changed: cp rules-pack/.claude/rules/domain-*.md ~/.claude/rules/, or the installed domain layers stay behind.' ;;
     esac
 }
