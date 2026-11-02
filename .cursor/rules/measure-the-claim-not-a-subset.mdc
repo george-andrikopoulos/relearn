@@ -6,6 +6,8 @@ alwaysApply: true
 
 # Match the scope before contradicting a recorded figure [R:measure-the-claim-not-a-subset]
 
+> Has recurred 1 time(s) since it was written; most recently 2026-11-01.
+
 A figure is already written down, your measurement disagrees, and you are about to declare
 the document wrong. Usually it is. When it is not, you replace a true figure with a false
 one -- and the false one now carries the authority of having been measured, pushed there
@@ -30,4 +32,4 @@ owns its own denominator. The durable fix moves the scope definition out of the 
 hands and into a gate, so the claim and the measurement can no longer drift apart --
 `[R:prefer-by-construction]` applied to a number.
 
-<!-- relearn:generated v0.1.0 sha256=5f8605762dd67e5dc7a5f109e1e7e37a7a097412fa8c477ab4d74d113197be48 rules=R:measure-the-claim-not-a-subset -- DO NOT EDIT; regenerate with `relearn build` -->
+<!-- relearn:generated v0.1.0 sha256=a99b79b2ba8708cbd45340a6b4aad24b1fb553be1e61dc8492fb0b6ec37af4fa rules=R:measure-the-claim-not-a-subset -- DO NOT EDIT; regenerate with `relearn build` -->
