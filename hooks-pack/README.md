@@ -20,13 +20,16 @@ hooks-pack/
 |---|---|---|---|---|
 | `ledger-entry-names-artefact.sh` | `[R:features-ledger-names-its-artefact]` | block before a Write; warn after an Edit | Write (PreToolUse); Edit, MultiEdit (PostToolUse) | draft |
 | `no-anyhow-in-lib.sh` | `[R:no-anyhow-in-libraries]` | block | Write, Edit, MultiEdit | yes |
+| `no-block-on-in-async.sh` | `[R:async-all-the-way]` | block | Write, Edit, MultiEdit | yes |
 | `no-case-collision.sh` | `[R:case-collision]` | block | Write | yes |
+| `no-clone-without-comment.sh` | `[R:justify-every-clone]` | block | Write, Edit, MultiEdit | yes |
 | `no-constructed-target-path.sh` | `[R:xplat-fixtures]` | block | Write, Edit, MultiEdit | draft |
 | `no-count-in-heading.sh` | `[R:revision-integrity]` | warn | Write, Edit, MultiEdit | draft |
 | `no-embedded-local-llm.sh` | `[R:no-weak-model-for-judgment]` | warn | Write, Edit, MultiEdit | draft |
 | `no-expect-empty-msg.sh` | `[R:no-unwrap-in-production]` | block | Write, Edit, MultiEdit | yes |
 | `no-free-validator.sh` | `[R:parse-dont-validate]` | block | Write, Edit, MultiEdit | draft |
 | `no-let-underscore-local.sh` | `[R:no-let-underscore-on-a-local]` | block | Write, Edit, MultiEdit | draft |
+| `no-pub-fields.sh` | `[R:private-fields-only]` | block | Write, Edit, MultiEdit | yes |
 | `no-public-repo-create.sh` | `[R:repository-private-by-default]` | block | Write, Edit, MultiEdit | draft |
 | `no-serializable-domain-type.sh` | `[R:serializable-is-a-second-constructor]` | block | Write, Edit, MultiEdit | draft |
 | `no-string-error.sh` | `[R:errors-name-what-failed]` | block | Write, Edit, MultiEdit | draft |

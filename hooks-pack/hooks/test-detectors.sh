@@ -163,10 +163,26 @@ run 'no-anyhow-in-lib.sh' clean block 'src/lib.rs' 'use anyhow::Result; // allow
 run 'no-anyhow-in-lib.sh' clean block 'README.md' 'anyhow is fine in prose'
 run 'no-anyhow-in-lib.sh' clean block 'src/main.rs' 'use anyhow::Result;'
 run 'no-anyhow-in-lib.sh' clean block 'src/lib.rs' 'use anyhow_ext::Thing;'
+# no-block-on-in-async
+run 'no-block-on-in-async.sh' hit block 'src/lib.rs' 'let v = rt.block_on(fetch());'
+run 'no-block-on-in-async.sh' hit block 'src/lib.rs' 'let v = block_on(fetch());'
+run 'no-block-on-in-async.sh' clean block 'src/lib.rs' 'let v = fetch().await;'
+run 'no-block-on-in-async.sh' clean block 'src/lib.rs' 'let v = my_block_on(fetch());'
+run 'no-block-on-in-async.sh' clean block 'src/main.rs' 'rt.block_on(async_main()) // allow:block-on'
+run 'no-block-on-in-async.sh' clean block 'src/lib.rs' '// never call block_on( here'
+run 'no-block-on-in-async.sh' clean block 'benches/load.rs' 'rt.block_on(run());'
 # no-case-collision
 run 'no-case-collision.sh' hit block 'docs/README.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/NOTES.md' '' 'readme.md'
 run 'no-case-collision.sh' clean block 'docs/readme.md' '' 'readme.md'
+# no-clone-without-comment
+run 'no-clone-without-comment.sh' hit block 'src/lib.rs' 'let b = a.clone();'
+run 'no-clone-without-comment.sh' clean block 'src/lib.rs' 'let b = a.clone(); // allow:clone: each worker owns its config'
+run 'no-clone-without-comment.sh' clean block 'src/lib.rs' 'let b = Arc::clone(&a);'
+run 'no-clone-without-comment.sh' clean block 'src/lib.rs' 'let v: Vec<Tag> = tags.iter().cloned().collect();'
+run 'no-clone-without-comment.sh' clean block 'src/lib.rs' '// a.clone() would hide the ownership question'
+run 'no-clone-without-comment.sh' clean block 'src/parse_tests.rs' 'let b = a.clone();'
+run 'no-clone-without-comment.sh' clean block 'tests/it.rs' 'let b = a.clone();'
 # no-constructed-target-path
 run 'no-constructed-target-path.sh' hit block 'tests/cli.rs' 'let bin = Path::new("target/debug/relearn");'
 run 'no-constructed-target-path.sh' hit block 'tests/cli.rs' 'let bin = PathBuf::from("..\\target\\release\\relearn.exe");'
@@ -209,6 +225,15 @@ run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '    let _ = tx.send(m
 run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '    let _guard = lock.acquire();'
 run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '    let _ = mode; // allow:let-underscore: reserved for the v2 flag, see TODO'
 run 'no-let-underscore-local.sh' clean block 'src/cli.rs' '// let _ = mode; is the shape to avoid'
+# no-pub-fields
+run 'no-pub-fields.sh' hit block 'src/lib.rs' '    pub port: u16,'
+run 'no-pub-fields.sh' clean block 'src/lib.rs' '    port: u16,'
+run 'no-pub-fields.sh' clean block 'src/lib.rs' 'pub fn port(&self) -> u16 { self.port }'
+run 'no-pub-fields.sh' clean block 'src/lib.rs' 'pub struct Port(u16);'
+run 'no-pub-fields.sh' clean block 'src/lib.rs' 'pub const MAX_PORT: u16 = 65535;'
+run 'no-pub-fields.sh' clean block 'src/lib.rs' '    pub port: u16, // allow:pub-field'
+run 'no-pub-fields.sh' clean block 'src/lib.rs' '    // pub port: u16,'
+run 'no-pub-fields.sh' clean block 'src/wire_test.rs' '    pub port: u16,'
 # no-public-repo-create
 run 'no-public-repo-create.sh' hit block 'scripts/bootstrap.sh' 'gh repo create my-tool --public --source . --push'
 run 'no-public-repo-create.sh' hit block 'scripts/bootstrap.sh' 'gh repo edit my-tool --visibility public --accept-visibility-change-consequences'
@@ -263,4 +288,4 @@ fi
 echo "FAIL: $failed of $((pass + failed)) detector fixture(s) disagree with the generated scripts"
 exit 1
 
-# <!-- relearn:generated v0.1.0 sha256=b11947ce312eb57a00c73e1e82d785ae7ece648b2e951a8ea814947b84a0412b rules=R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->
+# <!-- relearn:generated v0.1.0 sha256=4372b5b0452a2645a25f0d482270499f8a3f4ec03e0d6764173f9456199c96a4 rules=R:async-all-the-way,R:case-collision,R:errors-name-what-failed,R:features-ledger-names-its-artefact,R:identity-is-not-equality-for-boxes,R:justify-every-clone,R:no-anyhow-in-libraries,R:no-let-underscore-on-a-local,R:no-tool-attribution-in-public-artefacts,R:no-unwrap-in-production,R:no-weak-model-for-judgment,R:parse-dont-validate,R:private-fields-only,R:repository-private-by-default,R:revision-integrity,R:serializable-is-a-second-constructor,R:xplat-fixtures -- DO NOT EDIT; regenerate with `relearn build` -->

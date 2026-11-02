@@ -63,21 +63,6 @@ root = "stochos-lab"
 path = "hooks/multiline-pattern-eol.sh"
 
 [[control]]
-control = "hook:no-block-on-in-async"
-root = "stochos-lab"
-path = "hooks/no-block-on-in-async.sh"
-
-[[control]]
-control = "hook:no-clone-without-comment"
-root = "stochos-lab"
-path = "hooks/no-clone-without-comment.sh"
-
-[[control]]
-control = "hook:no-pub-fields"
-root = "stochos-lab"
-path = "hooks/no-pub-fields.sh"
-
-[[control]]
 control = "hook:no-self-matching-pkill"
 root = "stochos-lab"
 path = "hooks/no-self-matching-pkill.sh"
