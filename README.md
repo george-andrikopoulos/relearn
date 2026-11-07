@@ -115,6 +115,8 @@ relearn verify --out .   # in CI: fail if a generated file was edited or is stal
 - sharing rules between installs
 - CI setup, exit codes and troubleshooting
 
+**To adopt relearn in a new or existing project**, follow [Adopting relearn](docs/adopting-relearn.md). It gives every step with the prompt to paste into your assistant, the answer to expect, and the answers that sound right but aren't.
+
 ## How it works
 
 In an agentic workflow the model is the unpredictable part. Everything around it is the **harness**: the instructions the model loads, the tools it may call, and the hooks and gates that check its work. relearn owns one piece of the harness, the instruction layer, and the path that carries a human correction back into it.
