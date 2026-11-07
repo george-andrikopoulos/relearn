@@ -2,22 +2,29 @@
 
 # relearn
 
-**Write the rule once. Compile it to every assistant.**
+**Corrections become rules, rules climb towards checks, and every recurrence is counted.**
 
 [![Release](https://img.shields.io/github/v/tag/george-andrikopoulos/relearn?label=release&color=3366cc)](https://github.com/george-andrikopoulos/relearn/tags)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-b8860b)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-edition%202024-c0392b?logo=rust)](Cargo.toml)
 [![arXiv](https://img.shields.io/badge/arXiv-2608.19125-555)](https://arxiv.org/abs/2608.19125)
 
-[Quick start](#quick-start) · [**Manual**](docs/manual.md) · [How it works](#how-it-works) · [What was measured](#what-was-measured) · [Papers](#papers)
+[Quick start](#quick-start) · [**Manual**](docs/manual.md) · [relearn and rulesync](#relearn-and-rulesync) · [How it works](#how-it-works) · [What was measured](#what-was-measured) · [Papers](#papers)
 
 </div>
 
 ---
 
-When you correct an AI assistant, the correction usually dies with the session, and the same class of mistake comes back next week for the next engineer. Writing the correction into the assistant's instruction file helps, but every assistant has its own format. A rule written for one tool is locked to that tool.
+When you correct an AI assistant, the correction usually dies with the session, and the same class of mistake comes back next week. Writing it into an instruction file helps until the day the model reads the file and makes the mistake anyway. Nothing tells you that happened, and nothing tells you which of your rules are doing any work.
 
-**relearn makes the rule the source, and each assistant's format a build target.** You store each correction once, as one small file with its provenance, and relearn compiles it into each assistant's own format:
+**relearn treats a correction as the start of a rule's life, not a line of text.**
+
+- **Provenance.** Each correction becomes one rule file recording the incident, the date and the error class it is meant to retire.
+- **What holds it.** The rule records what holds it: prose alone, or a hook, test, gate or type. If a check covers only part of it, the rule must name the part still exposed.
+- **Recurrences.** When the error class comes back, the recurrence is recorded on that rule. `relearn lint` flags any rule that keeps failing while only prose holds it.
+- **Retirement.** A rule that is no longer needed is retired with its reason, not deleted.
+
+relearn also compiles each rule into every assistant's own format, so one correction reaches Claude, Cursor, Copilot and anything that reads `AGENTS.md`:
 
 <table>
 <tr>
@@ -60,14 +67,28 @@ Each output file is stamped with a hash and is never edited by hand. `relearn ve
 </tr>
 </table>
 
+## relearn and rulesync
+
+[rulesync](https://github.com/dyoshikawa/rulesync) also compiles one set of rules into many assistants' formats, and it covers much more of each tool's configuration than relearn does. Besides rules, it handles commands, MCP servers, ignore files, subagents and skills, and it can import the configuration you already have. If you need one source for all of that, use rulesync.
+
+relearn compiles to fewer targets, because the compiler is not the point. It is built around what happens to a rule after it is written:
+
+- where the rule came from
+- what enforces it
+- whether it is still failing
+- when it was retired, and why
+
+A rule file without provenance does not parse. Detectors compile into hooks and git gates and are tested against their own fixtures. Probes measure whether a rule changes what a model does. If you have only a few rules and the model follows them, you probably do not need relearn.
+
 ## Highlights
 
+- 🔁 **Recurrence is the metric.** When a rule's error class happens again, the rule failed, and the event is recorded on that rule. `lint` reports any rule that keeps failing while only prose holds it.
+- 🪜 **Rules climb towards mechanical controls.** A rule's status records whether prose alone holds it, or a hook, test, gate or type holds part or all of it. A rule that is only partly held must name what is not held.
+- 🪝 **Checks become hooks and gates.** A rule can carry a detector with fixtures. relearn compiles it into a Claude Code hook or a git gate, and proves it against its fixtures on every build.
+- 📏 **Rules can be measured.** A probe replays a rule's error class in fresh sessions, with the rule loaded and without it, and reports the difference with its confidence interval ([what the first run found](#what-was-measured)).
 - 🧾 **Provenance or it doesn't parse.** Every rule needs a date, an incident and the error class it retires. A rule that fails to parse stops the build, because a silently skipped rule is a lost correction.
 - 🏠 **One home per rule.** A rule has exactly one owner: `global`, a domain, an org or a project. A second copy is how a rule forks and goes stale, so relearn cannot represent one.
 - 🔒 **Instruction files are checked like code.** `build` refuses to overwrite a file it did not write, and `verify` fails on any hand edit or drift.
-- 🪜 **Rules climb towards mechanical controls.** A rule's status records whether prose alone holds it, or a hook, test, gate or type holds part or all of it. A rule that is only partly held must name what is not held.
-- 🔁 **Recurrence is the metric.** When a rule's error class happens again, the rule failed, and the event is recorded on that rule. `lint` reports any rule that keeps failing while only prose holds it.
-- 🪝 **Checks become hooks and gates.** A rule can carry a detector with fixtures. relearn compiles it into a Claude Code hook or a git gate, and proves it against its fixtures on every build.
 - 👤 **Solo first.** No account, no config file, no network, no ambient state. Sharing between installs exists, and it is optional.
 
 ## Quick start
@@ -175,9 +196,22 @@ A real rule set lives in [`rules/`](rules/). It spans a global layer, language a
 
 ## What was measured
 
-Paper 3 pre-registered its metrics and its falsification conditions before reading any commit history, and **its headline hypothesis was refuted.** Across nine of the author's repositories, the discipline leaves no mark on the size of a change: median lines added per code-changing commit fall in a common band whether a repository is governed or not. The paper puts this down to the instrument, since skedasis is a ratio and commit size measures only its numerator. Even so, the prediction failed, and the paper reports it as a failure. Capture of deferred work is the one metric that separated the two groups. The parking lot fires in a fifth to two-fifths of code-changing commits in governed repositories, and in under five per cent in ungoverned ones.
+Two kinds of evidence exist so far. Neither is an efficacy claim for the discipline as a whole.
 
-relearn is in the governed arm of that comparison. It is **excluded** from the paper's hand-coded study of invented requirements, because its sessions are mixed into one transcript store with hundreds of unrelated ones. **Nothing here should be read as an efficacy claim.** The discipline is implemented. The evidence for it is one refuted prediction, one correlational separation, and a single-author corpus that cannot establish causation either way.
+**Probes: the same task with the rule loaded and without it.** On 2026-10-31, seven rules were replayed on `claude-opus-5-5`. Each rule had ten sessions per arm, on a synthetic task built to provoke its error class: 140 sessions in all, costing $13.52.
+
+One rule separated the arms. Without [`R:prefer-by-construction`](rules/prefer-by-construction.md), 9 of 9 sessions made the error. With it, 2 of 9 did, a reduction of 0.78 (95% CI 0.34 to 0.94). All six sessions that actually opened the rule held.
+
+The other six rules gave no result:
+- **Three:** the model did not make the error, with the rule or without it.
+- **Two:** their probes were defective.
+- **One:** no session opened the skill that carries the rule. That is a finding about how the rule is delivered, not about what it says.
+
+The full table and the reading of each transcript are in [`docs/control-triage.md`](docs/control-triage.md#results-2026-10-31-the-first-pilot). This was one model, with small samples, on one author's rules. It shows that the instrument can separate the two arms, and that one rule changed what one model did on one task. It does not show that rules written this way work in general.
+
+**Paper 3: repository history.** Paper 3 pre-registered its metrics and its falsification conditions before reading any commit history, and **its headline hypothesis was refuted.** Across nine of the author's repositories, the discipline leaves no mark on the size of a change: median lines added per code-changing commit fall in a common band whether a repository is governed or not. The paper puts this down to the instrument, since skedasis is a ratio and commit size measures only its numerator. Even so, the prediction failed, and the paper reports it as a failure. Capture of deferred work is the one metric that separated the two groups. The parking lot fires in a fifth to two-fifths of code-changing commits in governed repositories, and in under five per cent in ungoverned ones.
+
+relearn is in the governed arm of that comparison. It is **excluded** from the paper's hand-coded study of invented requirements, because its sessions are mixed into one transcript store with hundreds of unrelated ones. **Nothing here should be read as an efficacy claim.** The discipline is implemented. The evidence from history is one refuted prediction, one correlational separation, and a single-author corpus that cannot establish causation either way.
 
 To see one real incident become one rule and compile out to every layer, read [`docs/worked-example.md`](docs/worked-example.md). For the same rule passed between two installs, read [`docs/worked-example-two-installs.md`](docs/worked-example-two-installs.md).
 
