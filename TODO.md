@@ -40,6 +40,10 @@ them. `[R:doc-currency]`
 - [ ] **Submit relearn to awesome-lists and Claude Code plugin hubs.** rulesync already appears in `awesome-claude-code`.
 - [ ] **A post on the 2026-10-31 probe pilot**, written as measured: one discriminating rule out of seven, one model, small samples.
 - [x] **Done 2026-11-07: README positioning.** The opening now leads with the rule's life (provenance, control, recurrence, retirement), adds a rulesync comparison, and "What was measured" now includes the pilot, which it had omitted.
+- [x] **Done 2026-11-07: `docs/adopting-relearn.md`**, the step-by-step adoption guide with prompts, for a new and an existing project. Its outputs come from scratch runs.
+- [ ] **`lint`'s unheld-recurrence remedy says to record `graduated`, and the manual says to prefer `partial`.** Found while writing the adoption guide, which tells the reader to prefer `partial` "whatever `lint`'s message says". The message should point at `partial` with `uncovered`, or at both.
+- [ ] **The error-loop skill is not in `claude-pack/`.** The adoption guide therefore spells the loop out in each prompt. Shipping a public version would let a reader type "relearn this" instead. George's call: the installed skill refers to a private ledger and a private review process.
+- [ ] **Nothing detects a migrated rule left in a hand-written file.** In the adoption guide's `legacy-app` run, `budget` passed with the same instruction loaded twice, once from `CLAUDE.md` and once from the generated layer. The guide tells the reader to search for it by hand.
 
 **After the tag.** Every other `[ ]` below. None of them blocks a first versioned release:
 they are George's calls (installs, dogfooding, the hand pins, dropping the dead `MultiEdit`
