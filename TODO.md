@@ -36,7 +36,7 @@ them. `[R:doc-currency]`
 
 **Visibility (2026-11-07). Each item is public, and each is George's call:**
 
-- [ ] **A GitHub Release on `v0.1.0`.** The tag is on `origin`, but no Release object exists, so the repository page shows "no releases".
+- [x] **Done 2026-11-07: a GitHub Release on `v0.1.0`.** It was published on the existing tag (`a153e93`) with `--verify-tag`, so no new tag was created. The notes say no prebuilt binaries are attached.
 - [ ] **Submit relearn to awesome-lists and Claude Code plugin hubs.** rulesync already appears in `awesome-claude-code`.
 - [ ] **A post on the 2026-10-31 probe pilot**, written as measured: one discriminating rule out of seven, one model, small samples.
 - [x] **Done 2026-11-07: README positioning.** The opening now leads with the rule's life (provenance, control, recurrence, retirement), adds a rulesync comparison, and "What was measured" now includes the pilot, which it had omitted.
