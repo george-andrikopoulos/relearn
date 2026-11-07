@@ -115,7 +115,7 @@ relearn verify --out .   # in CI: fail if a generated file was edited or is stal
 - sharing rules between installs
 - CI setup, exit codes and troubleshooting
 
-**To start a new project with relearn, or to bring an existing project under the five standing documents and move it forward**, follow [Adopting relearn](docs/adopting-relearn.md). It gives every step with the prompt to paste into your assistant, the answer to expect, and the answers that sound right but aren't.
+**To start a project from a description of what it is, or to bring an existing one under five standing documents**, follow [Adopting relearn](docs/adopting-relearn.md). You describe, approve and check, and the assistant writes everything, then works through the milestones. Each step gives the prompt to paste, the answer to expect, and the answers that sound right but aren't.
 
 ## How it works
 

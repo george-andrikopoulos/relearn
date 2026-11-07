@@ -1,6 +1,6 @@
 # The relearn manual
 
-This manual covers relearn from installing it to running it across a team. The [README](../README.md) says what relearn is and why it exists. This page says how to use it. For step-by-step prompts to give your assistant, see [Adopting relearn](adopting-relearn.md). It covers starting a new project with relearn, and bringing an existing project under the five standing documents.
+This manual covers relearn from installing it to running it across a team. The [README](../README.md) says what relearn is and why it exists. This page says how to use it. For step-by-step prompts to give your assistant, see [Adopting relearn](adopting-relearn.md). It covers starting a project from a description of what it is, bringing an existing project under five standing documents, and working through the milestones that follow.
 
 **Contents**
 
