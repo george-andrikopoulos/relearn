@@ -366,7 +366,7 @@ Never write a customer email address to a log. Log the customer id instead.
 ```
 
 ```
-warning: unheld recurrence: R:no-customer-email-in-logs is `active`, so prose is the only thing holding it — and it has fired 1 more time(s) since it was written, most recently 2026-11-20. Promote it to a control that can hold it (a type, a property test, a gate check) and record that with `status = { kind = "graduated", to = "..." }`
+warning: unheld recurrence: R:no-customer-email-in-logs is `active`, so prose is the only thing holding it — and it has fired 1 more time(s) since it was written, most recently 2026-11-20. Promote it to a control that can hold it (a type, a property test, a gate check). If the control covers part of the class, record `status = { kind = "partial", by = "...", uncovered = "...", date = "..." }` and name in `uncovered` what it does not catch; record `graduated` only if it covers the whole class
 1 rule(s): 1 recurred, 0 inert (codified and never fired)
 1 finding(s), 1 fatal at --deny warning
 ```
@@ -391,7 +391,7 @@ After you approve it:
 
 > Implement it, then show it catching a deliberate violation. Set the rule's status to `partial`, with `by` naming the control and `uncovered` naming the part it misses. Run the build and the gate.
 
-**Prefer `partial` to `graduated`,** whatever `lint`'s message says. `graduated` claims the control holds the *whole* class, and that claim is printed into every assistant's layer. The next recurrence outside the control then makes the record wrong. A `partial` status must name its gap, or it does not parse. The [manual](manual.md#detectors) covers detector syntax and turning detectors into hooks and gates.
+**Prefer `partial` to `graduated`,** as `lint`'s message says. `graduated` claims the control holds the *whole* class, and that claim is printed into every assistant's layer. The next recurrence outside the control then makes the record wrong. A `partial` status must name its gap, or it does not parse. The [manual](manual.md#detectors) covers detector syntax and turning detectors into hooks and gates.
 
 ### When a rule is no longer needed: retire it
 

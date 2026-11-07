@@ -252,7 +252,7 @@ impl fmt::Display for Finding {
                 let remedy = if *status == "partial" {
                     "Extend its controls over the uncovered part, or narrow what `uncovered` claims is still exposed"
                 } else {
-                    "Promote it to a control that can hold it (a type, a property test, a gate check) and record that with `status = { kind = \"graduated\", to = \"...\" }`"
+                    "Promote it to a control that can hold it (a type, a property test, a gate check). If the control covers part of the class, record `status = { kind = \"partial\", by = \"...\", uncovered = \"...\", date = \"...\" }` and name in `uncovered` what it does not catch; record `graduated` only if it covers the whole class"
                 };
                 write!(
                     f,

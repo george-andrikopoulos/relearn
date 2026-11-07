@@ -460,6 +460,38 @@ fn an_unheld_recurrence_is_a_warning_not_an_error() {
     assert_eq!(finding.severity(), Severity::Warning);
 }
 
+/// Regression pin, 2026-11-07. The remedy used to tell the reader to record
+/// `graduated`, which claims that a control covers the *whole* class. That claim
+/// is printed into every emitted layer. A control built in answer to one
+/// recurrence usually covers part of the class, and the manual says to prefer
+/// `partial`. The message must point at `partial` and its `uncovered` field, and
+/// may mention `graduated` only as the whole-class case.
+#[test]
+fn the_unheld_recurrence_remedy_points_at_partial() {
+    let lib = validated(vec![recurred(
+        "R:bitten",
+        Status::active(),
+        &["2026-08-24"],
+    )]);
+    let message = lint(&lib)
+        .into_iter()
+        .find(|f| matches!(f, Finding::UnheldRecurrence { .. }))
+        .expect("the finding is raised")
+        .to_string();
+    assert!(
+        message.contains("kind = \"partial\"") && message.contains("uncovered"),
+        "the remedy must name `partial` and `uncovered`: {message}"
+    );
+    assert!(
+        !message.contains("kind = \"graduated\""),
+        "the remedy must not hand the reader a `graduated` status to paste: {message}"
+    );
+    assert!(
+        message.contains("only if it covers the whole class"),
+        "`graduated` is offered only as the whole-class case: {message}"
+    );
+}
+
 #[test]
 fn a_rule_that_has_never_recurred_is_not_flagged() {
     let lib = validated(vec![recurred("R:quiet", Status::active(), &[])]);
