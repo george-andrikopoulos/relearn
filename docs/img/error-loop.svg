@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" width="960" height="360" role="img" aria-labelledby="t d">
+  <title id="t">How a correction becomes a rule, and a rule becomes a check</title>
+  <desc id="d">A loop of four steps. A mistake gets through to you. You correct it once, naming the class of mistake. relearn writes a rule with its date and incident, for every assistant. Every session starts with the rule in reach. If the mistake happens again, the rule failed: the recurrence is counted on it, and the rule moves up a ladder from words to checks: prose, then a hook or gate, then a test, then a type.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .panel { fill: #ffffff; stroke: #d0d7de; }
+    .card  { fill: #f6f8fa; stroke: #d0d7de; }
+    .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+    .k  { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; }
+    .b  { font-size: 14px; fill: #3d444d; }
+    .lbl { font-size: 14px; fill: #3d444d; }
+    .lbl tspan.em { font-weight: 700; fill: #c0392b; }
+    .lt { font-size: 15px; font-weight: 700; fill: #1f2328; }
+    .rt { font-size: 12px; fill: #656d76; }
+    .arrow { stroke: #8c959f; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .loop  { stroke: #c0392b; fill: none; stroke-width: 2.5; stroke-dasharray: 7 6; stroke-linecap: round; }
+    .err   { fill: #c0392b; } .you { fill: #3366cc; } .rules { fill: #b8860b; } .model { fill: #1f8a70; }
+    .s1 { fill: #f6f8fa; stroke: #d0d7de; }
+    .s2 { fill: #fbf3df; stroke: #e6cf8f; }
+    .s3 { fill: #f7e7b8; stroke: #d9b54f; }
+    .s4 { fill: #e9c75a; stroke: #b8860b; }
+    .st { font-size: 14px; font-weight: 600; fill: #1f2328; }
+    .rt4 { font-size: 12px; fill: #4d3d0a; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #0d1117; stroke: #30363d; }
+      .card  { fill: #161b22; stroke: #30363d; }
+      .h, .lt, .st { fill: #e6edf3; }
+      .b, .lbl { fill: #b1bac4; }
+      .lbl tspan.em { fill: #ef6b5c; }
+      .rt { fill: #8b949e; }
+      .arrow { stroke: #6e7681; }
+      .loop { stroke: #ef6b5c; }
+      .err { fill: #ef6b5c; } .you { fill: #6e9be8; } .rules { fill: #d9a520; } .model { fill: #3fb68f; }
+      .s1 { fill: #161b22; stroke: #30363d; }
+      .s2 { fill: #2a2312; stroke: #5a4a1c; }
+      .s3 { fill: #3d3112; stroke: #8a6d1f; }
+      .s4 { fill: #6b5214; stroke: #d9a520; }
+      .rt4 { fill: #f3e3b5; }
+    }
+  </style>
+
+  <rect class="panel" x="0.5" y="0.5" width="959" height="359" rx="16"/>
+
+  <!-- Four steps -->
+  <rect class="card" x="24" y="24" width="210" height="132" rx="12"/>
+  <circle class="err" cx="50" cy="52" r="7"/>
+  <text class="k err" x="66" y="56.5">A MISTAKE</text>
+  <text class="h" x="40" y="88">It gets through</text>
+  <text class="b" x="40" y="114">An error reaches you,</text>
+  <text class="b" x="40" y="134">in review or in use.</text>
+
+  <path class="arrow" d="M242 82 L250 90 L242 98"/>
+
+  <rect class="card" x="258" y="24" width="210" height="132" rx="12"/>
+  <circle class="you" cx="284" cy="52" r="7"/>
+  <text class="k you" x="300" y="56.5">YOU</text>
+  <text class="h" x="274" y="88">Correct it once</text>
+  <text class="b" x="274" y="114">The fix, and the kind of</text>
+  <text class="b" x="274" y="134">mistake behind it.</text>
+
+  <path class="arrow" d="M476 82 L484 90 L476 98"/>
+
+  <rect class="card" x="492" y="24" width="210" height="132" rx="12"/>
+  <circle class="rules" cx="518" cy="52" r="7"/>
+  <text class="k rules" x="534" y="56.5">RELEARN</text>
+  <text class="h" x="508" y="88">A rule is written</text>
+  <text class="b" x="508" y="114">Dated, with its incident,</text>
+  <text class="b" x="508" y="134">for every assistant.</text>
+
+  <path class="arrow" d="M710 82 L718 90 L710 98"/>
+
+  <rect class="card" x="726" y="24" width="210" height="132" rx="12"/>
+  <circle class="model" cx="752" cy="52" r="7"/>
+  <text class="k model" x="768" y="56.5">EVERY SESSION</text>
+  <text class="h" x="742" y="88">Has the rule</text>
+  <text class="b" x="742" y="114">Claude, Cursor, Copilot,</text>
+  <text class="b" x="742" y="134">and AGENTS.md readers.</text>
+
+  <!-- The return path -->
+  <path class="loop" d="M831 160 V196 H129 V166"/>
+  <path class="err" d="M121 170 L129 158 L137 170 Z"/>
+  <text class="lbl" x="480" y="222" text-anchor="middle"><tspan class="em">If it happens again, the rule failed.</tspan> The recurrence is counted on the rule, and the rule climbs.</text>
+
+  <!-- The ladder -->
+  <text class="lt" x="44" y="290">From words to checks</text>
+  <text class="rt" x="44" y="310">a stronger rung holds more</text>
+
+  <rect class="s1" x="236" y="262" width="160" height="56" rx="10"/>
+  <text class="st" x="316" y="288" text-anchor="middle">Prose</text>
+  <text class="rt" x="316" y="306" text-anchor="middle">the model may ignore it</text>
+  <path class="arrow" d="M402 282 L410 290 L402 298"/>
+
+  <rect class="s2" x="416" y="262" width="160" height="56" rx="10"/>
+  <text class="st" x="496" y="288" text-anchor="middle">Hook or gate</text>
+  <text class="rt" x="496" y="306" text-anchor="middle">blocks a known pattern</text>
+  <path class="arrow" d="M582 282 L590 290 L582 298"/>
+
+  <rect class="s3" x="596" y="262" width="160" height="56" rx="10"/>
+  <text class="st" x="676" y="288" text-anchor="middle">Test</text>
+  <text class="rt" x="676" y="306" text-anchor="middle">catches the cases it covers</text>
+  <path class="arrow" d="M762 282 L770 290 L762 298"/>
+
+  <rect class="s4" x="776" y="262" width="160" height="56" rx="10"/>
+  <text class="st" x="856" y="288" text-anchor="middle">Type</text>
+  <text class="rt4" x="856" y="306" text-anchor="middle">cannot be written at all</text>
+</svg>
