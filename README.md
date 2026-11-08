@@ -115,7 +115,7 @@ relearn verify --out .   # in CI: fail if a generated file was edited or is stal
 - sharing rules between installs
 - CI setup, exit codes and troubleshooting
 
-**To start a project from a description of what it is, or to bring an existing one under five standing documents**, follow [Adopting relearn](docs/adopting-relearn.md). You describe, approve and check, and the assistant writes everything, then works through the milestones. Each step gives the prompt to paste, the answer to expect, and the answers that sound right but aren't.
+**relearn is a way of writing code by loading rules first.** Each rule retires one bad habit of software development, so a project that loads them before any work starts leaves those habits out. [Adopting relearn](docs/adopting-relearn.md) shows how, in two paths. A **new project** goes from a description to milestones in four prompts. An **existing project** loads the rules, then four prompts rediscover its `ARCHITECTURE.md`, `FEATURES.md`, `TODO.md` and `CLAUDE.md` from the code and its history. You describe, approve and check, and the assistant writes everything.
 
 ## How it works
 
