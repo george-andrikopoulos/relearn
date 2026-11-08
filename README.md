@@ -29,7 +29,7 @@ So the job changes. You stop writing code and start writing the input:
 - **The patterns it follows**: how errors are reported, how data is checked, how it is tested.
 - **What is out of scope**, so nothing gets built that you did not ask for.
 
-That is the architect's part, and it is the whole of your part. You don't need to know how to write the code. You need to know what you want, and to check that you got it.
+That is the architect's part, and it is the whole of your part. You don't need to know how to write the code. You need to know what you want, and to check that you got it. You don't write the documents either: you give the model your ideas, and it writes them down in a form it reads back well.
 
 The *how*, meaning the habits of good engineering, is already written down as **rules**. relearn installs them once on your machine. The model picks the ones that apply to your project and works under them. When it still gets something wrong, you correct it once, and the correction becomes one more rule.
 
@@ -85,9 +85,9 @@ From then on, every project you open has the whole library within reach. Nothing
   <img src="docs/img/error-loop.svg" width="960" alt="A mistake gets through. You correct it once. relearn writes a rule, dated and with its incident, for every assistant. Every session has the rule. If it happens again, the rule failed: the recurrence is counted on the rule, and the rule climbs from words to checks: prose, then a hook or gate, then a test, then a type.">
 </p>
 
-A correction made in a chat dies with the chat, and the same kind of mistake comes back next week. In relearn a correction becomes a **rule**: one small file that says what went wrong, when, and what to do instead. relearn compiles it for every assistant you use: Claude, Cursor, GitHub Copilot, and anything that reads `AGENTS.md`.
+A correction made in a chat dies with the chat, and the same kind of mistake comes back next week. In relearn a correction becomes a **rule**: one small file that says what went wrong, when, and what to do instead. **The model drafts it from your correction**, in the form models follow best: one kind of mistake, one instruction, and the reason. relearn compiles it for every assistant you use: Claude, Cursor, GitHub Copilot, and anything that reads `AGENTS.md`.
 
-A rule written in words can still be ignored. So when a mistake comes back, relearn counts it against the rule that should have stopped it, and tells you which rules keep failing. A rule that keeps failing should be turned into a check the model cannot get past: a hook, a gate, a test, or a type that makes the mistake impossible to write. The guide covers [each of these steps](docs/adopting-relearn.md#day-to-day-with-relearn).
+A rule written in words can still be ignored. So when a mistake comes back, relearn counts it against the rule that should have stopped it, and tells you which rules keep failing. A rule that keeps failing should be turned into a check the model cannot get past: a hook, a gate, a test, or a type that makes the mistake impossible to write. **From there on, the model no longer has a say.** The guide covers [each of these steps](docs/adopting-relearn.md#day-to-day-with-relearn).
 
 ## Under the hood
 
