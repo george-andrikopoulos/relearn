@@ -1,8 +1,10 @@
 # Adopting relearn
 
-**relearn is a way of writing code with the rules already loaded.** Each rule retires one bad habit of software development: inventing a reason nobody gave, claiming a test passes without running it, copying a rule into a second place, building more than was asked for. With the rules loaded, those habits are out of the equation before the work starts.
+**relearn is a way of writing code with the rules already loaded.** Each rule names one bad habit of software development: inventing a reason nobody gave, claiming a test passes without running it, copying a rule into a second place, building more than was asked for. With the rules loaded, those habits are less likely before the work starts. When one happens anyway, it is recorded against the rule that should have prevented it, and a rule that keeps failing is pushed towards a check that can hold it.
 
 **You don't pick the rules, and you don't copy them into a project. The model chooses them.** relearn's library is available to the model on your machine or account. When you describe a project, or point the model at an existing one, the model chooses the rules that apply, names each by its tag, and works under them. The prompts stay short, because the rules already say *how* the work is done. A prompt only says *what* to do.
+
+**Choosing a rule is not loading it.** The model's choice is written into `CLAUDE.md`, which loads in every session, so the choice outlives the session that made it. See [Choosing is not loading](#choosing-is-not-loading).
 
 That gives two ways in:
 
@@ -34,6 +36,17 @@ You do this once per machine or account, never per project.
 - **The library, where the model can reach it:** the skills in [`claude-pack/`](../claude-pack/README.md) at user level (`~/.claude/skills/`, or uploaded to claude.ai), and the language layers in [`rules-pack/`](../rules-pack/) in `~/.claude/rules/`. `claude-pack/README.md` has the steps for each.
 
 From then on, every project you open has the whole library within reach, and the model chooses from it. Nothing about rules is copied into a project. A project carries only its **own** rules, the ones the library doesn't have, which the model writes with `relearn new` into the project's `rules/`.
+
+### Choosing is not loading
+
+The library reaches a session in two ways, and only one of them is automatic:
+
+- **A language layer** in `~/.claude/rules/` (from `rules-pack/`) loads by itself whenever the session reads a matching file. `domain-rust` loads for `**/*.rs`.
+- **A skill** (from `claude-pack/`) loads only when the model decides to open it. That includes `global` and `domain-project-files`, the two layers every prompt below relies on. In relearn's probe pilot, sessions opened the skill in 26 of 70 runs.
+
+So the model's choice has to be written somewhere that loads every time. That place is `CLAUDE.md`. When the model writes it (prompt 3 of a new project, prompt 4 of an existing one), it records the layers it chose and tells every later session to open the skills among them before starting work. That is a pointer, not a copy: no rule text goes into `CLAUDE.md`, and the rules still load from their own layer. The choice is still the model's. `CLAUDE.md` only carries it into sessions that did not make it.
+
+For a rule that must hold whatever the model decides to open, don't rely on a skill: make it a project rule, which loads in every session, or a check.
 
 ### A project's own rules: the build, and the gate
 
@@ -119,11 +132,11 @@ project   244  project-orders-api                 project:.claude/rules/project-
 
 **Prompt:**
 
-> Write the five standing documents from my description and my answers, under the rules you chose. Don't write any code. Mark every command in README.md "planned" until milestone M0 makes it work. FEATURES.md has no entries yet. TODO.md is numbered milestones, each one something I could see working, with M0 setting up the workspace, the tests, CI and the gate. CLAUDE.md names the rules you chose, by layer and tag, and copies no rule text.
+> Write the five standing documents from my description and my answers, under the rules you chose. Don't write any code. Mark every command in README.md "planned" until milestone M0 makes it work. FEATURES.md has no entries yet. TODO.md is numbered milestones, each one something I could see working, with M0 setting up the workspace, the tests, CI and the gate. CLAUDE.md names the rules you chose, by layer and tag, copies no rule text, and tells every session to open the skills among them before starting work.
 
 **Expect:** short documents. A new project's `FEATURES.md` is nearly empty, and its decisions log is your description turned into rows, with "not stated" wherever you gave no reason.
 
-**Check:** search `CLAUDE.md` for the title of one chosen rule. It should not be there, because the rule loads from its own layer. Then give a fresh session `CLAUDE.md` alone, and ask: *"What could you not rebuild from this file?"*
+**Check:** search `CLAUDE.md` for the title of one chosen rule. It should not be there, because the rule loads from its own layer. Then start a fresh session in the project and ask *"Which rule decides how a decisions-log row is written?"* before anything else. The answer should be the tag, and the session should have opened `domain-project-files` to find it. Finally, give a fresh session `CLAUDE.md` alone, and ask: *"What could you not rebuild from this file?"*
 
 ### 4. Approve the milestones
 
@@ -173,11 +186,11 @@ The code already holds decisions, but nobody wrote down the rules it follows or 
 
 **Prompt:**
 
-> Write `CLAUDE.md` to the recreation standard, from the three documents and the code: the purpose, the decisions with their reasons (keeping "not recorded"), the invariants, each saying whether FEATURES.md enforces it, the verified commands, one line pointing at each of the other documents, the rules you chose by layer and tag with no rule text copied, and the definition of done. If the project has no README.md, write one using only commands that exited 0. If it has one, report every command in it that failed, and change nothing else in it.
+> Write `CLAUDE.md` to the recreation standard, from the three documents and the code: the purpose, the decisions with their reasons (keeping "not recorded"), the invariants, each saying whether FEATURES.md enforces it, the verified commands, one line pointing at each of the other documents, the rules you chose by layer and tag with no rule text copied, an instruction to every session to open the skills among them before starting work, and the definition of done. If the project has no README.md, write one using only commands that exited 0. If it has one, report every command in it that failed, and change nothing else in it.
 
 **Expect:** a charter that is mostly pointers and reasons. Rules are named, never restated.
 
-**Check:** give a fresh session `CLAUDE.md` alone, and ask what it could not rebuild. Then approve the milestones exactly as in [prompt 4 of the new-project path](#4-approve-the-milestones), commit everything together, and go to [Working through the milestones](#working-through-the-milestones).
+**Check:** start a fresh session and ask for the tag of the rule that decides how a decisions-log row is written, as in [prompt 3 of the new-project path](#3-write-the-five-documents). Then give a fresh session `CLAUDE.md` alone, and ask what it could not rebuild. Then approve the milestones exactly as in [prompt 4 of the new-project path](#4-approve-the-milestones), commit everything together, and go to [Working through the milestones](#working-through-the-milestones).
 
 ### Then: the project's own conventions, as project rules
 
@@ -221,7 +234,7 @@ It is a warning gate, so it still exits 0.
 
 ## Working through the milestones
 
-From here on, the assistant writes all the code. Your part is to approve each milestone's plan, read what the assistant reports, and run the **Check** lines. Every prompt below works under the rules the model chose, and starts from `TODO.md`.
+From here on, the assistant writes all the code. Your part is to approve each milestone's plan, read what the assistant reports, and run the **Check** lines. Every prompt below works under the rules the model chose, which `CLAUDE.md` carries into each session, and starts from `TODO.md`.
 
 ### Start a milestone
 
@@ -426,6 +439,7 @@ None of them is rare. In this repository's own history, an assistant's report re
 | **Brochure prose.** *"A robust, scalable, production-ready service"* in `README.md` or `CLAUDE.md`. | Adjectives where facts should be. Nobody can rebuild anything from "robust". | "Replace every adjective with the fact behind it, or delete it." |
 | **Invented reasons.** *"PostgreSQL was chosen for its reliability"*, with no commit, comment or person behind it. | A plausible reason nobody can confirm. In the decisions log, it reads as what was known at the time. | "Write 'not recorded', and add a question for me." |
 | **Rule text copied into `CLAUDE.md`.** The type-driven rules restated in the charter. | A second copy with no source. It drifts from the installed layer, and loads twice. | "Name the layer, and delete the copied text." |
+| **Rules named but never opened.** `CLAUDE.md` lists `global` and `domain-project-files`, and a later session answers a question they decide without citing a tag. | A skill loads only when the model opens it. Naming it is not opening it. | "Open the skills `CLAUDE.md` names, then answer again with the tag." |
 | **Aspirations as features.** Planned work written up in `FEATURES.md` as if it shipped. | The contract now promises something that doesn't exist. | "Only what the code does today. Move the rest to `TODO.md`." |
 | **A test that doesn't test the feature.** `Enforced by:` names a test with a similar name. | It looks enforced and isn't. That is worse than `NOTHING YET`, because nobody will look. | "Break the feature, show this test failing, then restore it." |
 | **A command it never ran.** `README.md` lists `make test` because projects like this one usually have it. | The first reader who follows the README hits an error. | "Show the exit status of every command you wrote down." |

@@ -115,7 +115,7 @@ relearn verify --out .   # in CI: fail if a generated file was edited or is stal
 - sharing rules between installs
 - CI setup, exit codes and troubleshooting
 
-**relearn is a way of writing code with the rules already loaded.** Each rule retires one bad habit of software development. You don't copy rules into a project: the library is available to the model, and the model chooses the rules that apply. [Adopting relearn](docs/adopting-relearn.md) shows how, in two paths. A **new project** goes from a description to milestones in four prompts. For an **existing project**, four prompts have the model choose the rules and rediscover its `ARCHITECTURE.md`, `FEATURES.md`, `TODO.md` and `CLAUDE.md` from the code and its history. You describe, approve and check, and the assistant writes everything.
+**relearn is a way of writing code with the rules already loaded.** Each rule names one bad habit of software development, makes it less likely, and records it when it happens anyway. You don't copy rules into a project: the library is available to the model, the model chooses the rules that apply, and the project's `CLAUDE.md` carries that choice into every later session. [Adopting relearn](docs/adopting-relearn.md) shows how, in two paths. A **new project** goes from a description to milestones in four prompts. For an **existing project**, four prompts have the model choose the rules and rediscover its `ARCHITECTURE.md`, `FEATURES.md`, `TODO.md` and `CLAUDE.md` from the code and its history. You describe, approve and check, and the assistant writes everything.
 
 ## How it works
 
