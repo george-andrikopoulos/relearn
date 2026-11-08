@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-labelledby="t d">
+  <title id="t">You bring the what, the rules bring the how, the model writes it</title>
+  <desc id="d">Three cards. You describe what to build: what it does, its scale, the architecture, the patterns and what is out of scope. The rules carry how good engineering is done. The model writes the code, tests and documents, one milestone at a time, while you approve and check. A band below: when the model gets something wrong, the correction becomes a rule.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .panel { fill: #ffffff; stroke: #d0d7de; }
+    .card  { fill: #f6f8fa; stroke: #d0d7de; }
+    .band  { fill: #fff5f4; stroke: #f1c4bf; }
+    .h  { font-size: 21px; font-weight: 700; fill: #1f2328; }
+    .k  { font-size: 12px; font-weight: 700; letter-spacing: .1em; }
+    .b  { font-size: 14.5px; fill: #3d444d; }
+    .bb { font-size: 15px; fill: #1f2328; }
+    .bb tspan.em { font-weight: 700; }
+    .rule { stroke: #d0d7de; }
+    .arrow { stroke: #8c959f; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .you   { fill: #3366cc; } .you-s   { stroke: #3366cc; }
+    .rules { fill: #b8860b; } .rules-s { stroke: #b8860b; }
+    .model { fill: #1f8a70; } .model-s { stroke: #1f8a70; }
+    .err   { fill: #c0392b; } .err-s   { stroke: #c0392b; }
+    .num { font-size: 16px; font-weight: 700; fill: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .panel { fill: #0d1117; stroke: #30363d; }
+      .card  { fill: #161b22; stroke: #30363d; }
+      .band  { fill: #2a1715; stroke: #5c2b26; }
+      .h, .bb { fill: #e6edf3; }
+      .b  { fill: #b1bac4; }
+      .rule { stroke: #30363d; }
+      .arrow { stroke: #6e7681; }
+      .you { fill: #6e9be8; } .you-s { stroke: #6e9be8; }
+      .rules { fill: #d9a520; } .rules-s { stroke: #d9a520; }
+      .model { fill: #3fb68f; } .model-s { stroke: #3fb68f; }
+      .err { fill: #ef6b5c; } .err-s { stroke: #ef6b5c; }
+      .num { fill: #0d1117; }
+    }
+  </style>
+
+  <rect class="panel" x="0.5" y="0.5" width="959" height="399" rx="16"/>
+
+  <!-- Card 1: you -->
+  <rect class="card" x="24" y="24" width="272" height="276" rx="12"/>
+  <circle class="you" cx="62" cy="62" r="18"/>
+  <text class="num" x="62" y="68" text-anchor="middle">1</text>
+  <text class="k you" x="92" y="56">YOU</text>
+  <text class="h" x="92" y="80">bring the what</text>
+  <line class="rule" x1="44" y1="104" x2="276" y2="104"/>
+  <g class="b">
+    <circle class="you" cx="52" cy="132" r="3.5"/><text x="66" y="137">What it does, and for whom</text>
+    <circle class="you" cx="52" cy="164" r="3.5"/><text x="66" y="169">How big it has to get</text>
+    <circle class="you" cx="52" cy="196" r="3.5"/><text x="66" y="201">How it is put together</text>
+    <circle class="you" cx="52" cy="228" r="3.5"/><text x="66" y="233">The patterns to follow</text>
+    <circle class="you" cx="52" cy="260" r="3.5"/><text x="66" y="265">What is out of scope</text>
+  </g>
+
+  <!-- Arrow 1 -->
+  <path class="arrow" d="M306 162 H334 M326 154 L334 162 L326 170"/>
+
+  <!-- Card 2: the rules -->
+  <rect class="card" x="344" y="24" width="272" height="276" rx="12"/>
+  <circle class="rules" cx="382" cy="62" r="18"/>
+  <text class="num" x="382" y="68" text-anchor="middle">2</text>
+  <text class="k rules" x="412" y="56">THE RULES</text>
+  <text class="h" x="412" y="80">bring the how</text>
+  <line class="rule" x1="364" y1="104" x2="596" y2="104"/>
+  <g class="b">
+    <circle class="rules" cx="372" cy="132" r="3.5"/><text x="386" y="137">Design the types first</text>
+    <circle class="rules" cx="372" cy="164" r="3.5"/><text x="386" y="169">Run a test before citing it</text>
+    <circle class="rules" cx="372" cy="196" r="3.5"/><text x="386" y="201">Log each decision, and why</text>
+    <circle class="rules" cx="372" cy="228" r="3.5"/><text x="386" y="233">Build only what was asked</text>
+    <circle class="rules" cx="372" cy="260" r="3.5"/><text x="386" y="265">The model picks what applies</text>
+  </g>
+
+  <!-- Arrow 2 -->
+  <path class="arrow" d="M626 162 H654 M646 154 L654 162 L646 170"/>
+
+  <!-- Card 3: the model -->
+  <rect class="card" x="664" y="24" width="272" height="276" rx="12"/>
+  <circle class="model" cx="702" cy="62" r="18"/>
+  <text class="num" x="702" y="68" text-anchor="middle">3</text>
+  <text class="k model" x="732" y="56">THE MODEL</text>
+  <text class="h" x="732" y="80">writes all of it</text>
+  <line class="rule" x1="684" y1="104" x2="916" y2="104"/>
+  <g class="b">
+    <circle class="model" cx="692" cy="132" r="3.5"/><text x="706" y="137">The code, and its tests</text>
+    <circle class="model" cx="692" cy="164" r="3.5"/><text x="706" y="169">Five project documents</text>
+    <circle class="model" cx="692" cy="196" r="3.5"/><text x="706" y="201">One milestone at a time</text>
+    <circle class="model" cx="692" cy="228" r="3.5"/><text x="706" y="233">Proof shown for each step</text>
+    <circle class="model" cx="692" cy="260" r="3.5"/><text x="706" y="265">You approve, and check</text>
+  </g>
+
+  <!-- Band: the error loop -->
+  <rect class="band" x="24" y="320" width="912" height="56" rx="12"/>
+  <path class="arrow err-s" d="M70 338 A12 12 0 1 1 58 350"/>
+  <path class="err" d="M64 333 L73 338 L65 344 Z"/>
+  <text class="bb" x="94" y="353"><tspan class="em">When it gets something wrong,</tspan> the correction becomes a rule, and it is counted if it comes back.</text>
+</svg>
