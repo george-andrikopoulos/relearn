@@ -1,21 +1,23 @@
 # Adopting relearn
 
-**relearn is a way of writing code by loading rules first.** Each rule retires one bad habit of software development: inventing a reason nobody gave, claiming a test passes without running it, copying a rule into a second place, building more than was asked for. Load the rules before any work starts, and those habits are taken out of the equation. The prompts stay short, because the rules already say *how* the work is done. A prompt only says *what* to do.
+**relearn is a way of writing code with the rules already loaded.** Each rule retires one bad habit of software development: inventing a reason nobody gave, claiming a test passes without running it, copying a rule into a second place, building more than was asked for. With the rules loaded, those habits are out of the equation before the work starts.
+
+**You don't pick the rules, and you don't copy them into a project. The model chooses them.** relearn's library is available to the model on your machine or account. When you describe a project, or point the model at an existing one, the model chooses the rules that apply, names each by its tag, and works under them. The prompts stay short, because the rules already say *how* the work is done. A prompt only says *what* to do.
 
 That gives two ways in:
 
-- **A new project** is the easy case. Nothing has been decided yet, so every decision is made from scratch, with the rules already loaded. Four prompts take you from a description to a list of milestones.
-- **An existing project** already has decisions in its code, but no rules and no record of why. With the rules loaded, four prompts rediscover the project, one standing document each: `ARCHITECTURE.md`, `FEATURES.md`, `TODO.md` and `CLAUDE.md`.
+- **A new project** is the easy case. Nothing has been decided yet, so every decision is made fresh, under the rules the model chose. Four prompts take you from a description to a list of milestones.
+- **An existing project** already holds decisions in its code, but no rules and no record of why. Four prompts rediscover it, one standing document each: `ARCHITECTURE.md`, `FEATURES.md`, `TODO.md` and `CLAUDE.md`.
 
-Both end in the same place: the rules loaded, the standing documents written, and a `TODO.md` of milestones. From then on, [Working through the milestones](#working-through-the-milestones) is the whole job.
+Both end in the same place: the rules chosen, the standing documents written, and a `TODO.md` of milestones. From then on, [Working through the milestones](#working-through-the-milestones) is the whole job.
 
-**You describe, approve and check. The assistant writes everything, including all the code.** Each prompt comes with **Expect** (what a good answer looks like, and a bad one) and **Check** (something you run or read yourself, so you never have to take the assistant's word for it).
+**You describe, approve and check. The model chooses the rules and writes everything, including all the code.** Each prompt comes with **Expect** (what a good answer looks like, and a bad one) and **Check** (something you run or read yourself, so you never have to take the model's word for it).
 
 The [manual](manual.md) is the command reference. Every command output below is real, from relearn 0.1.0 on 2026-11-07, run in scratch repositories named `orders-api`, `acme-api`, `legacy-app` and `shop-svc`.
 
 **Contents**
 
-- [Load the rules](#load-the-rules)
+- [Once, before any project](#once-before-any-project)
 - [A new project: four prompts](#a-new-project-four-prompts)
 - [An existing project: four prompts](#an-existing-project-four-prompts)
 - [Working through the milestones](#working-through-the-milestones)
@@ -24,63 +26,24 @@ The [manual](manual.md) is the command reference. Every command output below is 
 
 ---
 
-## Load the rules
+## Once, before any project
 
-This step comes first on both paths, before any prompt.
+You do this once per machine or account, never per project.
 
-### Install relearn, and keep a checkout
+- **The binary:** `cargo install --git https://github.com/george-andrikopoulos/relearn --locked`. It needs a Rust toolchain that supports edition 2024, and `git`.
+- **The library, where the model can reach it:** the skills in [`claude-pack/`](../claude-pack/README.md) at user level (`~/.claude/skills/`, or uploaded to claude.ai), and the language layers in [`rules-pack/`](../rules-pack/) in `~/.claude/rules/`. `claude-pack/README.md` has the steps for each.
 
-The rule library ships as committed packs inside the repository, so clone it as well as installing the binary:
+From then on, every project you open has the whole library within reach, and the model chooses from it. Nothing about rules is copied into a project. A project carries only its **own** rules, the ones the library doesn't have, which the model writes with `relearn new` into the project's `rules/`.
 
-```sh
-git clone https://github.com/george-andrikopoulos/relearn
-cd relearn
-cargo install --path . --locked
-relearn --version
-```
+### A project's own rules: the build, and the gate
 
-You need a Rust toolchain that supports edition 2024, and `git`. Below, `<relearn-checkout>` means the directory you just cloned.
-
-### Install the layers
-
-| Layer | What it takes out of the equation | Install from `<relearn-checkout>` |
-|---|---|---|
-| `global` (every project) | unchecked claims, invented evidence, silent spend, a second copy of a rule, a guarantee nothing enforces | `claude-pack/skills/global/` into the project's `.claude/skills/` |
-| `domain-project-files` (every project) | standing documents that drift: a charter nobody could rebuild from, reasons invented afterwards, features with no test, a sixth document | `claude-pack/skills/domain-project-files/` into the project's `.claude/skills/` |
-| your language: `domain-rust`, `domain-java` | the language's own bad habits | `rules-pack/.claude/rules/domain-<lang>.md` into `~/.claude/rules/`, once per machine |
-| low-latency, public disclosure, agent tooling | that field's bad habits | `claude-pack/skills/domain-<name>/` into `.claude/skills/` |
-| anything the library doesn't cover | your project's own rules | written with `relearn new` into the project's `rules/` (see below) |
-
-```sh
-mkdir -p .claude/skills
-cp -r <relearn-checkout>/claude-pack/skills/global .claude/skills/
-cp -r <relearn-checkout>/claude-pack/skills/domain-project-files .claude/skills/
-cp <relearn-checkout>/rules-pack/.claude/rules/domain-rust.md ~/.claude/rules/   # changes your machine, not only the project
-```
-
-`domain-project-files` is the layer that says how the four documents are written: `R:claude-md-recreates-the-project`, `R:decisions-log-records-rejected-alternatives`, `R:features-ledger-names-its-artefact`, `R:five-files-no-more` and `R:definition-of-done-every-change`. That is why the prompts below don't have to.
-
-Read a layer before you install it. This library is one author's rules, and each `SKILL.md` lists what it covers at the top. Install a language layer once, at user level. A second copy inside a project loads twice, and `relearn budget` reports it as `DUPLICATE_LAYER`.
-
-### Start every session with this line
-
-A skill loads only when the model chooses to open it. In relearn's probe pilot, sessions opened the skill in 26 of 70 runs. So don't leave it to chance. Begin every session, on both paths and through every milestone, with:
-
-> Read `.claude/skills/global/SKILL.md` and `.claude/skills/domain-project-files/SKILL.md` now, and follow them for the whole session. When a rule decides something, cite its tag.
-
-The line works with any assistant that can read files, not only Claude Code. Every prompt below assumes it was given.
-
-**Check:** ask *"Which rule says how a decisions-log row is written?"* The answer should be `R:decisions-log-records-rejected-alternatives`. A paraphrase with no tag means the file wasn't read.
-
-### Project rules: the build, and the gate
-
-A project rule is one the library doesn't have, such as your API's error format. After any change to a project rule, the build compiles it into every assistant's layer. Pass the targets and the layer name explicitly:
+When the model writes a project rule, it compiles it into every assistant's layer. The targets and the layer name are passed explicitly:
 
 ```sh
 relearn build --targets cursor,copilot,agents,claude-rules --out . --rules-layer project=<name>
 ```
 
-This writes `.claude/rules/project-<name>.md`, which Claude Code loads in every session, plus the same rules for Cursor (`.cursor/rules/`), Copilot (`.github/copilot-instructions.md`) and `AGENTS.md`. A bare `relearn build --out .` would also write skills to a root-level `skills/` folder, which Claude Code never loads.
+This writes `.claude/rules/project-<name>.md`, which Claude Code loads in every session, plus the same rules for Cursor (`.cursor/rules/`), Copilot (`.github/copilot-instructions.md`) and `AGENTS.md`.
 
 The gate runs before every push. It never builds: a gate that builds and then verifies proves only that building is deterministic, never that the committed files match the rules.
 
@@ -90,13 +53,13 @@ relearn verify --targets cursor,copilot,agents,claude-rules --out . --rules-laye
 relearn lint --deny error
 ```
 
-A bare `verify` names the project layer after the directory it runs in, so a clone with another directory name reports the real layer as an `orphan`. Pass `--rules-layer` every time.
+Pass `--rules-layer` every time. A bare `verify` names the project layer after the directory it runs in, so a clone with another directory name reports the real layer as an `orphan`.
 
 ---
 
 ## A new project: four prompts
 
-Nothing is captured yet, so nothing has to be recovered. The rules are loaded, and every decision is made fresh against them.
+Nothing is captured yet, so nothing has to be recovered. You describe; the model chooses the rules and decides nothing you haven't.
 
 ### 1. Describe it
 
@@ -115,16 +78,15 @@ Nothing is captured yet, so nothing has to be recovered. The rules are loaded, a
 
 **Check:** read the five-line summary against what you meant. Anything wrong here will be wrong in every document that follows.
 
-### 2. Match the guidelines to rules
+### 2. The model chooses the rules
 
 **Prompt:**
 
-> Match each of my guidelines against the rule library in `<relearn-checkout>`. Read the files; don't go by their names. Each guideline is either covered by a layer (name it, and the tags), a project rule to write (draft it, and give the `relearn new` command with `--origin codified` and `--incident "Stated by the project owner in the project description."`), or an architecture fact. Run nothing until I approve; then run the commands, the build and the gate, and show every output.
+> Choose the relearn rules that apply to this project, from the library available to you. Name each layer and the rule tags in it that matter here, with one line on why. Then take each of my guidelines in turn: either a chosen rule covers it (name the tag), or it is a project rule the library doesn't have (write it with `relearn new`, `--origin codified` and `--incident "Stated by the project owner in the project description."`), or it is an architecture fact for ARCHITECTURE.md. Show me the choice before writing anything; after I approve, write the project rules, then run the build and the gate and show every output.
 
-**Expect:** *"type-driven design"* is covered by `domain-rust` (`R:design-types-first`, `R:newtype-liberally`, `R:parse-dont-validate`). The error format becomes a project rule, because the library has no web-API layer. *"One service, no shared database"* is an architecture fact. After you approve:
+**Expect:** layers chosen with reasons, such as `global` for every project, `domain-project-files` for the standing documents, and `domain-rust` for *"type-driven design"* (`R:design-types-first`, `R:newtype-liberally`, `R:parse-dont-validate`). The error format becomes a project rule, because the library has no web-API layer. *"One service, no shared database"* is an architecture fact. After you approve, the model writes the project rule and builds:
 
 ```sh
-mkdir -p rules
 relearn new --tag R:api-errors-are-problem-json \
   --title "Every API error is an application/problem+json body" \
   --error-class "An error body in an ad-hoc shape forces every client to special-case each endpoint" \
@@ -143,7 +105,9 @@ ok: no lint findings
 1 rule(s): 0 recurred, 1 inert (codified and never fired)
 ```
 
-**Check:** `relearn budget --project . --user ~/.claude` lists what a Claude Code session in the project loads. These two rows show the language layer and the project layer in place (the rest of the output is omitted here):
+A bad answer chooses every layer "to be safe", or picks a layer by its name without reading it. A layer that names another project (`project-*`) is never right for yours.
+
+**Check:** ask *"Which of the rules you chose decides how a decisions-log row is written?"* The answer should be a tag, `R:decisions-log-records-rejected-alternatives`. A paraphrase with no tag means the rule wasn't read. `relearn budget --project . --user ~/.claude` then lists what a session in the project loads:
 
 ```
 SHARE       CHARS  GENERATED                          PATH                                                 LOADS
@@ -155,11 +119,11 @@ project   244  project-orders-api                 project:.claude/rules/project-
 
 **Prompt:**
 
-> Write the five standing documents from my description and my answers, following `domain-project-files`. Don't write any code. Mark every command in README.md "planned" until milestone M0 makes it work. FEATURES.md has no entries yet. TODO.md is numbered milestones, each one something I could see working, with M0 setting up the workspace, the tests, CI and the gate. CLAUDE.md names the installed layers (`global`, `domain-project-files`, `domain-rust`, `project-orders-api`) and copies no rule text.
+> Write the five standing documents from my description and my answers, under the rules you chose. Don't write any code. Mark every command in README.md "planned" until milestone M0 makes it work. FEATURES.md has no entries yet. TODO.md is numbered milestones, each one something I could see working, with M0 setting up the workspace, the tests, CI and the gate. CLAUDE.md names the rules you chose, by layer and tag, and copies no rule text.
 
 **Expect:** short documents. A new project's `FEATURES.md` is nearly empty, and its decisions log is your description turned into rows, with "not stated" wherever you gave no reason.
 
-**Check:** search `CLAUDE.md` for the title of one installed rule. It should not be there, because the rule loads from its own layer. Then give a fresh session `CLAUDE.md` alone, and ask: *"What could you not rebuild from this file?"*
+**Check:** search `CLAUDE.md` for the title of one chosen rule. It should not be there, because the rule loads from its own layer. Then give a fresh session `CLAUDE.md` alone, and ask: *"What could you not rebuild from this file?"*
 
 ### 4. Approve the milestones
 
@@ -167,21 +131,21 @@ project   244  project-orders-api                 project:.claude/rules/project-
 
 > Show me the milestones in TODO.md as a numbered list, with one line each on what I will be able to see working at the end of it.
 
-Reorder them, cut some, or merge them, then tell the assistant what you changed. Commit the documents, the rules and the generated files together, and go to [Working through the milestones](#working-through-the-milestones), starting at M0.
+Reorder them, cut some, or merge them, then tell the model what you changed. Commit the documents, the project rules and the generated files together, and go to [Working through the milestones](#working-through-the-milestones), starting at M0.
 
 ---
 
 ## An existing project: four prompts
 
-The code already holds decisions, but nobody wrote down the rules it follows or why it is the way it is. Work on a branch (`git checkout -b docs/standing-files`), load the rules as above, and give these four prompts in order. Each one rediscovers one standing document from the code and its git history. `CLAUDE.md` comes last, because it summarises the other three.
+The code already holds decisions, but nobody wrote down the rules it follows or why it is the way it is. Work on a branch (`git checkout -b docs/standing-files`) and give these four prompts in order. The first one has the model choose the rules from the code, and every prompt after works under them. Each prompt rediscovers one standing document from the code and its git history. `CLAUDE.md` comes last, because it summarises the other three.
 
-### 1. Rediscover the architecture: `ARCHITECTURE.md`
+### 1. Choose the rules, and rediscover the architecture: `ARCHITECTURE.md`
 
 **Prompt:**
 
-> Rediscover this project's architecture from its code and git history, and write `ARCHITECTURE.md`. Run the build and test commands first, and show each exit status. Describe the modules and the data flow, citing a file for every claim. Then write the decisions log: every decision the code embodies that would be expensive to change, each with its evidence, its commit (from `git log -S` or `git blame`) and the word *reconstructed*. Fill in **Why** and **Alternatives rejected** only where a commit, a comment or a document states them, and write "not recorded" everywhere else, with a numbered question for me.
+> Read this project's code and git history. From the relearn library available to you, choose the rules that apply to it, and name each layer and tag with one line on why. Then, under those rules, rediscover the architecture and write `ARCHITECTURE.md`. Run the build and test commands first and show each exit status. Describe the modules and the data flow, citing a file for every claim. Then write the decisions log: every decision the code embodies that would be expensive to change, each with its evidence, its commit (from `git log -S` or `git blame`) and the word *reconstructed*. Fill in **Why** and **Alternatives rejected** only where a commit, a comment or a document states them, and write "not recorded" everywhere else, with a numbered question for me.
 
-**Expect:** many rows that say "not recorded". That is the document doing its job. A reason written down long after the decision is always the flattering one, so a gap is better than an invention.
+**Expect:** a short list of chosen rules with tags, then a document with many rows that say "not recorded". That is the document doing its job. A reason written down long after the decision is always the flattering one, so a gap is better than an invention.
 
 **Check:** run `git show --stat <hash>` for two of the commits it cites. A hash that doesn't exist, or a commit that does something else, means the history was invented.
 
@@ -201,7 +165,7 @@ The code already holds decisions, but nobody wrote down the rules it follows or 
 
 > Write `TODO.md` as numbered milestones. M1 closes the most important `NOTHING YET — exposed` gaps from FEATURES.md. The later milestones come from the open questions in ARCHITECTURE.md and from what I tell you I want next. Give each milestone three to six `[ ]` items. Add no feature ideas of your own.
 
-**Expect:** a short list built from the two documents you already have. A milestone you didn't ask for, and that no gap or question explains, is the assistant's idea. Cut it.
+**Expect:** a short list built from the two documents you already have. A milestone you didn't ask for, and that no gap or question explains, is the model's idea. Cut it.
 
 **Check:** every M1 item should name a `FEATURES.md` entry.
 
@@ -209,19 +173,19 @@ The code already holds decisions, but nobody wrote down the rules it follows or 
 
 **Prompt:**
 
-> Write `CLAUDE.md` to the recreation standard, from the three documents and the code: the purpose, the decisions with their reasons (keeping "not recorded"), the invariants, each saying whether FEATURES.md enforces it, the verified commands, one line pointing at each of the other documents, the installed rule layers by name with no rule text copied, and the definition of done. If the project has no README.md, write one using only commands that exited 0. If it has one, report every command in it that failed, and change nothing else in it.
+> Write `CLAUDE.md` to the recreation standard, from the three documents and the code: the purpose, the decisions with their reasons (keeping "not recorded"), the invariants, each saying whether FEATURES.md enforces it, the verified commands, one line pointing at each of the other documents, the rules you chose by layer and tag with no rule text copied, and the definition of done. If the project has no README.md, write one using only commands that exited 0. If it has one, report every command in it that failed, and change nothing else in it.
 
-**Expect:** a charter that is mostly pointers and reasons. Rules are referenced, never restated.
+**Expect:** a charter that is mostly pointers and reasons. Rules are named, never restated.
 
 **Check:** give a fresh session `CLAUDE.md` alone, and ask what it could not rebuild. Then approve the milestones exactly as in [prompt 4 of the new-project path](#4-approve-the-milestones), commit everything together, and go to [Working through the milestones](#working-through-the-milestones).
 
-### Then: the project's own conventions, as rules
+### Then: the project's own conventions, as project rules
 
-The rule library covers what is general. What is particular to this project, such as how its errors are shaped, becomes a project rule. This can wait until the four documents are committed.
+The library covers what is general. What is particular to this project, such as how its errors are shaped, the model writes as a project rule. This can wait until the four documents are committed.
 
 **Prompt:**
 
-> List the conventions this code follows consistently that no installed rule covers, each with three examples (file and line) and every counterexample you find. For each one, give the `relearn new` command with `--home project=<name>`, `--origin codified` and `--incident "Observed convention: <three files>."`. Run nothing until I approve; then run them, the build and the gate.
+> List the conventions this code follows consistently that none of the rules you chose covers, each with three examples (file and line) and every counterexample you find. Show me the list; after I approve, write each one as a project rule with `relearn new`, `--origin codified` and `--incident "Observed convention: <three files>."`, then run the build and the gate.
 
 A convention with many counterexamples isn't a convention yet. It's a decision to make, so it goes to `TODO.md` as a question.
 
@@ -233,16 +197,13 @@ A hand-written `AGENTS.md` or `.github/copilot-instructions.md` is not overwritt
 error: ".\\.github/copilot-instructions.md" exists but was not generated by relearn (no generated-by marker); refusing to overwrite unversioned content
 ```
 
-Leave that target out of `--targets` until the file's rules have moved into `rules/`. Then remove the file with `git rm` and build. The same goes for a hand-written `CLAUDE.md` full of rules: each rule in it moves to `rules/` or is matched to an installed layer, and the charter keeps only what prompt 4 asks for.
+Leave that target out of `--targets` until the file's rules have moved: each is either covered by a rule in the library, or becomes a project rule. Then remove the file with `git rm` and build. A hand-written `CLAUDE.md` full of rules is treated the same way, and the charter keeps only what prompt 4 asks for.
 
 ### Guarding the set
 
-To keep a sixth standing document from appearing at the root, ask the assistant to add relearn's `five-root-documents` gate:
+To keep a sixth standing document from appearing at the root, ask the model to add relearn's `five-root-documents` gate from `repo-pack/gates/`, and run it:
 
 ```sh
-mkdir -p gates
-cp <relearn-checkout>/repo-pack/gates/five-root-documents.sh gates/
-printf '*.sh text eol=lf\n' >> .gitattributes     # keeps the script runnable on Windows checkouts
 bash gates/five-root-documents.sh .
 ```
 
@@ -260,7 +221,7 @@ It is a warning gate, so it still exits 0.
 
 ## Working through the milestones
 
-From here on, the assistant writes all the code. Your part is to approve each milestone's plan, read what the assistant reports, and run the **Check** lines. Every session still opens with [the load line](#start-every-session-with-this-line), and every prompt below starts from `TODO.md`.
+From here on, the assistant writes all the code. Your part is to approve each milestone's plan, read what the assistant reports, and run the **Check** lines. Every prompt below works under the rules the model chose, and starts from `TODO.md`.
 
 ### Start a milestone
 
