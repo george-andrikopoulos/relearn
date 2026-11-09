@@ -120,7 +120,7 @@ ok: no lint findings
 
 A bad answer chooses every layer "to be safe", or picks a layer by its name without reading it. A layer that names another project (`project-*`) is never right for yours.
 
-**Check:** ask *"Which of the rules you chose decides how a decisions-log row is written?"* The answer should be a tag, `R:decisions-log-records-rejected-alternatives`. A paraphrase with no tag means the rule wasn't read. `relearn budget --project . --user ~/.claude` then lists what a session in the project loads:
+**Check:** ask *"Which of the rules you chose decides how a decisions-log entry is written, and why does it say the rejected alternatives matter?"* The answer should name `R:decisions-log-records-rejected-alternatives` and give the rule's reason: the rejected alternatives tell the next reader why *their* idea was not taken. That reason is only in the rule's text. A tag with no reason, or a general answer about logging decisions, means the rule wasn't read. `relearn budget --project . --user ~/.claude` then lists what a session in the project loads:
 
 ```
 SHARE       CHARS  GENERATED                          PATH                                                 LOADS
@@ -136,7 +136,7 @@ project   244  project-orders-api                 project:.claude/rules/project-
 
 **Expect:** short documents. A new project's `FEATURES.md` is nearly empty, and its decisions log is your description turned into rows, with "not stated" wherever you gave no reason.
 
-**Check:** search `CLAUDE.md` for the title of one chosen rule. It should not be there, because the rule loads from its own layer. Then start a fresh session in the project and ask *"Which rule decides how a decisions-log row is written?"* before anything else. The answer should be the tag, and the session should have opened `domain-project-files` to find it. Finally, give a fresh session `CLAUDE.md` alone, and ask: *"What could you not rebuild from this file?"*
+**Check:** search `CLAUDE.md` for the title of one chosen rule. It should not be there, because the rule loads from its own layer. Then start a fresh session in the project and, before anything else, ask the same question as in prompt 2. The session should open the `domain-project-files` skill before it answers (its output shows the skill being opened), and the answer should give the rule's reason, not only its tag. The tag alone proves nothing: `CLAUDE.md` lists every chosen tag, so a session can name it without opening the rule. In relearn's own scratch run one did exactly that. Finally, give a fresh session `CLAUDE.md` alone, and ask: *"What could you not rebuild from this file?"*
 
 ### 4. Approve the milestones
 
@@ -190,7 +190,7 @@ The code already holds decisions, but nobody wrote down the rules it follows or 
 
 **Expect:** a charter that is mostly pointers and reasons. Rules are named, never restated.
 
-**Check:** start a fresh session and ask for the tag of the rule that decides how a decisions-log row is written, as in [prompt 3 of the new-project path](#3-write-the-five-documents). Then give a fresh session `CLAUDE.md` alone, and ask what it could not rebuild. Then approve the milestones exactly as in [prompt 4 of the new-project path](#4-approve-the-milestones), commit everything together, and go to [Working through the milestones](#working-through-the-milestones).
+**Check:** start a fresh session and ask which rule decides how a decisions-log entry is written, and why it says the rejected alternatives matter. Look for the skill being opened and the rule's reason, as in [prompt 3 of the new-project path](#3-write-the-five-documents). Then give a fresh session `CLAUDE.md` alone, and ask what it could not rebuild. Then approve the milestones exactly as in [prompt 4 of the new-project path](#4-approve-the-milestones), commit everything together, and go to [Working through the milestones](#working-through-the-milestones).
 
 ### Then: the project's own conventions, as project rules
 
@@ -439,7 +439,7 @@ None of them is rare. In this repository's own history, an assistant's report re
 | **Brochure prose.** *"A robust, scalable, production-ready service"* in `README.md` or `CLAUDE.md`. | Adjectives where facts should be. Nobody can rebuild anything from "robust". | "Replace every adjective with the fact behind it, or delete it." |
 | **Invented reasons.** *"PostgreSQL was chosen for its reliability"*, with no commit, comment or person behind it. | A plausible reason nobody can confirm. In the decisions log, it reads as what was known at the time. | "Write 'not recorded', and add a question for me." |
 | **Rule text copied into `CLAUDE.md`.** The type-driven rules restated in the charter. | A second copy with no source. It drifts from the installed layer, and loads twice. | "Name the layer, and delete the copied text." |
-| **Rules named but never opened.** `CLAUDE.md` lists `global` and `domain-project-files`, and a later session answers a question they decide without citing a tag. | A skill loads only when the model opens it. Naming it is not opening it. | "Open the skills `CLAUDE.md` names, then answer again with the tag." |
+| **Rules named but never opened.** `CLAUDE.md` lists `global` and `domain-project-files`, and a later session answers a question they decide without opening them: no tag, or a tag with none of the rule's reasoning. | A skill loads only when the model opens it. Naming it is not opening it, and `CLAUDE.md` already lists the tags. | "Open the skills `CLAUDE.md` names, then answer again." |
 | **Aspirations as features.** Planned work written up in `FEATURES.md` as if it shipped. | The contract now promises something that doesn't exist. | "Only what the code does today. Move the rest to `TODO.md`." |
 | **A test that doesn't test the feature.** `Enforced by:` names a test with a similar name. | It looks enforced and isn't. That is worse than `NOTHING YET`, because nobody will look. | "Break the feature, show this test failing, then restore it." |
 | **A command it never ran.** `README.md` lists `make test` because projects like this one usually have it. | The first reader who follows the README hits an error. | "Show the exit status of every command you wrote down." |
